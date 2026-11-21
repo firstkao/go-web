@@ -13,6 +13,12 @@ if ( function_exists('do_action') ) {
 }
 header('X-LiteSpeed-Cache-Control: no-cache');
 
+// Exception khusus untuk error VALIDASI yang pesannya memang ditujukan ke
+// pendaftar (duplikat email/slug, dll). Beda dari error teknis tak terduga:
+// pesan exception ini ditampilkan APA ADANYA ke user, bukan diganti pesan
+// generik "terjadi kendala teknis" oleh catch \Throwable di bawah.
+class GoWebUserFacingError extends \Exception {}
+
 $submitted_success = false;
 $submission_error = '';
 
@@ -71,7 +77,37 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_tenant_registr
         }
 
         global $wpdb;
-        $pending_table = goweb_get_table_names()['pending'];
+        $goweb_table_names = goweb_get_table_names();
+        $pending_table = $goweb_table_names['pending'];
+        $tenants_table = $goweb_table_names['tenants'];
+
+        // VALIDASI DUPLIKAT — sebelumnya gak ada cek sama sekali, jadi email
+        // atau slug yang sama bisa didaftarkan berkali-kali, dan pas login
+        // / lookup slug hasilnya jadi tidak deterministik (baris pertama
+        // yang ketemu).
+        $dup_tenant_email = $wpdb->get_var( $wpdb->prepare(
+            "SELECT COUNT(*) FROM {$tenants_table} WHERE LOWER(email) = LOWER(%s)", $admin_email
+        ) );
+        $dup_pending_email = $wpdb->get_var( $wpdb->prepare(
+            "SELECT COUNT(*) FROM {$pending_table} WHERE LOWER(email) = LOWER(%s)", $admin_email
+        ) );
+        if ( intval( $dup_tenant_email ) > 0 ) {
+            throw new GoWebUserFacingError( 'Email ini sudah terdaftar sebagai tenant aktif. Gunakan email lain atau login langsung.' );
+        }
+        if ( intval( $dup_pending_email ) > 0 ) {
+            throw new GoWebUserFacingError( 'Email ini sudah ada di antrean pendaftaran dan sedang menunggu verifikasi. Mohon tunggu proses selesai.' );
+        }
+
+        $dup_tenant_slug = $wpdb->get_var( $wpdb->prepare(
+            "SELECT COUNT(*) FROM {$tenants_table} WHERE slug = %s", $store_slug
+        ) );
+        $dup_pending_slug = $wpdb->get_var( $wpdb->prepare(
+            "SELECT COUNT(*) FROM {$pending_table} WHERE slug = %s", $store_slug
+        ) );
+        if ( intval( $dup_tenant_slug ) > 0 || intval( $dup_pending_slug ) > 0 ) {
+            throw new GoWebUserFacingError( 'URL web "' . $store_slug . '" sudah dipakai toko lain. Silakan pilih nama URL yang berbeda.' );
+        }
+
         $reg_id = 'req_' . time();
 
         $insert_result = $wpdb->insert( $pending_table, array(
@@ -97,10 +133,14 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_tenant_registr
             $submitted_success = true;
         }
     } catch ( \Throwable $e ) {
-        // Tetap dicatat ke error log server (buat developer), tapi
-        // pengunjung cuma lihat pesan ramah, bukan detail teknis/stack trace.
+        // Error validasi (duplikat email/slug, dll) — pesannya memang ditulis
+        // buat pendaftar, tampilkan APA ADANYA. Error teknis tak terduga —
+        // catat ke error log server (buat developer) dan tampilkan pesan
+        // generik, bukan detail teknis/stack trace.
         error_log( 'GO-WEB registration error: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine() );
-        $submission_error = 'Terjadi kendala teknis saat memproses pendaftaran. Silakan coba lagi beberapa saat, atau hubungi @first_kao di Twitter kalau masalah berlanjut.';
+        $submission_error = ( $e instanceof GoWebUserFacingError )
+            ? $e->getMessage()
+            : 'Terjadi kendala teknis saat memproses pendaftaran. Silakan coba lagi beberapa saat, atau hubungi @first_kao di Twitter kalau masalah berlanjut.';
     }
 }
 ?>

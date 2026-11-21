@@ -22,9 +22,15 @@ $payment_category_options = goweb_get_tenant_setting( $store_id, 'payment_catego
             <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
                 <span style="font-size: 13px; font-weight: 800; color: var(--slate-700, #334155);">📅 Filter Siklus Diagnosa:</span>
                 <select id="diag-select-year" class="year-select" onchange="changeDiagCycle()" style="padding: 6px 12px; border: 1.5px solid var(--border-soft, #e2e8f0); border-radius: 8px; font-weight: 700; font-size: 12.5px; background: #fff; outline: none;">
-                    <option value="2026">2026</option>
-                    <option value="2027">2027</option>
-                    <option value="2028">2028</option>
+                    <?php
+                    // Tahun digenerate dinamis (2 tahun ke belakang s/d 2 tahun ke
+                    // depan dari tahun sekarang) — sebelumnya hardcode 2026-2028,
+                    // bikin data di tahun lain (mis. 2025) gak PERNAH muncul di
+                    // tabel karena filter siklusnya gak bisa dipilih.
+                    foreach ( range( intval( date('Y') ) - 2, intval( date('Y') ) + 2 ) as $diag_year_opt ):
+                        $diag_year_opt = (string) $diag_year_opt; ?>
+                        <option value="<?php echo esc_attr($diag_year_opt); ?>" <?php selected($diag_year_opt, date('Y')); ?>><?php echo esc_html($diag_year_opt); ?></option>
+                    <?php endforeach; ?>
                 </select>
                 <select id="diag-select-month" class="cycle-select" onchange="changeDiagCycle()" style="padding: 6px 12px; border: 1.5px solid var(--border-soft, #e2e8f0); border-radius: 8px; font-weight: 700; font-size: 12.5px; background: #fff; outline: none;">
                     <option value="1">Januari</option>
@@ -140,8 +146,17 @@ $payment_category_options = goweb_get_tenant_setting( $store_id, 'payment_catego
         // Data order buat autocomplete "Pilih PO/Order" — search-typing,
         // bukan dropdown biasa, biar gak annoying kalau order-nya udah banyak.
         const GOWEB_ORDERS_LIST = <?php echo wp_json_encode( array_map( function( $ord ) {
-            return array( 'id' => $ord['id'], 'label' => $ord['batch'] . ' — ' . $ord['buyer_name'] );
+            return array( 'id' => intval( $ord['id'] ), 'label' => $ord['batch'] . ' — ' . $ord['buyer_name'] );
         }, $tenant_orders_rows ) ); ?>;
+
+        // Proteksi XSS: label (nama PO + nama customer) diketik tenant, tapi
+        // halaman ini bisa dibuka Super Admin via ?store= — jadi jangan
+        // masukkan mentah ke innerHTML. Escape sebelum dirender.
+        function escHtml(v) {
+            return String(v == null ? '' : v).replace(/[&<>"']/g, function(c) {
+                return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
+            });
+        }
 
         const searchInput = document.getElementById('inv_order_search');
         const hiddenInput = document.getElementById('inv_order_id_hidden');
@@ -153,7 +168,7 @@ $payment_category_options = goweb_get_tenant_setting( $store_id, 'payment_catego
                 suggestionsBox.innerHTML = '<div style="padding:12px 14px; color:#94a3b8; font-size:13px;">Gak ada PO/order yang cocok.</div>';
             } else {
                 suggestionsBox.innerHTML = list.map(o =>
-                    `<div class="inv-suggestion-item" data-id="${o.id}" data-label="${o.label.replace(/"/g, '&quot;')}" style="padding:10px 14px; cursor:pointer; font-size:13.5px; font-weight:600; border-bottom:1px solid #f1f5f9;">${o.label}</div>`
+                    `<div class="inv-suggestion-item" data-id="${o.id}" data-label="${escHtml(o.label)}" style="padding:10px 14px; cursor:pointer; font-size:13.5px; font-weight:600; border-bottom:1px solid #f1f5f9;">${escHtml(o.label)}</div>`
                 ).join('');
             }
             suggestionsBox.style.display = 'block';

@@ -40,10 +40,29 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' ) {
         $req = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$pending_table} WHERE request_id = %s", $req_id ), ARRAY_A );
         if ( $req ) {
 
+            // CEK ULANG DUPLIKAT saat approve — antrean bisa nunggu berhari-hari,
+            // dan di selang itu tenant lain bisa saja sudah merebut email/slug
+            // yang sama. Tanpa cek ini, bisa tercipta 2 tenant dengan slug/email
+            // identik (lookup jadi tidak deterministik).
+            $dup_email_at_approve = $wpdb->get_var( $wpdb->prepare(
+                "SELECT COUNT(*) FROM {$tenants_table} WHERE LOWER(email) = LOWER(%s)", $req['email']
+            ) );
+            $dup_slug_at_approve = $wpdb->get_var( $wpdb->prepare(
+                "SELECT COUNT(*) FROM {$tenants_table} WHERE slug = %s", $req['slug']
+            ) );
+            if ( intval( $dup_email_at_approve ) > 0 || intval( $dup_slug_at_approve ) > 0 ) {
+                echo '<div style="background:#fef2f2; color:#991b1b; padding:12px 24px; text-align:center; font-weight:700; margin-bottom:20px;">Gagal approve: email atau slug "' . esc_html( $req['slug'] ) . '" sudah dipakai tenant aktif lain. Tolak pendaftaran ini dan minta pendaftar mendaftar ulang dengan data yang berbeda.</div>';
+            } else {
+
             // Tenant TIDAK dibuatkan akun WordPress (wp_users). Password sudah
             // di-hash di register.php (wp_hash_password) dan tinggal disalin ke
             // record tenant. Login diverifikasi lewat goweb_tenant_login() di
             // functions.php (wp_check_password), bukan wp_signon().
+            // DEFINISIKAN paket dulu SEBELUM insert — sebelumnya variabel ini
+            // dipakai di kolom cycle_daily_rate padahal baru didefinisikan
+            // SETELAH insert tenants, akibatnya cycle_daily_rate selalu 0
+            // buat setiap tenant baru.
+            $approved_package = goweb_get_package( ! empty($req['package_key']) ? $req['package_key'] : 'starter' );
             $new_tenant_id = 'tenant_' . time();
             $req_features = ! empty( $req['features'] ) ? json_decode( $req['features'], true ) : array('calculator', 'public_calc', 'customer_payment', 'po_recap', 'tagihan_recap', 'warehouse');
 
@@ -66,7 +85,6 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' ) {
             ) );
 
             // Simpan riwayat pembayaran awal sewa
-            $approved_package = goweb_get_package( ! empty($req['package_key']) ? $req['package_key'] : 'starter' );
             $payments_table = $goweb_tables['payments'];
             $wpdb->insert( $payments_table, array(
                 'store_id'         => $new_tenant_id,
@@ -85,6 +103,7 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' ) {
             $wpdb->delete( $pending_table, array( 'request_id' => $req_id ) );
 
             echo '<div style="background:#ecfdf5; color:#059669; padding:12px 24px; text-align:center; font-weight:700; margin-bottom:20px;">Tenant ' . esc_html($req['store_name']) . ' berhasil disetujui dan diaktifkan!</div>';
+            } // akhir else cek duplikat
         }
     }
 
@@ -110,6 +129,37 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' ) {
                 'features'   => wp_json_encode( isset($_POST['edit_features']) ? $_POST['edit_features'] : array() ),
             ), array( 'tenant_id' => $t_id ) );
             echo '<div style="background:#ecfdf5; color:#059669; padding:12px 24px; text-align:center; font-weight:700; margin-bottom:20px;">Data tenant berhasil diperbarui!</div>';
+        }
+    }
+
+    // 2B. Hapus Tenant Manual beserta SELURUH datanya (tombol trash di daftar
+    // tenant). SEBELUMNYA tombol ini gak punya handler sama sekali — submit
+    // cuma reload halaman tanpa efek, padahal konfirmasi JS-nya muncul.
+    if ( isset($_POST['delete_tenant']) ) {
+        $t_id = sanitize_text_field($_POST['delete_tenant_id']);
+        $tenant_to_delete = $wpdb->get_row( $wpdb->prepare(
+            "SELECT * FROM {$tenants_table} WHERE tenant_id = %s", $t_id
+        ), ARRAY_A );
+        if ( $tenant_to_delete ) {
+            // Catat dulu ke log penghapusan (format sama kayak cron retensi
+            // otomatis di functions.php), baru hapus datanya.
+            $manual_deleted_log = get_option( 'goweb_deleted_tenants_log', array() );
+            $manual_deleted_log[] = array(
+                'tenant_id'  => $t_id,
+                'store_name' => isset($tenant_to_delete['store_name']) ? $tenant_to_delete['store_name'] : '',
+                'email'      => isset($tenant_to_delete['email']) ? $tenant_to_delete['email'] : '',
+                'reason'     => 'Dihapus manual oleh Super Admin',
+                'deleted_at' => date( 'Y-m-d H:i:s' ),
+            );
+            if ( count( $manual_deleted_log ) > 500 ) {
+                $manual_deleted_log = array_slice( $manual_deleted_log, -500 );
+            }
+            update_option( 'goweb_deleted_tenants_log', $manual_deleted_log );
+
+            goweb_delete_tenant_completely( $t_id );
+            echo '<div style="background:#ecfdf5; color:#059669; padding:12px 24px; text-align:center; font-weight:700; margin-bottom:20px;">Tenant ' . esc_html( $tenant_to_delete['store_name'] ) . ' beserta seluruh datanya berhasil dihapus permanen.</div>';
+        } else {
+            echo '<div style="background:#fef2f2; color:#991b1b; padding:12px 24px; text-align:center; font-weight:700; margin-bottom:20px;">Tenant tidak ditemukan — mungkin sudah terhapus sebelumnya.</div>';
         }
     }
 

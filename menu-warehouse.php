@@ -398,8 +398,17 @@ if (!$has_wh) {
 
         // Autocomplete JS
         const GOWEB_ORDERS_LIST = <?php echo wp_json_encode( array_map( function( $ord ) {
-            return array( 'id' => $ord['id'], 'label' => $ord['batch'] . ' — ' .$ord['buyer_name'] );
+            return array( 'id' => intval( $ord['id'] ), 'label' => $ord['batch'] . ' — ' .$ord['buyer_name'] );
         }, $tenant_orders_rows ) ); ?>;
+
+        // Proteksi XSS: label (nama PO + nama customer) diketik tenant, tapi
+        // halaman ini bisa dibuka Super Admin via ?store= — jadi jangan
+        // masukkan mentah ke innerHTML. Escape sebelum dirender.
+        function escHtml(v) {
+            return String(v == null ? '' : v).replace(/[&<>"']/g, function(c) {
+                return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
+            });
+        }
         const searchInput = document.getElementById('wh_order_search');
         const hiddenInput = document.getElementById('wh_order_id_hidden');
         const suggestionsBox = document.getElementById('wh_order_suggestions');
@@ -410,7 +419,7 @@ if (!$has_wh) {
                     suggestionsBox.innerHTML = '<div style="padding:12px 14px; color:#94a3b8; font-size:13px;">Gak ada PO/order yang cocok.</div>';
                 } else {
                     suggestionsBox.innerHTML = list.map(o =>
-                        `<div class="wh-suggestion-item" data-id="${o.id}" data-label="${o.label.replace(/"/g, '&quot;')}" style="padding:10px 14px; cursor:pointer; font-size:13.5px; font-weight:600; border-bottom:1px solid #f1f5f9;">${o.label}</div>`
+                        `<div class="wh-suggestion-item" data-id="${o.id}" data-label="${escHtml(o.label)}" style="padding:10px 14px; cursor:pointer; font-size:13.5px; font-weight:600; border-bottom:1px solid #f1f5f9;">${escHtml(o.label)}</div>`
                     ).join('');
                 }
                 suggestionsBox.style.display = 'block';

@@ -154,6 +154,13 @@ if ( $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['goweb_po_nonce']) ) 
     if ( ! wp_verify_nonce($_POST['goweb_po_nonce'], 'goweb_po_action_' . $store_id) ) {
         wp_die('Sesi tidak valid atau kedaluwarsa. Silakan muat ulang halaman dan coba lagi.');
     }
+    // Server-side gating fitur — menu sidebar cuma di-disable via CSS, jadi
+    // tanpa cek ini tenant tanpa fitur PO tetap bisa kirim POST langsung ke
+    // /dashboard/po/ dan datanya tetap kesimpen. Guard di menu-po.php doang
+    // gak cukup (handler ini jalan SEBELUM menu di-include).
+    if ( ! $has_po ) {
+        wp_die('Akses ditolak. Fitur Rekapan PO tidak aktif untuk toko ini. Hubungi Super Admin kalau ingin mengaktifkannya.');
+    }
 
     if ( isset($_POST['action_add_order']) ) {
         $po_date = isset($_POST['po_date']) ? sanitize_text_field($_POST['po_date']) : '';
@@ -194,6 +201,10 @@ $invoices_table = $goweb_tables['invoices'];
 if ( $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['goweb_invoice_nonce']) ) {
     if ( ! wp_verify_nonce($_POST['goweb_invoice_nonce'], 'goweb_invoice_action_' . $store_id) ) {
         wp_die('Sesi tidak valid atau kedaluwarsa. Silakan muat ulang halaman dan coba lagi.');
+    }
+    // Server-side gating fitur (lihat catatan di handler PO di atas).
+    if ( ! $has_tagihan ) {
+        wp_die('Akses ditolak. Fitur Rekapan Tagihan tidak aktif untuk toko ini. Hubungi Super Admin kalau ingin mengaktifkannya.');
     }
 
     if ( isset($_POST['action_add_invoice']) ) {
@@ -250,6 +261,10 @@ $box_statuses = goweb_get_tenant_setting( $store_id, 'box_statuses', goweb_get_d
 if ( $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['goweb_wh_nonce']) ) {
     if ( ! wp_verify_nonce($_POST['goweb_wh_nonce'], 'goweb_wh_action_' . $store_id) ) {
         wp_die('Sesi tidak valid atau kedaluwarsa. Silakan muat ulang halaman dan coba lagi.');
+    }
+    // Server-side gating fitur (lihat catatan di handler PO di atas).
+    if ( ! $has_wh ) {
+        wp_die('Akses ditolak. Fitur Database Warehouse tidak aktif untuk toko ini. Hubungi Super Admin kalau ingin mengaktifkannya.');
     }
 
     if ( isset($_POST['action_add_warehouse']) ) {
@@ -406,6 +421,10 @@ if ( $dash_index !== false && isset( $path_segments[$dash_index + 1] ) ) {
 if ( $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['goweb_payment_action']) && isset($_POST['index']) ) {
     if ( ! isset($_POST['goweb_payment_nonce']) || ! wp_verify_nonce($_POST['goweb_payment_nonce'], 'goweb_payment_action_' . $store_id) ) {
         wp_die('Sesi tidak valid atau kedaluwarsa. Silakan muat ulang halaman dan coba lagi.');
+    }
+    // Server-side gating fitur (lihat catatan di handler PO di atas).
+    if ( ! $has_payment ) {
+        wp_die('Akses ditolak. Fitur Konfirmasi Pembayaran Pelanggan tidak aktif untuk toko ini. Hubungi Super Admin kalau ingin mengaktifkannya.');
     }
     // CATATAN: field 'index' sekarang berisi ID baris asli dari tabel
     // wp_goweb_payments (dulu: index array di wp_options). WHERE store_id

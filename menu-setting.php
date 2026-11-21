@@ -8,8 +8,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ( ! isset($_POST['goweb_setting_nonce']) || ! wp_verify_nonce($_POST['goweb_setting_nonce'], 'goweb_setting_action_' . $store_id) ) {
         wp_die('Sesi tidak valid atau kedaluwarsa. Silakan muat ulang halaman dan coba lagi.');
     }
+    // Server-side gating fitur — kondisi sama dengan kondisi render kartu
+    // pengaturan masing-masing di bawah. Tanpa ini, tenant bisa kirim POST
+    // langsung ke /dashboard/setting/ walau fitur terkait gak dia punya.
     // Simpan Kurs (Ditambah THB)
     if (isset($_POST['action_save_rates'])) {
+        if ( ! $has_public_calc ) {
+            wp_die('Akses ditolak. Fitur Kalkulator Publik tidak aktif untuk toko ini.');
+        }
         $new_rates = array(
             'CNY' => floatval($_POST['rate_cny']),
             'JPY' => floatval($_POST['rate_jpy']),
@@ -26,6 +32,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Simpan Status Order Kustom
     if (isset($_POST['action_save_statuses'])) {
+        if ( ! $has_po ) {
+            wp_die('Akses ditolak. Fitur Rekapan PO tidak aktif untuk toko ini.');
+        }
         $raw_statuses = isset($_POST['custom_statuses']) ? $_POST['custom_statuses'] : array();
         $cleaned_statuses = array_map('sanitize_text_field', array_filter($raw_statuses));
         
@@ -38,6 +47,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Simpan Kargo & Pajak per Mata Uang + Packing Fee
     if (isset($_POST['action_save_cargo'])) {
+        if ( ! $has_public_calc ) {
+            wp_die('Akses ditolak. Fitur Kalkulator Publik tidak aktif untuk toko ini.');
+        }
         $currency_codes = array('CNY', 'JPY', 'THB', 'KRW', 'USD');
         $currency_cargo = array();
         foreach ( $currency_codes as $code ) {
@@ -60,6 +72,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Konfirmasi Pembayaran publik (Jenis Pembayaran) DAN Rekapan Tagihan
     // (Jenis Tagihan), biar 1 sumber yang sama gak perlu diubah 2 tempat.
     if (isset($_POST['action_save_payment_categories'])) {
+        if ( ! $has_payment && ! $has_tagihan ) {
+            wp_die('Akses ditolak. Fitur Konfirmasi Bayar/Rekapan Tagihan tidak aktif untuk toko ini.');
+        }
         $raw_cats = isset($_POST['payment_categories']) ? $_POST['payment_categories'] : array();
         $cleaned_cats = array_map('sanitize_text_field', array_filter($raw_cats));
 
@@ -72,6 +87,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Simpan Pengaturan Warehouse (mode link ke PO + daftar status)
     if (isset($_POST['action_save_wh_settings'])) {
+        if ( ! $has_wh ) {
+            wp_die('Akses ditolak. Fitur Database Warehouse tidak aktif untuk toko ini.');
+        }
         $wh_link_mode = ( isset($_POST['wh_link_mode']) && $_POST['wh_link_mode'] === 'linked' ) ? 'linked' : 'free';
         goweb_set_tenant_setting( $store_id, 'wh_link_mode', $wh_link_mode );
 

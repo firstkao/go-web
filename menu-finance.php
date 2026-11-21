@@ -19,9 +19,16 @@ if (!defined('ABSPATH')) exit;
         <div class="cycle-left">
             <span class="cycle-title-label">📅 Siklus Aktif:</span>
             <select id="select-year" class="year-select" onchange="changeYearCycle(this.value)">
-                <option value="2026" <?php echo ($current_real_year == '2026') ? 'selected' : ''; ?>>2026</option>
-                <option value="2027" <?php echo ($current_real_year == '2027') ? 'selected' : ''; ?>>2027</option>
-                <option value="2028" <?php echo ($current_real_year == '2028') ? 'selected' : ''; ?>>2028</option>
+                <?php
+                // Tahun digenerate dinamis (2 tahun ke belakang s/d 2 tahun ke
+                // depan dari tahun berjalan) — sebelumnya hardcode 2026-2028,
+                // dropdown jadi blank di tahun lain & user bisa salah paham
+                // datanya "hilang" (filter-nya sendiri kebetulan masih jalan
+                // via variabel PHP, tapi UI-nya gak bisa dipercaya).
+                foreach ( range( intval( $current_real_year ) - 2, intval( $current_real_year ) + 2 ) as $fin_year_opt ):
+                    $fin_year_opt = (string) $fin_year_opt; ?>
+                    <option value="<?php echo esc_attr($fin_year_opt); ?>" <?php selected($fin_year_opt, $current_real_year); ?>><?php echo esc_html($fin_year_opt); ?></option>
+                <?php endforeach; ?>
             </select>
             <select id="select-month" class="cycle-select" onchange="changeMonthCycle(this.value)">
                 <option value="1" <?php echo ($current_real_month == 1) ? 'selected' : ''; ?>>Januari</option>

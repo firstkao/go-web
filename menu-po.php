@@ -1,5 +1,9 @@
 <?php
 if (!defined('ABSPATH')) exit;
+if (!$has_po) {
+    echo '<div style="background: #fef2f2; color: #991b1b; padding: 20px; border-radius: 8px; font-weight: 700;">Akses ditutup! Modul Rekapan PO dinonaktifkan.</div>';
+    return;
+}
 
 $active_custom_statuses = goweb_get_tenant_setting( $store_id, 'custom_statuses', array("Antrean", "On Process", "Arrived WH", "Shipped Indo", "Done") );
 $active_rates = goweb_get_tenant_setting( $store_id, 'rates', array('CNY' => 2450, 'JPY' => 110, 'THB' => 460, 'KRW' => 12, 'USD' => 16200) );
@@ -15,9 +19,15 @@ $active_rates = goweb_get_tenant_setting( $store_id, 'rates', array('CNY' => 245
         <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
             <span style="font-size: 13px; font-weight: 800; color: var(--slate-700, #334155);">📅 Filter Siklus:</span>
             <select id="diag-select-year" class="year-select" onchange="changeDiagCycle()" style="padding: 6px 12px; border: 1.5px solid var(--border-soft, #e2e8f0); border-radius: 8px; font-weight: 700; font-size: 12.5px; background: #fff; outline: none;">
-                <option value="2026">2026</option>
-                <option value="2027">2027</option>
-                <option value="2028">2028</option>
+                <?php
+                // Tahun digenerate dinamis (2 tahun ke belakang s/d 2 tahun ke
+                // depan dari tahun sekarang) — sebelumnya hardcode 2026-2028,
+                // bikin data di tahun lain (mis. 2025) gak PERNAH muncul di
+                // tabel karena filter siklusnya gak bisa dipilih.
+                foreach ( range( intval( date('Y') ) - 2, intval( date('Y') ) + 2 ) as $diag_year_opt ):
+                    $diag_year_opt = (string) $diag_year_opt; ?>
+                    <option value="<?php echo esc_attr($diag_year_opt); ?>" <?php selected($diag_year_opt, date('Y')); ?>><?php echo esc_html($diag_year_opt); ?></option>
+                <?php endforeach; ?>
             </select>
             <select id="diag-select-month" class="cycle-select" onchange="changeDiagCycle()" style="padding: 6px 12px; border: 1.5px solid var(--border-soft, #e2e8f0); border-radius: 8px; font-weight: 700; font-size: 12.5px; background: #fff; outline: none;">
                 <option value="1">Januari</option>
@@ -192,7 +202,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // kosong yang cuma hidup di memori browser, ilang tiap reload.
     let orders = <?php echo wp_json_encode( array_map( function( $o ) {
         return array(
-            'uid'    => $o['id'],
+            'uid'    => intval( $o['id'] ),
             'date'   => date( 'Y-m-d', strtotime( $o['created_at'] ) ),
             'batch'  => $o['batch'],
             'name'   => $o['buyer_name'],
@@ -203,6 +213,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const GOWEB_PO_NONCE = <?php echo wp_json_encode( wp_create_nonce('goweb_po_action_' . $store_id) ); ?>;
     const GOWEB_PO_ACTION_URL = <?php echo wp_json_encode( home_url('/dashboard/po/') . $store_query_suffix ); ?>;
+
+    // Proteksi XSS: data order (nama PO, customer, detail item, status) itu
+    // diketik tenant, tapi halaman ini juga bisa dibuka SUPER ADMIN yang
+    // sedang intip dashboard tenant lewat ?store= — jadi teks tenant gak
+    // boleh masuk ke innerHTML mentah. Escape semua interpolasi sebelum
+    // dirender.
+    function escHtml(v) {
+        return String(v == null ? '' : v).replace(/[&<>"']/g, function(c) {
+            return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
+        });
+    }
 
     function submitPoAction( fields ) {
         const form = document.createElement('form');
@@ -329,15 +350,16 @@ document.addEventListener('DOMContentLoaded', () => {
         pageRows.forEach(o => {
             let optionsHTML = '';
             dbStatuses.forEach(st => {
-                optionsHTML += `<option value="${st}" ${o.status === st ? 'selected' : ''}>${st}</option>`;
+                const stEsc = escHtml(st);
+                optionsHTML += `<option value="${stEsc}" ${o.status === st ? 'selected' : ''}>${stEsc}</option>`;
             });
 
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td style="font-weight: 700; color: var(--slate-600, #475569); font-size: 13px; white-space: nowrap;">📅 ${getFormattedMonth(o.date)}</td>
-                <td><span class="badge-type" style="background: #e0f2fe; color: #0369a1; padding: 4px 10px; border-radius: 8px; font-weight: 800; font-size: 11.5px; border: 1px solid #bae6fd; display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${o.batch}">${o.batch}</span></td>
-                <td style="font-weight: 700; word-break: break-word; overflow-wrap: break-word; white-space: normal; max-width: 140px;">${o.name}</td>
-                <td style="word-break: break-word; overflow-wrap: break-word; white-space: normal; max-width: 300px; line-height: 1.4; color: var(--slate-700, #334155);">${o.item}</td>
+                <td><span class="badge-type" style="background: #e0f2fe; color: #0369a1; padding: 4px 10px; border-radius: 8px; font-weight: 800; font-size: 11.5px; border: 1px solid #bae6fd; display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escHtml(o.batch)}">${escHtml(o.batch)}</span></td>
+                <td style="font-weight: 700; word-break: break-word; overflow-wrap: break-word; white-space: normal; max-width: 140px;">${escHtml(o.name)}</td>
+                <td style="word-break: break-word; overflow-wrap: break-word; white-space: normal; max-width: 300px; line-height: 1.4; color: var(--slate-700, #334155);">${escHtml(o.item)}</td>
                 <td>
                     <select class="inline-select-status" onchange="changeOrderStatus('${o.uid}', this.value)" style="font-family: inherit; font-size: 11.5px; font-weight: 800; padding: 6px 12px; border-radius: 999px; border: 1px solid #cbd5e1; outline: none; cursor: pointer; text-transform: uppercase; background: #fef3c7; color: #b45309;">
                         ${optionsHTML}
