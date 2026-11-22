@@ -24,6 +24,10 @@ $goweb_tables  = goweb_get_table_names();
 $tenants_table = $goweb_tables['tenants'];
 $pending_table = $goweb_tables['pending'];
 
+// Daftar fitur yang dikenal sistem (whitelist edit tenant #19). Sama dengan
+// yang dirender di checkbox modal edit & yang dikirim form registrasi.
+$goweb_known_features = array('calculator', 'public_calc', 'customer_payment', 'po_recap', 'tagihan_recap', 'warehouse');
+
 $pending_requests = $wpdb->get_results( "SELECT * FROM {$pending_table} ORDER BY created_at DESC", ARRAY_A );
 
 // Handler Aksi Super Admin
@@ -51,7 +55,7 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' ) {
                 "SELECT COUNT(*) FROM {$tenants_table} WHERE slug = %s", $req['slug']
             ) );
             if ( intval( $dup_email_at_approve ) > 0 || intval( $dup_slug_at_approve ) > 0 ) {
-                echo '<div style="background:#fef2f2; color:#991b1b; padding:12px 24px; text-align:center; font-weight:700; margin-bottom:20px;">Gagal approve: email atau slug "' . esc_html( $req['slug'] ) . '" sudah dipakai tenant aktif lain. Tolak pendaftaran ini dan minta pendaftar mendaftar ulang dengan data yang berbeda.</div>';
+                echo '<div class="alert-box center alert-error">Gagal approve: email atau slug "' . esc_html( $req['slug'] ) . '" sudah dipakai tenant aktif lain. Tolak pendaftaran ini dan minta pendaftar mendaftar ulang dengan data yang berbeda.</div>';
             } else {
 
             // Tenant TIDAK dibuatkan akun WordPress (wp_users). Password sudah
@@ -95,7 +99,7 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' ) {
             ) );
 
             if ( $inserted_tenant === false ) {
-                echo '<div style="background:#fef2f2; color:#991b1b; padding:12px 24px; text-align:center; font-weight:700; margin-bottom:20px;">GAGAL menyimpan tenant baru ke database. Pendaftaran MASIH di antrean — periksa error log lalu coba approve ulang.</div>';
+                echo '<div class="alert-box center alert-error">GAGAL menyimpan tenant baru ke database. Pendaftaran MASIH di antrean — periksa error log lalu coba approve ulang.</div>';
             } else {
 
             // Simpan riwayat pembayaran awal sewa
@@ -116,7 +120,7 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' ) {
             // Hapus dari antrean pending
             $wpdb->delete( $pending_table, array( 'request_id' => $req_id ) );
 
-            echo '<div style="background:#ecfdf5; color:#059669; padding:12px 24px; text-align:center; font-weight:700; margin-bottom:20px;">Tenant ' . esc_html($req['store_name']) . ' berhasil disetujui dan diaktifkan!</div>';
+            echo '<div class="alert-box center alert-success">Tenant ' . esc_html($req['store_name']) . ' berhasil disetujui dan diaktifkan!</div>';
             } // akhir if insert tenant berhasil
             } // akhir else cek duplikat
         }
@@ -133,7 +137,7 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' ) {
         }
         $deleted = $wpdb->delete( $pending_table, array( 'request_id' => $req_id ) );
         if ( $deleted ) {
-            echo '<div style="background:#fef2f2; color:#991b1b; padding:12px 24px; text-align:center; font-weight:700; margin-bottom:20px;">Pendaftaran tenant ditolak dan dihapus.</div>';
+            echo '<div class="alert-box center alert-error">Pendaftaran tenant ditolak dan dihapus.</div>';
         }
     }
 
@@ -142,14 +146,37 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' ) {
         $t_id = sanitize_text_field($_POST['edit_tenant_id']);
         $exists = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$tenants_table} WHERE tenant_id = %s", $t_id ) );
         if ( $exists ) {
+            $edit_email = sanitize_email($_POST['edit_email']);
+            $edit_status = sanitize_text_field($_POST['edit_status']);
+            $edit_features = isset($_POST['edit_features']) && is_array($_POST['edit_features'])
+                ? array_values( array_intersect( array_map('sanitize_text_field', $_POST['edit_features']), $goweb_known_features ) )
+                : array();
+
+            // Email harus unik di antara tenant LAIN — dulu gak dicek, jadi 2
+            // tenant bisa punya email sama. Login lookup pakai
+            // "WHERE LOWER(email)=..." dan ambil baris PERTAMA, jadi hasilnya
+            // bisa nyasar ke akun yang salah (#19).
+            $dup_email_on_edit = $wpdb->get_var( $wpdb->prepare(
+                "SELECT COUNT(*) FROM {$tenants_table} WHERE LOWER(email) = LOWER(%s) AND tenant_id != %s", $edit_email, $t_id
+            ) );
+            if ( intval( $dup_email_on_edit ) > 0 ) {
+                wp_die('Gagal menyimpan: email "' . esc_html( $edit_email ) . '" sudah dipakai tenant lain. Login tenant dicari lewat email, jadi email tidak boleh duplikat.');
+            }
+            // Status harus dari daftar yang dikenal — dulu free-text dari POST,
+            // cukup bikin status "ngawur" yang gak dikenali cek
+            // "status === 'Active'" di mana-mana (toko bricked).
+            if ( ! in_array( $edit_status, array('Active', 'Offline'), true ) ) {
+                wp_die('Status toko tidak valid. Gunakan Active atau Offline.');
+            }
+
             $wpdb->update( $tenants_table, array(
                 'store_name' => sanitize_text_field($_POST['edit_store_name']),
                 'admin_name' => sanitize_text_field($_POST['edit_admin_name']),
-                'email'      => sanitize_email($_POST['edit_email']),
-                'status'     => sanitize_text_field($_POST['edit_status']),
-                'features'   => wp_json_encode( isset($_POST['edit_features']) ? $_POST['edit_features'] : array() ),
+                'email'      => $edit_email,
+                'status'     => $edit_status,
+                'features'   => wp_json_encode( $edit_features ),
             ), array( 'tenant_id' => $t_id ) );
-            echo '<div style="background:#ecfdf5; color:#059669; padding:12px 24px; text-align:center; font-weight:700; margin-bottom:20px;">Data tenant berhasil diperbarui!</div>';
+            echo '<div class="alert-box center alert-success">Data tenant berhasil diperbarui!</div>';
         }
     }
 
@@ -178,9 +205,9 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' ) {
             update_option( 'goweb_deleted_tenants_log', $manual_deleted_log );
 
             goweb_delete_tenant_completely( $t_id );
-            echo '<div style="background:#ecfdf5; color:#059669; padding:12px 24px; text-align:center; font-weight:700; margin-bottom:20px;">Tenant ' . esc_html( $tenant_to_delete['store_name'] ) . ' beserta seluruh datanya berhasil dihapus permanen.</div>';
+            echo '<div class="alert-box center alert-success">Tenant ' . esc_html( $tenant_to_delete['store_name'] ) . ' beserta seluruh datanya berhasil dihapus permanen.</div>';
         } else {
-            echo '<div style="background:#fef2f2; color:#991b1b; padding:12px 24px; text-align:center; font-weight:700; margin-bottom:20px;">Tenant tidak ditemukan — mungkin sudah terhapus sebelumnya.</div>';
+            echo '<div class="alert-box center alert-error">Tenant tidak ditemukan — mungkin sudah terhapus sebelumnya.</div>';
         }
     }
 
@@ -234,7 +261,7 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' ) {
                 ), ARRAY_A );
 
                 if ( ! $tenant_row_renew ) {
-                    echo '<div style="background:#fef2f2; color:#991b1b; padding:12px 24px; text-align:center; font-weight:700; margin-bottom:20px;">Tenant terkait sudah tidak ada di sistem.</div>';
+                    echo '<div class="alert-box center alert-error">Tenant terkait sudah tidak ada di sistem.</div>';
                 } else {
                     // Downgrade gak didukung sama sekali (keputusan produk) — UI
                     // tenant udah gak nampilin opsi downgrade, tapi ini proteksi
@@ -249,7 +276,7 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' ) {
                     }
 
                     if ( $blocked_downgrade ) {
-                        echo '<div style="background:#fef2f2; color:#991b1b; padding:12px 24px; text-align:center; font-weight:700; margin-bottom:20px;">Gagal diverifikasi: downgrade paket tidak didukung.</div>';
+                        echo '<div class="alert-box center alert-error">Gagal diverifikasi: downgrade paket tidak didukung.</div>';
                     } else {
                         $wpdb->update( $payments_table, array( 'status' => 'Verified' ), array( 'id' => $payment_id ) );
 
@@ -291,12 +318,12 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' ) {
                         }
 
                         $wpdb->update( $tenants_table, $update_data, array( 'tenant_id' => $row['store_id'] ) );
-                        echo '<div style="background:#ecfdf5; color:#059669; padding:12px 24px; text-align:center; font-weight:700; margin-bottom:20px;">' . $success_msg . '</div>';
+                        echo '<div class="alert-box center alert-success">' . $success_msg . '</div>';
                     }
                 }
             } else {
                 $wpdb->delete( $payments_table, array( 'id' => $payment_id ) );
-                echo '<div style="background:#fef2f2; color:#991b1b; padding:12px 24px; text-align:center; font-weight:700; margin-bottom:20px;">Pengajuan perpanjangan sewa ditolak dan dihapus.</div>';
+                echo '<div class="alert-box center alert-error">Pengajuan perpanjangan sewa ditolak dan dihapus.</div>';
             }
         }
     }

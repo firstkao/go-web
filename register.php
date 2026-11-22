@@ -27,18 +27,49 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_tenant_registr
         wp_die('Sesi form kedaluwarsa. Silakan muat ulang halaman dan coba lagi.');
     }
     try {
-        $store_name  = sanitize_text_field($_POST['reg_store_name']);
-        $admin_name  = sanitize_text_field($_POST['reg_admin_name']);
-        $admin_email = sanitize_email($_POST['reg_email']);
-        $store_slug  = sanitize_title($_POST['reg_store_slug']);
-        $raw_pass    = $_POST['reg_password'];
+        // Validasi SERVER-SIDE — dulu semua cek cuma ada di JS/HTML (required,
+        // step wizard), gampang dilewati via POST langsung (#16):
+        // - password kosong ikut ke-hash -> hash password kosong masuk DB
+        // - email ngawur -> sanitize_email() jadi '' -> tenant terdaftar
+        //   dengan email kosong
+        // - nama toko kosong -> slug kosong -> portal publik rusak
+        // - reg_features bebas dikirim string apa pun (malah bisa TypeError
+        //   kalau bukan array) -> masuk DB tanpa cek
+        $validation_errors = array();
+        $store_name  = sanitize_text_field($_POST['reg_store_name'] ?? '');
+        $admin_name  = sanitize_text_field($_POST['reg_admin_name'] ?? '');
+        $admin_email = sanitize_email($_POST['reg_email'] ?? '');
+        $store_slug  = sanitize_title($_POST['reg_store_slug'] ?? '');
+        $raw_pass    = isset($_POST['reg_password']) ? (string) $_POST['reg_password'] : '';
+
+        if ( $store_name === '' ) $validation_errors[] = 'Nama toko wajib diisi.';
+        if ( $admin_name === '' ) $validation_errors[] = 'Nama admin wajib diisi.';
+        if ( $admin_email === '' || ! is_email( $admin_email ) ) $validation_errors[] = 'Format email tidak valid.';
+        if ( $store_slug === '' ) $validation_errors[] = 'URL toko (slug) wajib diisi.';
+        if ( strlen( $raw_pass ) < 8 ) $validation_errors[] = 'Password minimal 8 karakter.';
+
+        // Fitur harus dari daftar yang dikenal (whitelist) — string ngawur
+        // dari client gak boleh masuk DB. Kalau field-nya gak ada / bukan
+        // array, perlakukan seperti pilihan default UI: SEMUA fitur aktif
+        // (semua checkbox memang tercentang by design).
+        $known_features = array('calculator', 'public_calc', 'customer_payment', 'po_recap', 'tagihan_recap', 'warehouse');
+        if ( isset($_POST['reg_features']) && is_array($_POST['reg_features']) ) {
+            $features = array_values( array_intersect( array_map('sanitize_text_field', $_POST['reg_features']), $known_features ) );
+        } else {
+            $features = $known_features;
+        }
+
+        if ( ! empty( $validation_errors ) ) {
+            throw new GoWebUserFacingError( implode( ' ', $validation_errors ) );
+        }
+
         // Password di-hash langsung di sini (wp_hash_password) dan disimpan sebagai
         // hash di tabel wp_goweb_pending_registrations -> wp_goweb_tenants.
         // Verifikasi saat login pakai wp_check_password() lewat
         // goweb_tenant_login() di functions.php. Tenant TIDAK dibuatkan akun
         // wp_users, jadi tidak perlu plaintext di sini.
         $secure_pass = wp_hash_password( $raw_pass );
-        
+
         // Tangkap pilihan paket — sekarang lookup dari kamus paket terpusat
         // (goweb_get_package_definitions() di functions.php), bukan hardcode
         // manual di sini, biar konsisten sama menu-subscription.php nanti.
@@ -48,7 +79,7 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_tenant_registr
         $package_name   = $selected_package['name'];
         $storage_limit  = $selected_package['storage_limit'];
         
-        $features    = isset($_POST['reg_features']) ? array_map('sanitize_text_field', $_POST['reg_features']) : array();
+        $features    = $features; // sudah divalidasi + whitelisted di atas (#16)
         $proof_url   = '';
 
         // Proses upload dan KOMPRESI GAMBAR mandiri
@@ -108,7 +139,14 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_tenant_registr
             throw new GoWebUserFacingError( 'URL web "' . $store_slug . '" sudah dipakai toko lain. Silakan pilih nama URL yang berbeda.' );
         }
 
-        $reg_id = 'req_' . time();
+        // ID request harus UNIK — dulu 'req_' . time() bisa BENTROK (PK
+        // duplicate) kalau 2 orang daftar dalam detik yang sama (#17); yang
+        // kedua insert gagal dan harus isi ulang form dari awal. Sekarang
+        // pakai suffix acak + loop pengecekan eksistensi.
+        $reg_id = 'req_' . time() . '_' . bin2hex( random_bytes( 4 ) );
+        while ( $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$pending_table} WHERE request_id = %s", $reg_id ) ) > 0 ) {
+            $reg_id = 'req_' . time() . '_' . bin2hex( random_bytes( 4 ) );
+        }
 
         $insert_result = $wpdb->insert( $pending_table, array(
             'request_id'    => $reg_id,
@@ -150,23 +188,17 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_tenant_registr
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pendaftaran Tenant Baru | GO-WEB</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <?php wp_head(); ?>
     <style>
-        :root {
-            --pastel-purple: #8b5cf6;
-            --pastel-purple-bg: #f5f3ff;
-            --pastel-purple-border: #ddd6fe;
-            --pastel-mint: #10b981;
-            --text-dark: #1f2937;
-            --text-muted: #6b7280;
-            --border-soft: #e5e7eb;
-            --radius-md: 12px;
-            --radius-lg: 16px;
-        }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
-        body { background: #faf8ff; color: var(--text-dark); }
-        
+        /* Token warna & font TIDAK didefinisikan di sini lagi — sumber
+           tunggal ada di :root style.css (Plus Jakarta Sans + palet pastel),
+           jadi halaman register & portal publik tampil dengan identitas sama. */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
         .site-header { display: flex; justify-content: space-between; align-items: center; padding: 18px 36px; background: #fff; border-bottom: 1px solid var(--border-soft); box-shadow: 0 2px 10px rgba(0,0,0,0.02); }
         .site-logo { font-size: 1.25rem; font-weight: 800; color: var(--text-dark); text-decoration: none; display: flex; align-items: center; gap: 8px; }
         .btn-home { display: inline-flex; align-items: center; gap: 8px; background: var(--pastel-purple-bg); color: var(--pastel-purple); border: 1.5px solid var(--pastel-purple-border); padding: 8px 16px; border-radius: 999px; font-size: 0.85rem; font-weight: 700; text-decoration: none; transition: 0.2s; }

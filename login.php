@@ -102,23 +102,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['tenant_login_nonce']) 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login Tenant | GO-WEB</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <?php wp_head(); ?>
     <style>
-        :root {
-            --pastel-purple: #8b5cf6;
-            --pastel-purple-bg: #f5f3ff;
-            --pastel-purple-border: #ddd6fe;
-            --pastel-peach-bg: #fff7ed;
-            --text-dark: #1f2937;
-            --text-muted: #6b7280;
-            --border-soft: #e5e7eb;
-            --radius-md: 12px;
-            --radius-lg: 16px;
-        }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
-        body { background: #faf8ff; color: var(--text-dark); }
-        
+        /* Token warna & font TIDAK didefinisikan di sini lagi — sumber
+           tunggal ada di :root style.css (Plus Jakarta Sans + palet pastel),
+           jadi halaman login & portal publik tampil dengan identitas sama. */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
         /* Header Sederhana */
         .site-header { display: flex; justify-content: space-between; align-items: center; padding: 18px 36px; background: #fff; border-bottom: 1px solid var(--border-soft); }
         .site-logo { font-size: 1.25rem; font-weight: 800; color: var(--text-dark); text-decoration: none; display: flex; align-items: center; gap: 8px; }

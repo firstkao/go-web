@@ -784,35 +784,32 @@ $current_real_month = date('n');
 get_header();
 ?>
 <style>
+        /* Token bersama (pastel-*, text-*, border-soft, radius-*) TIDAK lagi
+           didefinisikan ulang di sini — satu-satunya sumber adalah :root di
+           style.css, biar dashboard & halaman publik punya warna/font/radius
+           yang sama. Blok :root di bawah sekarang hanya mena-map token khusus
+           modul Finance (dulu palet slate/biru) ke palet tema pastel. */
         :root {
-            --pastel-purple-bg: #f5f3ff;
-            --pastel-purple-border: #ddd6fe;
-            --pastel-purple: #8b5cf6;
-            --pastel-mint: #10b981;
-            --border-soft: #e5e7eb;
-            --text-dark: #1f2937;
-            --text-muted: #6b7280;
-            --radius-md: 12px;
-            --radius-lg: 16px;
-            --primary: #0284c7;
-            --primary-dark: #0369a1;
-            --slate-900: #0f172a;
-            --slate-800: #1e293b;
-            --slate-700: #334155;
-            --slate-500: #64748b;
-            --slate-400: #94a3b8;
-            --slate-100: #f1f5f9;
-            --slate-50: #f8fafc;
-            --border: #e2e8f0;
+            --primary: #7c3aed;
+            --primary-dark: #6d28d9;
+            --slate-900: #2e2a47;
+            --slate-800: #3d3860;
+            --slate-700: #524c6e;
+            --slate-500: var(--text-muted);
+            --slate-600: var(--text-muted);
+            --slate-400: #9a94b3;
+            --slate-100: var(--pastel-purple-bg);
+            --slate-50: #faf8ff;
+            --border: var(--border-soft);
             --emerald: #10b981;
-            --emerald-bg: #dcfce7;
+            --emerald-bg: var(--pastel-mint-bg, #ecfdf5);
             --amber: #f59e0b;
-            --amber-bg: #fef3c7;
+            --amber-bg: var(--pastel-peach-bg, #fef3c7);
             --rose: #ef4444;
-            --rose-bg: #fee2e2;
+            --rose-bg: #fef2f2;
         }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
-        body { background: #faf8ff; color: var(--text-dark); }
+        /* Font ikut body dari style.css (Plus Jakarta Sans) — dulu system-ui. */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
         body.admin-bar .dashboard-wrapper { min-height: calc(100vh - 32px - 70px); }
         @media (max-width: 600px) { body.admin-bar .dashboard-wrapper { min-height: auto; } }
 
@@ -851,22 +848,22 @@ get_header();
         .form-group label { display: block; font-size: 0.82rem; font-weight: 700; color: var(--text-dark); margin-bottom: 6px; }
         .btn-submit { padding: 10px 20px; border-radius: var(--radius-md); background: linear-gradient(135deg, #a78bfa, #818cf8); color: #fff; border: none; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; text-decoration: none; font-size: 0.82rem; }
         
-        .card-table-wrap { background: #ffffff; border: 1px solid var(--border); border-radius: 20px; padding: 24px; box-shadow: 0 4px 12px -2px rgba(15, 23, 42, 0.03); }
+        .card-table-wrap { background: #ffffff; border: 1px solid var(--border); border-radius: 20px; padding: 24px; box-shadow: 0 4px 12px -2px rgba(139, 92, 246, 0.06); }
         .data-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; text-align: left; }
         .data-table th, .data-table td { padding: 14px 16px; border-bottom: 1px solid var(--border-soft); vertical-align: middle; }
-        .data-table th { background: #f8fafc; font-weight: 800; color: var(--slate-700); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; }
+        .data-table th { background: var(--pastel-purple-bg); font-weight: 800; color: var(--pastel-purple); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; }
         .data-table tr:hover { background: #fcfbff; }
 
         .curr-pill.active, .ship-pill.active, .tax-pill.active { background: var(--pastel-purple) !important; color: #fff !important; border-color: var(--pastel-purple) !important; box-shadow: 0 4px 12px rgba(139,92,246,0.25); }
 
         .fin-wrap { font-family: inherit; color: var(--text-dark); width: 100%; }
-        .cycle-bar { background: #ffffff; border: 1px solid var(--border); border-radius: 20px; padding: 16px 22px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; box-shadow: 0 4px 12px -2px rgba(15, 23, 42, 0.03); }
+        .cycle-bar { background: #ffffff; border: 1px solid var(--border); border-radius: 20px; padding: 16px 22px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; box-shadow: 0 4px 12px -2px rgba(139, 92, 246, 0.06); }
         .cycle-left { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
         .cycle-title-label { font-size: 13px; font-weight: 800; color: var(--slate-700); }
         .cycle-select, .year-select { padding: 8px 14px; border: 1px solid var(--border); border-radius: 10px; font-family: inherit; font-size: 13px; font-weight: 700; color: var(--slate-900); background: var(--slate-50); outline: none; cursor: pointer; }
-        .cycle-info-pill { background: #f1f5f9; padding: 8px 16px; border-radius: 999px; font-size: 12.5px; font-weight: 700; color: var(--slate-700); border: 1px solid #e2e8f0; }
+        .cycle-info-pill { background: var(--pastel-purple-bg); padding: 8px 16px; border-radius: 999px; font-size: 12.5px; font-weight: 700; color: var(--pastel-purple); border: 1px solid var(--pastel-purple-border); }
 
-        .wallet-status-bar { background: #ffffff; border: 1px solid var(--border); border-radius: 16px; padding: 14px 20px; margin-bottom: 22px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; box-shadow: 0 2px 8px rgba(15,23,42,0.02); }
+        .wallet-status-bar { background: #ffffff; border: 1px solid var(--border); border-radius: 16px; padding: 14px 20px; margin-bottom: 22px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; box-shadow: 0 2px 8px rgba(139,92,246,0.05); }
         .wallet-pills-wrap { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
         .wallet-pill { background: #f0f9ff; border: 1px solid #bae6fd; padding: 4px 12px; border-radius: 999px; font-size: 12px; font-weight: 700; color: #0369a1; }
 
@@ -878,18 +875,18 @@ get_header();
         .metrics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 22px; }
         @media (max-width: 980px) { .metrics-grid { grid-template-columns: repeat(2, 1fr); } }
         @media (max-width: 540px) { .metrics-grid { grid-template-columns: 1fr; } }
-        .metric-card { background: #ffffff; border: 1px solid var(--border); border-radius: 20px; padding: 20px 22px; box-shadow: 0 4px 12px -2px rgba(15, 23, 42, 0.03); border-left: 5px solid var(--slate-400); }
+        .metric-card { background: #ffffff; border: 1px solid var(--border); border-radius: 20px; padding: 20px 22px; box-shadow: 0 4px 12px -2px rgba(139, 92, 246, 0.06); border-left: 5px solid var(--slate-400); }
         .metric-card.green { border-left-color: var(--emerald); }
         .metric-card.blue { border-left-color: #3b82f6; }
         .metric-card.amber { border-left-color: var(--amber); }
-        .metric-card.highlight { background: var(--slate-900); color: #ffffff; border: 1px solid #1e293b; border-left: 5px solid #38bdf8; box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.25); }
+        .metric-card.highlight { background: linear-gradient(135deg, #a78bfa, #818cf8); color: #ffffff; border: 1px solid #8b5cf6; border-left: 5px solid #c084fc; box-shadow: 0 10px 25px -5px rgba(139, 92, 246, 0.35); }
         .metric-label { font-size: 11.5px; font-weight: 700; color: var(--slate-400); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 4px; }
         .metric-val { font-size: 24px; font-weight: 800; color: var(--slate-900); letter-spacing: -0.5px; }
-        .metric-card.highlight .metric-val { color: #38bdf8; }
+        .metric-card.highlight .metric-val { color: #ffffff; }
         .metric-sub { font-size: 12px; color: var(--slate-500); margin-top: 4px; font-weight: 600; }
-        .metric-card.highlight .metric-sub { color: #94a3b8; }
+        .metric-card.highlight .metric-sub { color: rgba(255, 255, 255, 0.85); }
 
-        .roadmap-card { background: #ffffff; border: 1px solid var(--border); border-radius: 22px; padding: 20px 24px; margin-bottom: 24px; box-shadow: 0 4px 12px -2px rgba(15, 23, 42, 0.03); }
+        .roadmap-card { background: #ffffff; border: 1px solid var(--border); border-radius: 22px; padding: 20px 24px; margin-bottom: 24px; box-shadow: 0 4px 12px -2px rgba(139, 92, 246, 0.06); }
         .roadmap-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 8px; }
         .roadmap-title { font-size: 14px; font-weight: 800; color: var(--slate-900); }
         .roadmap-legend { font-size: 11px; font-weight: 700; color: var(--slate-400); }
@@ -898,7 +895,7 @@ get_header();
         @media (max-width: 480px) { .roadmap-grid { grid-template-columns: repeat(3, 1fr); } }
         .roadmap-item { background: var(--slate-50); border: 1px solid var(--border); border-radius: 12px; padding: 10px 4px; text-align: center; cursor: pointer; transition: 0.2s; }
         .roadmap-item:hover { transform: translateY(-2px); border-color: var(--primary); }
-        .roadmap-item.active { border: 2px solid var(--primary); background: #f0f9ff; }
+        .roadmap-item.active { border: 2px solid var(--pastel-purple); background: var(--pastel-purple-bg); }
         .roadmap-month { font-size: 11px; font-weight: 800; color: var(--slate-700); margin-bottom: 2px; }
         .roadmap-icon { font-size: 13px; margin-bottom: 2px; }
         .roadmap-status-text { font-size: 10px; font-weight: 800; letter-spacing: 0.2px; }
@@ -906,22 +903,22 @@ get_header();
 
         .forms-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-bottom: 24px; }
         @media (max-width: 920px) { .forms-grid { grid-template-columns: 1fr; } }
-        .form-box { background: #ffffff; border: 1px solid var(--border); border-radius: 20px; padding: 22px; box-shadow: 0 4px 12px -2px rgba(15, 23, 42, 0.03); display: flex; flex-direction: column; justify-content: space-between; }
+        .form-box { background: #ffffff; border: 1px solid var(--border); border-radius: 20px; padding: 22px; box-shadow: 0 4px 12px -2px rgba(139, 92, 246, 0.06); display: flex; flex-direction: column; justify-content: space-between; }
         .form-box-title { font-size: 14.5px; font-weight: 800; color: var(--slate-900); border-bottom: 1px dashed var(--border); padding-bottom: 10px; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
         .form-group-fin { margin-bottom: 12px; }
         .form-label-fin { display: block; font-size: 12px; font-weight: 700; color: var(--slate-700); margin-bottom: 4px; }
         .form-input-fin, .form-select-fin { width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px; font-family: inherit; font-size: 13px; font-weight: 600; color: var(--slate-900); outline: none; background: #fff; }
-        .form-input-fin:focus, .form-select-fin:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15); }
+        .form-input-fin:focus, .form-select-fin:focus { border-color: #c4b5fd; box-shadow: 0 0 0 3px rgba(196, 181, 253, 0.25); }
         .btn-submit-action { width: 100%; padding: 10px; border-radius: 10px; border: none; font-family: inherit; font-size: 13px; font-weight: 800; color: #ffffff; cursor: pointer; margin-top: 6px; transition: 0.2s; }
         .btn-blue { background: var(--primary); } .btn-blue:hover { background: var(--primary-dark); }
         .btn-green { background: #16a34a; } .btn-green:hover { background: #15803d; }
         .btn-amber { background: #d97706; } .btn-amber:hover { background: #b45309; }
 
-        .ledger-card { background: #ffffff; border: 1px solid var(--border); border-radius: 22px; padding: 24px; box-shadow: 0 10px 30px -5px rgba(15, 23, 42, 0.05); }
+        .ledger-card { background: #ffffff; border: 1px solid var(--border); border-radius: 22px; padding: 24px; box-shadow: 0 10px 30px -5px rgba(139, 92, 246, 0.08); }
         .ledger-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 12px; }
         .filter-pills { display: flex; gap: 6px; flex-wrap: wrap; }
         .filter-btn { background: var(--slate-100); border: 1px solid transparent; color: var(--slate-600); font-size: 12px; font-weight: 700; padding: 6px 14px; border-radius: 999px; cursor: pointer; transition: 0.2s; font-family: inherit; }
-        .filter-btn:hover { background: #e2e8f0; }
+        .filter-btn:hover { background: var(--pastel-purple-border); }
         .filter-btn.active { background: var(--primary); color: #ffffff; }
 
         .badge-type { display: inline-block; padding: 4px 9px; border-radius: 999px; font-size: 11px; font-weight: 800; letter-spacing: 0.2px; text-transform: uppercase; }
@@ -988,16 +985,16 @@ get_header();
     <!-- KONTEN UTAMA: INCLUDE FILE MENU TERPISAH -->
     <main class="dash-main-content">
         <?php if (!$is_store_online): ?>
-            <div style="background: #fef2f2; border: 1.5px solid #fecaca; color: #991b1b; padding: 16px 20px; border-radius: var(--radius-md); margin-bottom: 24px; font-weight: 700;">
+            <div class="alert-box solo alert-error">
                 <span><i class="fa-solid fa-triangle-exclamation"></i> Akun Anda sedang Offline / Dinonaktifkan oleh Super Admin.</span>
             </div>
         <?php elseif ($active_urgency === 'critical'): ?>
-            <div style="background: #fef2f2; border: 1.5px solid #fecaca; color: #991b1b; padding: 16px 20px; border-radius: var(--radius-md); margin-bottom: 24px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <div class="alert-box alert-error">
                 <span><i class="fa-solid fa-circle-exclamation"></i> <?php echo $remaining_days > 0 ? 'Masa aktif sewa tinggal ' . $remaining_days . ' hari lagi! Lewat jatuh tempo, toko langsung offline & data berisiko terhapus.' : 'Masa aktif sewa udah habis! Segera perpanjang sebelum data terhapus permanen.'; ?></span>
                 <a href="<?php echo esc_url(home_url('/dashboard/subscription/') . $store_query_suffix); ?>" style="background:#991b1b; color:#fff; padding:8px 16px; border-radius:8px; font-weight:800; text-decoration:none; white-space:nowrap;">Perpanjang Sekarang</a>
             </div>
         <?php elseif ($active_urgency === 'warning'): ?>
-            <div style="background: #fffbeb; border: 1.5px solid #fde68a; color: #92400e; padding: 16px 20px; border-radius: var(--radius-md); margin-bottom: 24px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <div class="alert-box alert-warning">
                 <span><i class="fa-solid fa-clock"></i> Masa aktif sewa tinggal <?php echo $remaining_days; ?> hari lagi. Yuk perpanjang dari sekarang biar gak kepepet.</span>
                 <a href="<?php echo esc_url(home_url('/dashboard/subscription/') . $store_query_suffix); ?>" style="background:#d97706; color:#fff; padding:8px 16px; border-radius:8px; font-weight:800; text-decoration:none; white-space:nowrap;">Perpanjang Sekarang</a>
             </div>

@@ -122,18 +122,18 @@ if (!$has_calc) {
     </div>
 
     <!-- KARTU HASIL KANAN -->
-    <div class="mc-result-card" style="background: #0f172a; color: #fff; padding: 28px; border-radius: 20px; box-shadow: 0 10px 25px rgba(15,23,42,0.25);">
-        <span style="font-size: 0.72rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">REKOMENDASI HARGA JUAL (IDR)</span>
-        <h1 id="res-final-price" style="font-size: 2.3rem; font-weight: 800; color: #38bdf8; margin: 6px 0 20px;">Rp 0</h1>
+    <div class="mc-result-card" style="background: linear-gradient(135deg, #a78bfa, #818cf8); color: #fff; padding: 28px; border-radius: 20px; box-shadow: 0 10px 25px rgba(139,92,246,0.35);">
+        <span style="font-size: 0.72rem; font-weight: 700; color: rgba(255,255,255,0.75); text-transform: uppercase; letter-spacing: 0.5px;">REKOMENDASI HARGA JUAL (IDR)</span>
+        <h1 id="res-final-price" style="font-size: 2.3rem; font-weight: 800; color: #ffffff; margin: 6px 0 20px;">Rp 0</h1>
         
-        <div style="display: flex; flex-direction: column; gap: 12px; font-size: 0.85rem; border-top: 1px solid #1e293b; padding-top: 16px;">
-            <div style="display: flex; justify-content: space-between;"><span style="color:#94a3b8;">Modal Barang Asli</span><strong id="res-modal-valas" style="color:#fff;">Rp 0</strong></div>
-            <div style="display: flex; justify-content: space-between;"><span style="color:#94a3b8;">Ongkir Lokal (WH)</span><strong id="res-local-ship" style="color:#fff;">Rp 0</strong></div>
-            <div style="display: flex; justify-content: space-between;"><span style="color:#94a3b8;">Beban Kargo Int'l</span><strong id="res-cargo" style="color:#fff;">Rp 0</strong></div>
-            <div style="display: flex; justify-content: space-between;"><span style="color:#94a3b8;">Pajak / Tax Bea</span><strong id="res-tax" style="color:#fff;">Rp 0</strong></div>
-            <div style="display: flex; justify-content: space-between;"><span style="color:#94a3b8;">Packing / Handling</span><strong id="res-packing" style="color:#fff;">Rp 0</strong></div>
+        <div style="display: flex; flex-direction: column; gap: 12px; font-size: 0.85rem; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 16px;">
+            <div style="display: flex; justify-content: space-between;"><span style="color:rgba(255,255,255,0.75);">Modal Barang Asli</span><strong id="res-modal-valas" style="color:#fff;">Rp 0</strong></div>
+            <div style="display: flex; justify-content: space-between;"><span style="color:rgba(255,255,255,0.75);">Ongkir Lokal (WH)</span><strong id="res-local-ship" style="color:#fff;">Rp 0</strong></div>
+            <div style="display: flex; justify-content: space-between;"><span style="color:rgba(255,255,255,0.75);">Beban Kargo Int'l</span><strong id="res-cargo" style="color:#fff;">Rp 0</strong></div>
+            <div style="display: flex; justify-content: space-between;"><span style="color:rgba(255,255,255,0.75);">Pajak / Tax Bea</span><strong id="res-tax" style="color:#fff;">Rp 0</strong></div>
+            <div style="display: flex; justify-content: space-between;"><span style="color:rgba(255,255,255,0.75);">Packing / Handling</span><strong id="res-packing" style="color:#fff;">Rp 0</strong></div>
             
-            <div style="display: flex; justify-content: space-between; border-top: 1px dashed #334155; padding-top: 12px; margin-top: 4px;">
+            <div style="display: flex; justify-content: space-between; border-top: 1px dashed rgba(255,255,255,0.45); padding-top: 12px; margin-top: 4px;">
                 <span style="color: #fbbf24; font-weight: 800;">Total HPP / Modal Bersih</span>
                 <strong id="res-hpp" style="color: #fbbf24;">Rp 0</strong>
             </div>
@@ -142,9 +142,9 @@ if (!$has_calc) {
                 <strong id="res-profit" style="color: #34d399;">+Rp 0</strong>
             </div>
             
-            <div style="display: flex; justify-content: space-between; border-top: 1px solid #1e293b; padding-top: 12px; font-size: 0.78rem; color: #94a3b8;">
+            <div style="display: flex; justify-content: space-between; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 12px; font-size: 0.78rem; color: rgba(255,255,255,0.75);">
                 <span>Pembulatan Otomatis</span>
-                <span style="color: #cbd5e1; font-weight: 700;">Ke atas (Rp 1.000)</span>
+                <span style="color: rgba(255,255,255,0.9); font-weight: 700;">Ke atas (Rp 1.000)</span>
             </div>
         </div>
     </div>

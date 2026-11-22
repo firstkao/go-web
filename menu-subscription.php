@@ -57,7 +57,7 @@ $storage_used_mb = round( $current_storage_used_display / 1048576, 1 );
                     // gak nampilin opsi downgrade sama sekali).
                     if ( $chosen_package['storage_limit'] < $current_package['storage_limit'] ) {
                         $submission_blocked = true;
-                        echo '<div style="background:#fef2f2; color:#991b1b; padding:12px 16px; border-radius:8px; font-weight:700; margin-bottom:16px;"><i class="fa-solid fa-triangle-exclamation"></i> Downgrade paket tidak didukung. Pilih paket sekarang atau upgrade ke paket lebih besar.</div>';
+                        echo '<div class="alert-box solo compact alert-error"><i class="fa-solid fa-triangle-exclamation"></i> Downgrade paket tidak didukung. Pilih paket sekarang atau upgrade ke paket lebih besar.</div>';
                     }
 
                     // Paket yang dipilih (termasuk paket sekarang) harus beneran
@@ -66,7 +66,19 @@ $storage_used_mb = round( $current_storage_used_display / 1048576, 1 );
                     // di luar UI yang udah nge-disable opsi ini otomatis.
                     if ( ! $submission_blocked && ( $chosen_package['storage_limit'] * 1048576 ) < $current_storage_used_display ) {
                         $submission_blocked = true;
-                        echo '<div style="background:#fef2f2; color:#991b1b; padding:12px 16px; border-radius:8px; font-weight:700; margin-bottom:16px;"><i class="fa-solid fa-triangle-exclamation"></i> Paket ' . esc_html($chosen_package['name']) . ' kapasitasnya gak cukup buat storage kamu yang udah terpakai (' . round($current_storage_used_display/1048576, 1) . ' MB). Pilih paket yang lebih besar.</div>';
+                        echo '<div class="alert-box solo compact alert-error"><i class="fa-solid fa-triangle-exclamation"></i> Paket ' . esc_html($chosen_package['name']) . ' kapasitasnya gak cukup buat storage kamu yang udah terpakai (' . round($current_storage_used_display/1048576, 1) . ' MB). Pilih paket yang lebih besar.</div>';
+                    }
+
+                    // Validasi SERVER-SIDE buat nama pengirim & bukti transfer —
+                    // dulu `required`-nya cuma di HTML, jadi POST langsung bisa
+                    // membuat entri perpanjangan TANPA bukti sama sekali (#18).
+                    if ( ! $submission_blocked && $sender_name === '' ) {
+                        $submission_blocked = true;
+                        echo '<div class="alert-box solo compact alert-error"><i class="fa-solid fa-triangle-exclamation"></i> Nama pengirim wajib diisi.</div>';
+                    }
+                    if ( ! $submission_blocked && empty($_FILES['confirm_proof']['name']) ) {
+                        $submission_blocked = true;
+                        echo '<div class="alert-box solo compact alert-error"><i class="fa-solid fa-triangle-exclamation"></i> Bukti transfer wajib dilampirkan.</div>';
                     }
 
                     // Tentuin nominal yang harus dibayar — beda formula buat
@@ -96,7 +108,7 @@ $storage_used_mb = round( $current_storage_used_display / 1048576, 1 );
                         // perpanjang dulu (pilih paket yang sama) baru boleh upgrade.
                         if ( $remaining_days_now <= 0 ) {
                             $submission_blocked = true;
-                            echo '<div style="background:#fef2f2; color:#991b1b; padding:12px 16px; border-radius:8px; font-weight:700; margin-bottom:16px;"><i class="fa-solid fa-triangle-exclamation"></i> Masa aktif kamu udah habis, jadi belum bisa upgrade (gak ada sisa nilai buat dikonversi). Perpanjang paket sekarang dulu, baru upgrade kalau perlu.</div>';
+                            echo '<div class="alert-box solo compact alert-error"><i class="fa-solid fa-triangle-exclamation"></i> Masa aktif kamu udah habis, jadi belum bisa upgrade (gak ada sisa nilai buat dikonversi). Perpanjang paket sekarang dulu, baru upgrade kalau perlu.</div>';
                         } else {
                             $remaining_value = $tenant_cycle_daily_rate * $remaining_days_now;
                             $new_daily_rate = $chosen_package['price'] / 30;
@@ -152,7 +164,7 @@ $storage_used_mb = round( $current_storage_used_display / 1048576, 1 );
                             'requested_duration_months'  => $is_same_package ? $duration_months : null,
                             'created_at'                 => current_time('mysql'),
                         ) );
-                        echo '<div style="background:#ecfdf5; color:#059669; padding:12px 16px; border-radius:8px; font-weight:700; margin-bottom:16px;"><i class="fa-solid fa-circle-check"></i> Konfirmasi ' . ( $is_same_package ? 'perpanjangan' : 'upgrade' ) . ' terkirim! Menunggu verifikasi Super Admin.</div>';
+                        echo '<div class="alert-box solo compact alert-success"><i class="fa-solid fa-circle-check"></i> Konfirmasi ' . ( $is_same_package ? 'perpanjangan' : 'upgrade' ) . ' terkirim! Menunggu verifikasi Super Admin.</div>';
                     }
                 }
                 $sub_history = array_filter( $subscription_history, function( $r ) { return $r['payment_category'] === 'subscription'; } );
@@ -241,7 +253,7 @@ $storage_used_mb = round( $current_storage_used_display / 1048576, 1 );
             </div>
 
             <?php if ( $default_package_key === null ): ?>
-                <div style="background:#fef2f2; color:#991b1b; padding:10px 14px; border-radius:8px; font-size:12.5px; font-weight:600; margin-bottom:16px;">Gak ada paket yang bisa dipilih otomatis — mungkin storage kamu udah lebih besar dari paket paling gede yang ada, atau kombinasi storage penuh + masa aktif habis. Hubungi Super Admin buat bantuan lebih lanjut.</div>
+                <div class="alert-box solo compact alert-error">Gak ada paket yang bisa dipilih otomatis — mungkin storage kamu udah lebih besar dari paket paling gede yang ada, atau kombinasi storage penuh + masa aktif habis. Hubungi Super Admin buat bantuan lebih lanjut.</div>
             <?php endif; ?>
 
             <button type="button" id="sub-step-1-next" class="btn-submit" style="width: 100%; justify-content: center; background: linear-gradient(135deg, #a78bfa, #818cf8);" <?php echo $default_package_key === null ? 'disabled' : ''; ?>>Lanjut <i class="fa-solid fa-arrow-right"></i></button>

@@ -172,6 +172,7 @@ main {
 .form-group { display: flex; flex-direction: column; gap: 6px; }
 .form-group label { font-size: 0.8rem; font-weight: 700; color: var(--text-dark); text-transform: uppercase; letter-spacing: 0.5px; }
 .form-control {
+    width: 100%;
     border: 1.5px solid var(--border-soft);
     background: #faf8ff;
     border-radius: var(--radius-md);
@@ -234,6 +235,32 @@ main {
 .badge-mint { background: var(--pastel-mint-bg); color: #059669; border: 1px solid var(--pastel-mint-border); }
 .badge-peach { background: var(--pastel-peach-bg); color: #ea580c; border: 1px solid #fed7aa; }
 .badge-purple { background: var(--pastel-purple-bg); color: var(--pastel-purple); border: 1px solid var(--pastel-purple-border); }
+
+/* Banner notifikasi (error/warning/sukses) — pengganti div inline berulang
+   di admin.php, menu-*.php, dan super-admin.php supaya warna & spacing
+   banner konsisten dari satu tempat. */
+.alert-box {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 16px 20px;
+    border-radius: var(--radius-md);
+    margin-bottom: 24px;
+    font-weight: 700;
+}
+.alert-error { background: #fef2f2; border: 1.5px solid #fecaca; color: #991b1b; }
+.alert-warning { background: #fffbeb; border: 1.5px solid #fde68a; color: #92400e; }
+.alert-success { background: var(--pastel-mint-bg); border: 1.5px solid var(--pastel-mint-border); color: #065f46; }
+
+/* Banner aksi tunggal (isi teks saja, tanpa tombol di sisi kanan) */
+.alert-box.solo { display: block; }
+
+/* Varian banner: versi rapat di dalam kartu/menu, dan versi rata tengah
+   untuk halaman penuh super-admin. */
+.alert-box.compact { padding: 12px 16px; margin-bottom: 16px; }
+.alert-box.center { display: block; text-align: center; }
 
 .readonly-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
 .readonly-card { border: 1px solid var(--border-soft); border-radius: var(--radius-md); padding: 20px; background: linear-gradient(180deg, #fff 0%, #faf8ff 100%); }

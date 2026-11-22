@@ -93,25 +93,25 @@ $default_cc = isset($active_currency_cargo['CNY']) ? $active_currency_cargo['CNY
     </div>
 
     <!-- SISI KANAN: KARTU HASIL ESTIMASI -->
-    <div class="calc-result-card" style="background: #0f172a; color: #fff; padding: 28px; border-radius: 20px; box-shadow: 0 10px 25px rgba(15,23,42,0.25);">
-        <span style="font-size: 0.72rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">ESTIMASI TOTAL BIAYA (IDR)</span>
-        <h1 id="res-final-price" style="font-size: 2.2rem; font-weight: 800; color: #38bdf8; margin: 6px 0 20px;">Rp 0</h1>
+    <div class="calc-result-card" style="background: linear-gradient(135deg, #a78bfa, #818cf8); color: #fff; padding: 28px; border-radius: 20px; box-shadow: 0 10px 25px rgba(139,92,246,0.35);">
+        <span style="font-size: 0.72rem; font-weight: 700; color: rgba(255,255,255,0.75); text-transform: uppercase; letter-spacing: 0.5px;">ESTIMASI TOTAL BIAYA (IDR)</span>
+        <h1 id="res-final-price" style="font-size: 2.2rem; font-weight: 800; color: #ffffff; margin: 6px 0 20px;">Rp 0</h1>
         
-        <div style="display: flex; flex-direction: column; gap: 12px; font-size: 0.85rem; border-top: 1px solid #1e293b; padding-top: 16px;">
-            <div style="display: flex; justify-content: space-between;"><span style="color:#94a3b8;">Harga Barang (Asli x Qty)</span><strong id="res-modal-valas" style="color:#fff;">Rp 0</strong></div>
-            <div style="display: flex; justify-content: space-between;"><span style="color:#94a3b8;">Ongkir Lokal (WH)</span><strong id="res-local-ship" style="color:#fff;">Rp 0</strong></div>
-            <div style="display: flex; justify-content: space-between;"><span style="color:#94a3b8;">Beban Kargo Int'l</span><strong id="res-cargo" style="color:#fff;">Rp 0</strong></div>
-            <div style="display: flex; justify-content: space-between;"><span style="color:#94a3b8;">Pajak / Bea Masuk (Est.)</span><strong id="res-tax" style="color:#fff;">Rp 0</strong></div>
-            <div style="display: flex; justify-content: space-between;"><span style="color:#94a3b8;">Packing &amp; Handling Fee</span><strong id="res-packing" style="color:#fff;">Rp <?php echo number_format($default_packing_fee, 0, ',', '.'); ?></strong></div>
+        <div style="display: flex; flex-direction: column; gap: 12px; font-size: 0.85rem; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 16px;">
+            <div style="display: flex; justify-content: space-between;"><span style="color:rgba(255,255,255,0.75);">Harga Barang (Asli x Qty)</span><strong id="res-modal-valas" style="color:#fff;">Rp 0</strong></div>
+            <div style="display: flex; justify-content: space-between;"><span style="color:rgba(255,255,255,0.75);">Ongkir Lokal (WH)</span><strong id="res-local-ship" style="color:#fff;">Rp 0</strong></div>
+            <div style="display: flex; justify-content: space-between;"><span style="color:rgba(255,255,255,0.75);">Beban Kargo Int'l</span><strong id="res-cargo" style="color:#fff;">Rp 0</strong></div>
+            <div style="display: flex; justify-content: space-between;"><span style="color:rgba(255,255,255,0.75);">Pajak / Bea Masuk (Est.)</span><strong id="res-tax" style="color:#fff;">Rp 0</strong></div>
+            <div style="display: flex; justify-content: space-between;"><span style="color:rgba(255,255,255,0.75);">Packing &amp; Handling Fee</span><strong id="res-packing" style="color:#fff;">Rp <?php echo number_format($default_packing_fee, 0, ',', '.'); ?></strong></div>
             
-            <div style="display: flex; justify-content: space-between; border-top: 1px dashed #334155; padding-top: 12px; margin-top: 4px;">
+            <div style="display: flex; justify-content: space-between; border-top: 1px dashed rgba(255,255,255,0.45); padding-top: 12px; margin-top: 4px;">
                 <span style="color: #34d399; font-weight: 800;">Total Estimasi Bersih</span>
                 <strong id="res-hpp" style="color: #34d399;">Rp 0</strong>
             </div>
             
-            <div style="display: flex; justify-content: space-between; border-top: 1px solid #1e293b; padding-top: 12px; font-size: 0.78rem; color: #94a3b8;">
+            <div style="display: flex; justify-content: space-between; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 12px; font-size: 0.78rem; color: rgba(255,255,255,0.75);">
                 <span>Catatan</span>
-                <span style="color: #cbd5e1; font-weight: 600;">Belum termasuk ongkir lokal domestik Indo.</span>
+                <span style="color: rgba(255,255,255,0.9); font-weight: 600;">Belum termasuk ongkir lokal domestik Indo.</span>
             </div>
         </div>
     </div>

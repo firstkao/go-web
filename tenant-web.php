@@ -151,25 +151,19 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_public_confirm
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Portal Pelanggan - <?php echo esc_html($store_name); ?> | GO-WEB</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <?php wp_head(); ?>
 
     <style>
-        :root {
-            --pastel-purple: #8b5cf6;
-            --pastel-purple-bg: #f5f3ff;
-            --pastel-purple-border: #ddd6fe;
-            --pastel-mint: #10b981;
-            --text-dark: #1f2937;
-            --text-muted: #6b7280;
-            --border-soft: #e5e7eb;
-            --radius-md: 12px;
-            --radius-lg: 16px;
-        }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
-        body { background: #faf8ff; color: var(--text-dark); display: flex; flex-direction: column; min-height: 100vh; }
-        
+        /* Token warna & font TIDAK didefinisikan di sini lagi — sumber
+           tunggal ada di :root style.css, biar semua halaman publik
+           (portal, login, register, web tenant) tampil dengan identitas sama. */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
         .home-header { background: #fff; border-bottom: 1px solid var(--border-soft); padding: 18px 32px; display: flex; justify-content: space-between; align-items: center; }
         .home-brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 1.1rem; color: var(--text-dark); }
         .home-brand span { background: var(--pastel-purple); color: #fff; padding: 4px 10px; border-radius: 8px; font-size: 0.8rem; }
