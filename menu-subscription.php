@@ -127,6 +127,16 @@ $storage_used_mb = round( $current_storage_used_display / 1048576, 1 );
                     }
 
                     if ( ! $submission_blocked && ! empty($_FILES['confirm_proof']['name']) ) {
+                        // Cek KUOTA storage juga di sini (#32) — dulu upload bukti
+                        // perpanjangan lolos tanpa cek kuota (celah yang sama
+                        // dengan upload foto warehouse yang sudah diperbaiki #22).
+                        $sub_storage_limit_b = ( isset($current_package['storage_limit']) ? floatval($current_package['storage_limit']) : 250 ) * 1048576;
+                        if ( ( $current_storage_used_display + intval( $_FILES['confirm_proof']['size'] ) ) > $sub_storage_limit_b ) {
+                            $submission_blocked = true;
+                            echo '<div style="background:#fef2f2; color:#991b1b; padding:12px 16px; border-radius:8px; font-weight:700; margin-bottom:16px;"><i class="fa-solid fa-triangle-exclamation"></i> Kapasitas penyimpanan toko sudah penuh, bukti transfer belum bisa diunggah. Hapus beberapa file atau upgrade paket dulu.</div>';
+                        }
+                    }
+                    if ( ! $submission_blocked && ! empty($_FILES['confirm_proof']['name']) ) {
                         require_once( ABSPATH . 'wp-admin/includes/file.php' );
                         $upload_overrides = array( 'test_form' => false, 'mimes' => array(
                             'jpg|jpeg|jpe' => 'image/jpeg',
@@ -151,7 +161,11 @@ $storage_used_mb = round( $current_storage_used_display / 1048576, 1 );
                     }
 
                     if ( ! $submission_blocked ) {
-                        $wpdb->insert( $payments_table, array(
+                        // Cek hasil insert (#36): dulu kegagalan DB diabaikan dan
+                        // tenant tetap melihat "Konfirmasi terkirim" padahal
+                        // tidak ada baris tersimpan (sewa tidak akan diperpanjang
+                        // tapi tenant merasa sudah bayar).
+                        $sub_inserted = $wpdb->insert( $payments_table, array(
                             'store_id'                   => $store_id,
                             'payment_category'           => 'subscription',
                             'period'                     => $period_text,
@@ -164,7 +178,15 @@ $storage_used_mb = round( $current_storage_used_display / 1048576, 1 );
                             'requested_duration_months'  => $is_same_package ? $duration_months : null,
                             'created_at'                 => current_time('mysql'),
                         ) );
-                        echo '<div class="alert-box solo compact alert-success"><i class="fa-solid fa-circle-check"></i> Konfirmasi ' . ( $is_same_package ? 'perpanjangan' : 'upgrade' ) . ' terkirim! Menunggu verifikasi Super Admin.</div>';
+                        if ( $sub_inserted === false ) {
+                            // Bersihkan file bukti supaya tidak jadi file yatim.
+                            if ( ! empty( $proof_url ) ) {
+                                goweb_delete_uploaded_file_by_url( $proof_url );
+                            }
+                            echo '<div class="alert-box solo compact alert-error"><i class="fa-solid fa-triangle-exclamation"></i> Konfirmasi gagal disimpan karena kendala teknis. Silakan coba lagi beberapa saat lagi.</div>';
+                        } else {
+                            echo '<div class="alert-box solo compact alert-success"><i class="fa-solid fa-circle-check"></i> Konfirmasi ' . ( $is_same_package ? 'perpanjangan' : 'upgrade' ) . ' terkirim! Menunggu verifikasi Super Admin.</div>';
+                        }
                     }
                 }
                 $sub_history = array_filter( $subscription_history, function( $r ) { return $r['payment_category'] === 'subscription'; } );
@@ -180,7 +202,7 @@ $storage_used_mb = round( $current_storage_used_display / 1048576, 1 );
                         <td><?php if ($row['status'] == 'Verified'): ?><span class="status-badge badge-mint">Verified</span><?php else: ?><span class="status-badge badge-peach">Pending</span><?php endif; ?></td>
                         <td style="text-align: center;">
                             <?php if ($row['status'] != 'Verified'): ?>
-                                <span style="font-size: 0.78rem; color: var(--pastel-peach, #ea580c); font-weight: 700;"><i class="fa-solid fa-clock"></i> Menunggu verifikasi Super Admin</span>
+                                <span style="font-size: 0.78rem; color: var(--pastel-peach); font-weight: 700;"><i class="fa-solid fa-clock"></i> Menunggu verifikasi Super Admin</span>
                             <?php elseif ( strpos($row['period'], 'Sewa Awal') !== false ): ?>
                                 <span style="font-size: 0.78rem; color: #0ea5e9; font-weight: 700;"><i class="fa-solid fa-flag-checkered"></i> Pendaftaran Awal</span>
                             <?php elseif ( ! empty($row['requested_package']) ): $hist_pkg = goweb_get_package($row['requested_package']); ?>
@@ -202,7 +224,7 @@ $storage_used_mb = round( $current_storage_used_display / 1048576, 1 );
 
 <!-- MODAL KONFIRMASI PERPANJANGAN DENGAN QRIS — 3 STEP -->
 <div id="confirm-modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center; overflow-y: auto; padding: 20px;">
-    <div style="background: #fff; width: 100%; max-width: 560px; padding: 32px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); position: relative; margin: auto;">
+    <div style="background: #fff; width: 100%; max-width: 560px; padding: 32px; border-radius: var(--radius-lg); box-shadow: 0 10px 30px rgba(0,0,0,0.15); position: relative; margin: auto;">
         <button type="button" id="close-confirm-modal" style="position: absolute; top: 20px; right: 20px; background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-muted);"><i class="fa-solid fa-xmark"></i></button>
 
         <?php
@@ -226,7 +248,7 @@ $storage_used_mb = round( $current_storage_used_display / 1048576, 1 );
 
         <!-- STEP 1: PILIH PAKET -->
         <div id="sub-step-1">
-            <h3 style="font-size: 1.15rem; font-weight: 800; color: #7c3aed; margin-bottom: 6px; display: flex; align-items: center; gap: 8px;">
+            <h3 style="font-size: 1.15rem; font-weight: 800; color: var(--primary); margin-bottom: 6px; display: flex; align-items: center; gap: 8px;">
                 <i class="fa-solid fa-file-invoice"></i> Pilih Paket
             </h3>
             <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 16px;">Tetap di paket sekarang buat perpanjang durasi, atau upgrade ke paket lebih besar.</p>
@@ -240,11 +262,11 @@ $storage_used_mb = round( $current_storage_used_display / 1048576, 1 );
                     $is_disabled = $too_small || $upgrade_needs_renewal_first;
                     $is_checked = ( $pkg['key'] === $default_package_key );
                 ?>
-                    <label class="sub-pkg-card <?php echo $is_current ? 'is-current' : ''; ?> <?php echo $is_disabled ? 'is-disabled' : ''; ?>" style="border: 1.5px solid <?php echo $is_checked ? '#a78bfa' : '#e5e7eb'; ?>; border-radius: 12px; padding: 12px; text-align: center; cursor: <?php echo $is_disabled ? 'not-allowed' : 'pointer'; ?>; opacity: <?php echo $is_disabled ? '0.45' : '1'; ?>; position: relative;">
+                    <label class="sub-pkg-card <?php echo $is_current ? 'is-current' : ''; ?> <?php echo $is_disabled ? 'is-disabled' : ''; ?>" style="border: 1.5px solid <?php echo $is_checked ? '#a78bfa' : 'var(--border-soft)'; ?>; border-radius: var(--radius-md); padding: 12px; text-align: center; cursor: <?php echo $is_disabled ? 'not-allowed' : 'pointer'; ?>; opacity: <?php echo $is_disabled ? '0.45' : '1'; ?>; position: relative;">
                         <input type="radio" name="chosen_package" value="<?php echo esc_attr($pkg['key']); ?>" data-is-current="<?php echo $is_current ? '1' : '0'; ?>" <?php echo $is_checked ? 'checked' : ''; ?> <?php echo $is_disabled ? 'disabled' : ''; ?> style="position:absolute; top:8px; left:8px;">
                         <div style="font-weight:800; font-size:0.85rem; margin-top:12px;"><?php echo esc_html($pkg['name']); ?></div>
                         <div style="font-size:0.75rem; color:var(--text-muted); margin:2px 0;"><?php echo esc_html($pkg['storage_limit']); ?> MB</div>
-                        <div style="font-weight:700; font-size:0.8rem; color:#7c3aed;">Rp<?php echo number_format($pkg['price'],0,',','.'); ?> <span style="font-weight:400; color:var(--text-muted);">/bln</span></div>
+                        <div style="font-weight:700; font-size:0.8rem; color:var(--primary);">Rp<?php echo number_format($pkg['price'],0,',','.'); ?> <span style="font-weight:400; color:var(--text-muted);">/bln</span></div>
                         <?php if ($is_current): ?><div style="font-size:0.65rem; color:#a78bfa; font-weight:700; margin-top:2px;">PAKET SEKARANG</div><?php endif; ?>
                         <?php if ($too_small): ?><div style="font-size:0.65rem; color:#ef4444; font-weight:700; margin-top:2px;">Storage gak cukup</div><?php endif; ?>
                         <?php if ($upgrade_needs_renewal_first): ?><div style="font-size:0.6rem; color:#ef4444; font-weight:700; margin-top:2px;">Perpanjang dulu buat upgrade</div><?php endif; ?>
@@ -256,7 +278,7 @@ $storage_used_mb = round( $current_storage_used_display / 1048576, 1 );
                 <div class="alert-box solo compact alert-error">Gak ada paket yang bisa dipilih otomatis — mungkin storage kamu udah lebih besar dari paket paling gede yang ada, atau kombinasi storage penuh + masa aktif habis. Hubungi Super Admin buat bantuan lebih lanjut.</div>
             <?php endif; ?>
 
-            <button type="button" id="sub-step-1-next" class="btn-submit" style="width: 100%; justify-content: center; background: linear-gradient(135deg, #a78bfa, #818cf8);" <?php echo $default_package_key === null ? 'disabled' : ''; ?>>Lanjut <i class="fa-solid fa-arrow-right"></i></button>
+            <button type="button" id="sub-step-1-next" class="btn-submit" style="width: 100%; justify-content: center; background: var(--accent-gradient);" <?php echo $default_package_key === null ? 'disabled' : ''; ?>>Lanjut <i class="fa-solid fa-arrow-right"></i></button>
         </div>
 
         <!-- STEP 1B: DURASI ATAU RINGKASAN UPGRADE -->
@@ -264,13 +286,13 @@ $storage_used_mb = round( $current_storage_used_display / 1048576, 1 );
             <button type="button" class="sub-back-btn" data-back-to="1" style="background:none; border:none; color:var(--text-muted); font-size:0.8rem; font-weight:700; cursor:pointer; margin-bottom:10px; padding:0;"><i class="fa-solid fa-arrow-left"></i> Kembali pilih paket</button>
 
             <div id="duration-picker-section" style="display: none;">
-                <h3 style="font-size: 1.15rem; font-weight: 800; color: #7c3aed; margin-bottom: 6px; display: flex; align-items: center; gap: 8px;">
+                <h3 style="font-size: 1.15rem; font-weight: 800; color: var(--primary); margin-bottom: 6px; display: flex; align-items: center; gap: 8px;">
                     <i class="fa-solid fa-calendar-days"></i> Pilih Durasi
                 </h3>
                 <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 16px;">Makin lama komitmen, makin gede diskonnya.</p>
                 <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px;">
                     <?php foreach ( $subscription_durations as $d_months => $d ): ?>
-                        <label class="duration-pick-card" data-months="<?php echo esc_attr($d_months); ?>" style="display: flex; justify-content: space-between; align-items: center; border: 1.5px solid <?php echo $d_months === 1 ? '#a78bfa' : '#e5e7eb'; ?>; border-radius: 12px; padding: 12px 16px; cursor: pointer;">
+                        <label class="duration-pick-card" data-months="<?php echo esc_attr($d_months); ?>" style="display: flex; justify-content: space-between; align-items: center; border: 1.5px solid <?php echo $d_months === 1 ? '#a78bfa' : 'var(--border-soft)'; ?>; border-radius: var(--radius-md); padding: 12px 16px; cursor: pointer;">
                             <div style="display:flex; align-items:center; gap:10px;">
                                 <input type="radio" name="duration_months_radio" value="<?php echo esc_attr($d_months); ?>" <?php echo $d_months === 1 ? 'checked' : ''; ?>>
                                 <div>
@@ -278,40 +300,40 @@ $storage_used_mb = round( $current_storage_used_display / 1048576, 1 );
                                     <?php if ($d['discount_pct'] > 0): ?><div style="font-size:0.7rem; color:#15803d; font-weight:700;">Hemat <?php echo $d['discount_pct']; ?>%</div><?php endif; ?>
                                 </div>
                             </div>
-                            <div class="duration-price-display" style="font-weight:800; font-size:0.95rem; color:#7c3aed;">—</div>
+                            <div class="duration-price-display" style="font-weight:800; font-size:0.95rem; color:var(--primary);">—</div>
                         </label>
                     <?php endforeach; ?>
                 </div>
             </div>
 
             <div id="upgrade-summary-section" style="display: none;">
-                <h3 style="font-size: 1.15rem; font-weight: 800; color: #7c3aed; margin-bottom: 6px; display: flex; align-items: center; gap: 8px;">
+                <h3 style="font-size: 1.15rem; font-weight: 800; color: var(--primary); margin-bottom: 6px; display: flex; align-items: center; gap: 8px;">
                     <i class="fa-solid fa-arrow-up-right-dots"></i> Ringkasan Upgrade
                 </h3>
                 <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 16px;">Sisa masa aktif kamu (<strong><?php echo $remaining_days_now; ?> hari</strong>) otomatis dikonversi ke paket baru — cuma bayar selisihnya, tanggal jatuh tempo <strong>gak berubah</strong>.</p>
-                <div style="background: #faf8ff; border: 1px solid #ddd6fe; border-radius: 12px; padding: 16px; margin-bottom: 20px;">
+                <div style="background: var(--bg-page); border: 1px solid var(--pastel-purple-border); border-radius: var(--radius-md); padding: 16px; margin-bottom: 20px;">
                     <div style="display:flex; justify-content:space-between; font-size:0.82rem; padding:5px 0; color:var(--text-muted);"><span>Sisa hari aktif</span><strong style="color:var(--text-dark);"><?php echo $remaining_days_now; ?> hari</strong></div>
                     <div style="display:flex; justify-content:space-between; font-size:0.82rem; padding:5px 0; color:var(--text-muted);"><span>Nilai sisa paket lama</span><strong style="color:var(--text-dark);" id="upgrade-old-value">—</strong></div>
                     <div style="display:flex; justify-content:space-between; font-size:0.82rem; padding:5px 0; color:var(--text-muted);"><span>Nilai penuh paket baru (buat sisa hari yg sama)</span><strong style="color:var(--text-dark);" id="upgrade-new-value">—</strong></div>
-                    <div style="border-top:1px dashed #ddd6fe; margin:6px 0;"></div>
-                    <div style="display:flex; justify-content:space-between; font-size:0.9rem; padding:5px 0;"><span style="font-weight:700; color:var(--text-dark);">Selisih yang dibayar</span><strong style="color:#7c3aed; font-size:1.05rem;" id="upgrade-diff-value">—</strong></div>
+                    <div style="border-top:1px dashed var(--pastel-purple-border); margin:6px 0;"></div>
+                    <div style="display:flex; justify-content:space-between; font-size:0.9rem; padding:5px 0;"><span style="font-weight:700; color:var(--text-dark);">Selisih yang dibayar</span><strong style="color:var(--primary); font-size:1.05rem;" id="upgrade-diff-value">—</strong></div>
                 </div>
             </div>
 
-            <button type="button" id="sub-step-1b-next" class="btn-submit" style="width: 100%; justify-content: center; background: linear-gradient(135deg, #a78bfa, #818cf8);">Lanjut ke Pembayaran <i class="fa-solid fa-arrow-right"></i></button>
+            <button type="button" id="sub-step-1b-next" class="btn-submit" style="width: 100%; justify-content: center; background: var(--accent-gradient);">Lanjut ke Pembayaran <i class="fa-solid fa-arrow-right"></i></button>
         </div>
 
         <!-- STEP 2: PEMBAYARAN -->
         <div id="sub-step-2" style="display: none;">
             <button type="button" class="sub-back-btn" data-back-to="1b" style="background:none; border:none; color:var(--text-muted); font-size:0.8rem; font-weight:700; cursor:pointer; margin-bottom:10px; padding:0;"><i class="fa-solid fa-arrow-left"></i> Kembali</button>
 
-            <h3 style="font-size: 1.15rem; font-weight: 800; color: #7c3aed; margin-bottom: 6px; display: flex; align-items: center; gap: 8px;">
+            <h3 style="font-size: 1.15rem; font-weight: 800; color: var(--primary); margin-bottom: 6px; display: flex; align-items: center; gap: 8px;">
                 <i class="fa-solid fa-qrcode"></i> Konfirmasi Pembayaran
             </h3>
             <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 16px;"><strong id="chosen-summary-label"></strong></p>
 
             <!-- KOTAK QRIS (Rincian Biaya) -->
-            <div style="background: #faf8ff; border: 1.5px dashed #c4b5fd; padding: 20px; border-radius: 16px; text-align: center; margin-bottom: 20px;">
+            <div style="background: var(--bg-page); border: 1.5px dashed #c4b5fd; padding: 20px; border-radius: var(--radius-lg); text-align: center; margin-bottom: 20px;">
                 
                 <div style="background: #fff; padding: 12px; margin-bottom: 16px; border-radius: 8px; border: 1px solid var(--border-soft); text-align: left;">
                     <div style="display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 0.85rem;">
@@ -325,12 +347,12 @@ $storage_used_mb = round( $current_storage_used_display / 1048576, 1 );
                     <hr style="border: 0; border-top: 1px solid var(--border-soft); margin: 8px 0;">
                     <div style="display: flex; justify-content: space-between; font-size: 1.05rem;">
                         <strong>Total Transfer:</strong>
-                        <strong id="modal-price-display" style="color: #7c3aed;">Rp 0</strong>
+                        <strong id="modal-price-display" style="color: var(--primary);">Rp 0</strong>
                     </div>
                 </div>
 
-                <span style="font-size: 0.75rem; font-weight: 800; color: #7c3aed; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 12px;">SCAN QRIS DIBAWAH INI</span>
-                <div style="background: #fff; display: inline-block; padding: 10px; border-radius: 12px; border: 1px solid var(--border-soft);">
+                <span style="font-size: 0.75rem; font-weight: 800; color: var(--primary); text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 12px;">SCAN QRIS DIBAWAH INI</span>
+                <div style="background: #fff; display: inline-block; padding: 10px; border-radius: var(--radius-md); border: 1px solid var(--border-soft);">
                     <img src="<?php echo esc_url( goweb_get_qris_image_url() ); ?>" alt="QRIS Pembayaran" style="width: 150px; height: 150px; display: block; margin: 0 auto;">
                 </div>
             </div>
@@ -343,7 +365,7 @@ $storage_used_mb = round( $current_storage_used_display / 1048576, 1 );
                 <div class="form-group" style="margin-bottom: 24px;"><label>Unggah Bukti Pembayaran</label><input type="file" name="confirm_proof" class="form-control" accept="image/*" required></div>
 
                 <div style="display: flex; gap: 12px;">
-                    <button type="submit" name="submit_extension_proof" class="btn-submit" style="flex: 1; justify-content: center; background: linear-gradient(135deg, #a78bfa, #818cf8);">Kirim Konfirmasi</button>
+                    <button type="submit" name="submit_extension_proof" class="btn-submit" style="flex: 1; justify-content: center; background: var(--accent-gradient);">Kirim Konfirmasi</button>
                     <button type="button" id="cancel-confirm-modal" style="padding: 10px 20px; border-radius: var(--radius-md); border: 1.5px solid var(--border-soft); background: #fff; font-weight: 700; cursor: pointer; color: var(--text-muted);">Batal</button>
                 </div>
             </form>
@@ -455,7 +477,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.querySelectorAll('.duration-pick-card').forEach(card => {
         card.addEventListener('click', () => {
-            document.querySelectorAll('.duration-pick-card').forEach(c => c.style.borderColor = '#e5e7eb');
+            document.querySelectorAll('.duration-pick-card').forEach(c => c.style.borderColor = 'var(--border-soft)');
             card.style.borderColor = '#a78bfa';
             const radio = card.querySelector('input[type="radio"]');
             if (radio) radio.checked = true;

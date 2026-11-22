@@ -10,18 +10,18 @@ $payment_category_options = goweb_get_tenant_setting( $store_id, 'payment_catego
 ?>
 <div class="fin-wrap">
     <div style="margin-bottom: 24px;">
-        <h2 style="font-size: 1.25rem; font-weight: 800; color: var(--text-dark, #0f172a); margin-bottom: 6px;">Rekapan Tagihan</h2>
-        <p style="color: var(--text-muted, #64748b); font-size: 0.875rem;">Kelola tagihan per PO/order — DP, Ongkir, Pajak, Packing, Pelunasan, dll — beserta status pembayarannya (manual, gak ke-link otomatis ke Konfirmasi Pembayaran).</p>
+        <h2 style="font-size: 1.25rem; font-weight: 800; color: var(--text-dark); margin-bottom: 6px;">Rekapan Tagihan</h2>
+        <p style="color: var(--text-muted); font-size: 0.875rem;">Kelola tagihan per PO/order — DP, Ongkir, Pajak, Packing, Pelunasan, dll — beserta status pembayarannya (manual, gak ke-link otomatis ke Konfirmasi Pembayaran).</p>
     </div>
 
     <!-- DIAGNOSA KESEHATAN FINANSIAL — dipindah dari Rekapan PO, sekarang
          dihitung dari status tagihan beneran (Lunas = 100% kas masuk,
          Belum Bayar = 0%), bukan dari input manual di Rekapan PO lagi. -->
-    <div style="background: #ffffff; border: 1px solid var(--border-soft, #e2e8f0); border-radius: 22px; padding: 24px 26px; margin-bottom: 20px; box-shadow: 0 4px 15px -2px rgba(15, 23, 42, 0.04);">
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--border-soft, #e2e8f0);">
+    <div style="background: #ffffff; border: 1px solid var(--border-soft); border-radius: var(--radius-lg); padding: 24px 26px; margin-bottom: 20px; box-shadow: 0 4px 15px -2px rgba(15, 23, 42, 0.04);">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--border-soft);">
             <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                <span style="font-size: 13px; font-weight: 800; color: var(--slate-700, #334155);">📅 Filter Siklus Diagnosa:</span>
-                <select id="diag-select-year" class="year-select" onchange="changeDiagCycle()" style="padding: 6px 12px; border: 1.5px solid var(--border-soft, #e2e8f0); border-radius: 8px; font-weight: 700; font-size: 12.5px; background: #fff; outline: none;">
+                <span style="font-size: 13px; font-weight: 800; color: var(--slate-700);">📅 Filter Siklus Diagnosa:</span>
+                <select id="diag-select-year" class="year-select" onchange="changeDiagCycle()" style="padding: 6px 12px; border: 1.5px solid var(--border-soft); border-radius: 8px; font-weight: 700; font-size: 12.5px; background: #fff; outline: none;">
                     <?php
                     // Tahun digenerate dinamis (2 tahun ke belakang s/d 2 tahun ke
                     // depan dari tahun sekarang) — sebelumnya hardcode 2026-2028,
@@ -32,7 +32,7 @@ $payment_category_options = goweb_get_tenant_setting( $store_id, 'payment_catego
                         <option value="<?php echo esc_attr($diag_year_opt); ?>" <?php selected($diag_year_opt, date('Y')); ?>><?php echo esc_html($diag_year_opt); ?></option>
                     <?php endforeach; ?>
                 </select>
-                <select id="diag-select-month" class="cycle-select" onchange="changeDiagCycle()" style="padding: 6px 12px; border: 1.5px solid var(--border-soft, #e2e8f0); border-radius: 8px; font-weight: 700; font-size: 12.5px; background: #fff; outline: none;">
+                <select id="diag-select-month" class="cycle-select" onchange="changeDiagCycle()" style="padding: 6px 12px; border: 1.5px solid var(--border-soft); border-radius: 8px; font-weight: 700; font-size: 12.5px; background: #fff; outline: none;">
                     <option value="1">Januari</option>
                     <option value="2">Februari</option>
                     <option value="3">Maret</option>
@@ -47,7 +47,7 @@ $payment_category_options = goweb_get_tenant_setting( $store_id, 'payment_catego
                     <option value="12">Desember</option>
                 </select>
             </div>
-            <div id="diag-range-label" style="font-size: 12px; font-weight: 700; color: var(--text-muted, #64748b); background: var(--slate-50, #f8fafc); padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border-soft, #e2e8f0);">
+            <div id="diag-range-label" style="font-size: 12px; font-weight: 700; color: var(--text-muted); background: var(--slate-50); padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border-soft);">
                 Rentang: Memuat...
             </div>
         </div>
@@ -55,29 +55,29 @@ $payment_category_options = goweb_get_tenant_setting( $store_id, 'payment_catego
         <div class="po-diag-grid">
             <div>
                 <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
-                    <div style="width: 40px; height: 40px; border-radius: 12px; background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%); display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0;">📊</div>
+                    <div style="width: 40px; height: 40px; border-radius: var(--radius-md); background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%); display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0;">📊</div>
                     <div>
-                        <h3 style="font-size: 17px; font-weight: 800; color: var(--text-dark, #0f172a); margin: 0;">Diagnosa Kesehatan Finansial Tagihan</h3>
-                        <p id="health-advice" style="font-size: 13px; color: var(--text-muted, #64748b); margin: 2px 0 0;">Menganalisa perputaran kas masuk &amp; piutang tagihan...</p>
+                        <h3 style="font-size: 17px; font-weight: 800; color: var(--text-dark); margin: 0;">Diagnosa Kesehatan Finansial Tagihan</h3>
+                        <p id="health-advice" style="font-size: 13px; color: var(--text-muted); margin: 2px 0 0;">Menganalisa perputaran kas masuk &amp; piutang tagihan...</p>
                     </div>
                 </div>
                 <div style="margin-top: 14px;">
-                    <span id="health-badge" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 999px; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.4px; background: #f1f5f9; color: #64748b; border: 1px solid #cbd5e1;">● Status: Belum Ada Transaksi</span>
+                    <span id="health-badge" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 999px; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.4px; background: var(--slate-100); color: var(--text-muted); border: 1px solid var(--border-soft);">● Status: Belum Ada Transaksi</span>
                 </div>
             </div>
 
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; background: var(--slate-50, #f8fafc); border: 1px solid var(--border-soft, #e2e8f0); border-radius: 14px; padding: 12px 16px;">
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; background: var(--slate-50); border: 1px solid var(--border-soft); border-radius: var(--radius-md); padding: 12px 16px;">
                 <div>
-                    <div style="font-size: 11px; color: var(--text-muted, #64748b); font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px;">Cash In</div>
+                    <div style="font-size: 11px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px;">Cash In</div>
                     <div id="metric-cash-in" style="font-size: 15px; font-weight: 800; color: #15803d; margin-top: 2px;">Rp 0</div>
                 </div>
                 <div>
-                    <div style="font-size: 11px; color: var(--text-muted, #64748b); font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px;">Piutang</div>
+                    <div style="font-size: 11px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px;">Piutang</div>
                     <div id="metric-piutang" style="font-size: 15px; font-weight: 800; color: #d97706; margin-top: 2px;">Rp 0</div>
                 </div>
                 <div>
-                    <div style="font-size: 11px; color: var(--text-muted, #64748b); font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px;">Collection</div>
-                    <div id="metric-col-rate" style="font-size: 15px; font-weight: 800; color: var(--text-dark, #0f172a); margin-top: 2px;">0%</div>
+                    <div style="font-size: 11px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px;">Collection</div>
+                    <div id="metric-col-rate" style="font-size: 15px; font-weight: 800; color: var(--text-dark); margin-top: 2px;">0%</div>
                 </div>
             </div>
         </div>
@@ -117,9 +117,9 @@ $payment_category_options = goweb_get_tenant_setting( $store_id, 'payment_catego
                 <label class="form-label-fin">Pilih PO / Order:</label>
                 <input type="text" id="inv_order_search" class="form-input-fin" placeholder="Ketik nama PO/Invoice atau nama customer..." autocomplete="off" <?php echo empty($tenant_orders_rows) ? 'disabled' : ''; ?>>
                 <input type="hidden" name="inv_order_id" id="inv_order_id_hidden" required>
-                <div id="inv_order_suggestions" style="display:none; position:absolute; top:100%; left:0; right:0; z-index:50; background:#fff; border:1.5px solid var(--border-soft, #e2e8f0); border-radius:10px; margin-top:4px; max-height:220px; overflow-y:auto; box-shadow:0 8px 20px -4px rgba(15,23,42,0.12);"></div>
+                <div id="inv_order_suggestions" style="display:none; position:absolute; top:100%; left:0; right:0; z-index:50; background:#fff; border:1.5px solid var(--border-soft); border-radius:10px; margin-top:4px; max-height:220px; overflow-y:auto; box-shadow:0 8px 20px -4px rgba(15,23,42,0.12);"></div>
                 <?php if ( empty($tenant_orders_rows) ): ?>
-                    <small style="color: var(--text-muted, #64748b); font-size: 11.5px;">Belum ada PO/order tercatat di Rekapan PO. Bikin order dulu di sana.</small>
+                    <small style="color: var(--text-muted); font-size: 11.5px;">Belum ada PO/order tercatat di Rekapan PO. Bikin order dulu di sana.</small>
                 <?php endif; ?>
             </div>
 
@@ -165,10 +165,10 @@ $payment_category_options = goweb_get_tenant_setting( $store_id, 'payment_catego
 
         function renderSuggestions(list) {
             if (list.length === 0) {
-                suggestionsBox.innerHTML = '<div style="padding:12px 14px; color:#94a3b8; font-size:13px;">Gak ada PO/order yang cocok.</div>';
+                suggestionsBox.innerHTML = '<div style="padding:12px 14px; color:var(--text-muted); font-size:13px;">Gak ada PO/order yang cocok.</div>';
             } else {
                 suggestionsBox.innerHTML = list.map(o =>
-                    `<div class="inv-suggestion-item" data-id="${o.id}" data-label="${escHtml(o.label)}" style="padding:10px 14px; cursor:pointer; font-size:13.5px; font-weight:600; border-bottom:1px solid #f1f5f9;">${escHtml(o.label)}</div>`
+                    `<div class="inv-suggestion-item" data-id="${o.id}" data-label="${escHtml(o.label)}" style="padding:10px 14px; cursor:pointer; font-size:13.5px; font-weight:600; border-bottom:1px solid var(--slate-100);">${escHtml(o.label)}</div>`
                 ).join('');
             }
             suggestionsBox.style.display = 'block';
@@ -220,7 +220,7 @@ $payment_category_options = goweb_get_tenant_setting( $store_id, 'payment_catego
     <!-- TABEL DAFTAR TAGIHAN -->
     <div class="ledger-card">
         <div class="ledger-head" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
-            <h3 style="font-size: 14.5px; font-weight: 800; color: var(--slate-900, #0f172a);">Daftar Tagihan</h3>
+            <h3 style="font-size: 14.5px; font-weight: 800; color: var(--slate-900);">Daftar Tagihan</h3>
             <button type="button" onclick="downloadTagihanCSV()" style="background: #15803d; color: #fff; border: none; padding: 8px 16px; border-radius: 10px; font-weight: 800; cursor: pointer; font-size: 12.5px;">📥 Download CSV</button>
         </div>
         <div class="table-responsive">
@@ -241,7 +241,7 @@ $payment_category_options = goweb_get_tenant_setting( $store_id, 'payment_catego
                             <td style="color: var(--slate-500); font-size: 12.5px;"><?php echo esc_html( date('d/m/Y', strtotime($inv['created_at'])) ); ?></td>
                             <td>
                                 <strong><?php echo esc_html($inv['batch'] ?: '(order terhapus)'); ?></strong><br>
-                                <span style="font-size: 12px; color: var(--text-muted, #64748b);"><?php echo esc_html($inv['buyer_name'] ?? ''); ?></span>
+                                <span style="font-size: 12px; color: var(--text-muted);"><?php echo esc_html($inv['buyer_name'] ?? ''); ?></span>
                             </td>
                             <td><?php echo esc_html( goweb_invoice_category_label($inv['category']) ); ?></td>
                             <td style="font-weight: 700;">Rp <?php echo number_format(intval($inv['nominal']), 0, ',', '.'); ?></td>
@@ -257,7 +257,7 @@ $payment_category_options = goweb_get_tenant_setting( $store_id, 'payment_catego
                                     <form method="POST" action="<?php echo esc_url( home_url('/dashboard/tagihan/') . $store_query_suffix ); ?>" style="display:inline;">
                                         <?php wp_nonce_field('goweb_invoice_action_' . $store_id, 'goweb_invoice_nonce'); ?>
                                         <input type="hidden" name="invoice_id" value="<?php echo esc_attr($inv['id']); ?>">
-                                        <button type="submit" name="action_toggle_invoice_status" style="padding: 6px 12px; font-size: 0.75rem; background:<?php echo $inv['status'] === 'Lunas' ? '#fef3c7' : '#dcfce7'; ?>; color:<?php echo $inv['status'] === 'Lunas' ? '#b45309' : '#15803d'; ?>; border:none; border-radius:6px; cursor:pointer; font-weight:700;">
+                                        <button type="submit" name="action_toggle_invoice_status" style="padding: 6px 12px; font-size: 0.75rem; background:<?php echo $inv['status'] === 'Lunas' ? '#fef3c7' : 'var(--emerald-bg)'; ?>; color:<?php echo $inv['status'] === 'Lunas' ? '#b45309' : '#15803d'; ?>; border:none; border-radius:6px; cursor:pointer; font-weight:700;">
                                             <?php echo $inv['status'] === 'Lunas' ? 'Tandai Belum Bayar' : 'Tandai Lunas'; ?>
                                         </button>
                                     </form>
@@ -274,11 +274,11 @@ $payment_category_options = goweb_get_tenant_setting( $store_id, 'payment_catego
 
         <!-- KONTROL PAGINATION -->
         <div id="tagihan-pagination" style="display: none; justify-content: space-between; align-items: center; padding: 14px 4px 2px; flex-wrap: wrap; gap: 10px;">
-            <span id="tagihan-page-info" style="font-size: 12.5px; color: var(--slate-500, #64748b); font-weight: 600;"></span>
+            <span id="tagihan-page-info" style="font-size: 12.5px; color: var(--slate-500); font-weight: 600;"></span>
             <div style="display: flex; gap: 6px; align-items: center;">
-                <button type="button" id="tagihan-prev" style="padding: 7px 14px; border-radius: 8px; border: 1.5px solid var(--border-soft, #e2e8f0); background: #fff; font-weight: 700; font-size: 12.5px; cursor: pointer;">‹ Sebelumnya</button>
+                <button type="button" id="tagihan-prev" style="padding: 7px 14px; border-radius: 8px; border: 1.5px solid var(--border-soft); background: #fff; font-weight: 700; font-size: 12.5px; cursor: pointer;">‹ Sebelumnya</button>
                 <span id="tagihan-page-numbers" style="display: flex; gap: 4px;"></span>
-                <button type="button" id="tagihan-next" style="padding: 7px 14px; border-radius: 8px; border: 1.5px solid var(--border-soft, #e2e8f0); background: #fff; font-weight: 700; font-size: 12.5px; cursor: pointer;">Berikutnya ›</button>
+                <button type="button" id="tagihan-next" style="padding: 7px 14px; border-radius: 8px; border: 1.5px solid var(--border-soft); background: #fff; font-weight: 700; font-size: 12.5px; cursor: pointer;">Berikutnya ›</button>
             </div>
         </div>
     </div>
@@ -286,12 +286,12 @@ $payment_category_options = goweb_get_tenant_setting( $store_id, 'payment_catego
 
 <!-- MODAL KONFIRMASI HAPUS TAGIHAN -->
 <div class="modal-overlay" id="deleteInvoiceModal" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 20px;">
-    <div style="background: #ffffff; border-radius: 20px; width: 100%; max-width: 400px; padding: 28px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); text-align: center;">
+    <div style="background: #ffffff; border-radius: var(--radius-lg); width: 100%; max-width: 400px; padding: 28px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); text-align: center;">
         <div style="font-size: 2.5rem; color: #ef4444; margin-bottom: 12px;"><i class="fa-solid fa-trash-can"></i></div>
-        <h3 style="font-size: 1.15rem; font-weight: 800; color: #0f172a; margin-bottom: 8px;">Hapus Tagihan Ini?</h3>
-        <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 24px;">Data tagihan ini akan dihapus permanen.</p>
+        <h3 style="font-size: 1.15rem; font-weight: 800; color: var(--slate-900); margin-bottom: 8px;">Hapus Tagihan Ini?</h3>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 24px;">Data tagihan ini akan dihapus permanen.</p>
         <div style="display: flex; gap: 10px;">
-            <button type="button" id="cancel-delete-invoice" style="flex: 1; padding: 12px; border-radius: 10px; border: 1.5px solid #e2e8f0; background: #fff; font-weight: 700; color: #64748b; cursor: pointer;">Batal</button>
+            <button type="button" id="cancel-delete-invoice" style="flex: 1; padding: 12px; border-radius: 10px; border: 1.5px solid var(--border-soft); background: #fff; font-weight: 700; color: var(--text-muted); cursor: pointer;">Batal</button>
             <form method="POST" action="<?php echo esc_url( home_url('/dashboard/tagihan/') . $store_query_suffix ); ?>" style="flex: 1;">
                 <?php wp_nonce_field('goweb_invoice_action_' . $store_id, 'goweb_invoice_nonce'); ?>
                 <input type="hidden" name="invoice_id" id="delete-invoice-id" value="">
@@ -358,11 +358,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const adviceEl = document.getElementById('health-advice');
 
         if (totalCount === 0) {
-            badgeEl.style.background = '#f1f5f9'; badgeEl.style.color = '#64748b'; badgeEl.style.borderColor = '#cbd5e1';
+            badgeEl.style.background = 'var(--slate-100)'; badgeEl.style.color = 'var(--text-muted)'; badgeEl.style.borderColor = 'var(--border-soft)';
             badgeEl.innerHTML = '● Status: Belum Ada Transaksi';
             adviceEl.innerText = 'Belum ada tagihan tercatat pada siklus bulan ini.';
         } else if (totalNilai >= 3000000 && collectionRate >= 75) {
-            badgeEl.style.background = '#dcfce7'; badgeEl.style.color = '#15803d'; badgeEl.style.borderColor = '#bbf7d0';
+            badgeEl.style.background = 'var(--emerald-bg)'; badgeEl.style.color = '#15803d'; badgeEl.style.borderColor = '#bbf7d0';
             badgeEl.innerHTML = '● Status: Sehat &amp; Collection Bagus';
             adviceEl.innerText = 'Arus kas bulan ini lancar. Sebagian besar tagihan sudah lunas.';
         } else if (collectionRate < 70 && totalNilai > 1000000) {
@@ -455,7 +455,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 btn.type = 'button';
                 btn.textContent = p;
                 const isActive = p === invCurrentPage;
-                btn.style.cssText = `padding: 7px 12px; border-radius: 8px; border: 1.5px solid ${isActive ? 'var(--pastel-purple, #8b5cf6)' : 'var(--border-soft, #e2e8f0)'}; background: ${isActive ? 'var(--pastel-purple, #8b5cf6)' : '#fff'}; color: ${isActive ? '#fff' : 'inherit'}; font-weight: 700; font-size: 12.5px; cursor: pointer;`;
+                btn.style.cssText = `padding: 7px 12px; border-radius: 8px; border: 1.5px solid ${isActive ? 'var(--pastel-purple)' : 'var(--border-soft)'}; background: ${isActive ? 'var(--pastel-purple)' : '#fff'}; color: ${isActive ? '#fff' : 'inherit'}; font-weight: 700; font-size: 12.5px; cursor: pointer;`;
                 btn.addEventListener('click', () => { invCurrentPage = p; renderInvPage(); });
                 invPageNumbers.appendChild(btn);
             }

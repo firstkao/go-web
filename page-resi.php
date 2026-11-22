@@ -83,7 +83,7 @@ function goweb_mask_resi( $resi ) {
     <div style="overflow-x: auto;">
         <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.88rem;">
             <thead>
-                <tr style="background: #f8fafc; border-bottom: 1.5px solid var(--border-soft); color: var(--text-muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.5px;">
+                <tr style="background: var(--bg-page); border-bottom: 1.5px solid var(--border-soft); color: var(--text-muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.5px;">
                     <th style="padding: 14px 16px;">Foto Bukti</th>
                     <th style="padding: 14px 16px;">Resi Lokal</th>
                     <th style="padding: 14px 16px;">Nama / PO</th>
@@ -168,7 +168,7 @@ function goweb_mask_resi( $resi ) {
                 </div>
                 <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.82rem; padding: 4px 0;">
                     <span style="color: var(--text-muted);">Status</span>
-                    <span style="display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 0.72rem; font-weight: 700; background: #f5f3ff; color: #7c3aed; border: 1px solid #ddd6fe;"><?php echo esc_html($box['status']); ?></span>
+                    <span style="display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 0.72rem; font-weight: 700; background: var(--pastel-purple-bg); color: var(--pastel-purple); border: 1px solid var(--pastel-purple-border);"><?php echo esc_html($box['status']); ?></span>
                 </div>
             </div>
         <?php endforeach; ?>
@@ -220,7 +220,7 @@ function renderPublicPagination(containerId, totalItems, start, totalPages, perP
     startPage = Math.max(1, endPage - 4);
     for (let p = startPage; p <= endPage; p++) {
         const isActive = p === currentPage;
-        html += `<button type="button" data-pg="${p}" style="padding: 7px 12px; border-radius: 8px; border: 1.5px solid ${isActive ? 'var(--pastel-purple, #8b5cf6)' : 'var(--border-soft)'}; background: ${isActive ? 'var(--pastel-purple, #8b5cf6)' : '#fff'}; color: ${isActive ? '#fff' : 'inherit'}; font-weight: 700; font-size: 12.5px; cursor: pointer;">${p}</button>`;
+        html += `<button type="button" data-pg="${p}" style="padding: 7px 12px; border-radius: 8px; border: 1.5px solid ${isActive ? 'var(--pastel-purple)' : 'var(--border-soft)'}; background: ${isActive ? 'var(--pastel-purple)' : '#fff'}; color: ${isActive ? '#fff' : 'inherit'}; font-weight: 700; font-size: 12.5px; cursor: pointer;">${p}</button>`;
     }
     html += `</span>`;
     html += `<button type="button" data-pg="${currentPage + 1}" ${currentPage === totalPages ? 'disabled' : ''} style="padding: 7px 14px; border-radius: 8px; border: 1.5px solid var(--border-soft); background: #fff; font-weight: 700; font-size: 12.5px; cursor: ${currentPage === totalPages ? 'not-allowed' : 'pointer'}; opacity: ${currentPage === totalPages ? '0.4' : '1'};">Berikutnya ›</button>`;

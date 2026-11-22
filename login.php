@@ -84,6 +84,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['tenant_login_nonce']) 
                 $current_attempts = (int) get_transient( $lockout_key );
                 set_transient( $lockout_key, $current_attempts + 1, GOWEB_LOGIN_LOCKOUT_MINUTES * MINUTE_IN_SECONDS );
             }
+            // Captcha WAJIB diganti setelah percobaan gagal (#31). Sebelumnya
+            // angka soal hanya di-refresh kalau JAWABANNYA salah — jadi kalau
+            // password-nya yang salah, soal yang sama terus dipakai ulang dan
+            // bot cukup menghitung sekali untuk mencoba password tak terbatas
+            // (captcha jadi formalitas).
+            $_SESSION['math_num1'] = rand(1, 10);
+            $_SESSION['math_num2'] = rand(1, 10);
+            $num1 = $_SESSION['math_num1'];
+            $num2 = $_SESSION['math_num2'];
         } else {
             // Sukses — reset hitungan percobaan buat akun ini
             if ( $attempted_email !== '' ) {
@@ -96,62 +105,56 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['tenant_login_nonce']) 
     }
 }
 ?>
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login Tenant | GO-WEB</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <?php wp_head(); ?>
-    <style>
+<?php ob_start(); ?>
+<style>
         /* Token warna & font TIDAK didefinisikan di sini lagi — sumber
            tunggal ada di :root style.css (Plus Jakarta Sans + palet pastel),
            jadi halaman login & portal publik tampil dengan identitas sama. */
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
-        /* Header Sederhana */
-        .site-header { display: flex; justify-content: space-between; align-items: center; padding: 18px 36px; background: #fff; border-bottom: 1px solid var(--border-soft); }
-        .site-logo { font-size: 1.25rem; font-weight: 800; color: var(--text-dark); text-decoration: none; display: flex; align-items: center; gap: 8px; }
-        .btn-home { display: inline-flex; align-items: center; gap: 8px; background: var(--pastel-purple-bg); color: var(--pastel-purple); border: 1.5px solid var(--pastel-purple-border); padding: 8px 16px; border-radius: 999px; font-size: 0.85rem; font-weight: 700; text-decoration: none; transition: 0.2s; }
-        .btn-home:hover { background: var(--pastel-purple); color: #fff; }
-
-        .login-container { max-width: 440px; margin: 60px auto; padding: 0 20px 80px; }
-        .login-card { background: #fff; border: 1px solid var(--border-soft); border-radius: var(--radius-lg); padding: 36px; box-shadow: 0 4px 20px rgba(139,92,246,0.04); }
-        
+        .login-container { width: 100%; max-width: 480px; margin: auto; padding: 52px 20px 64px; }
+        .login-card { padding: 36px; border: 1px solid #e5dfef; border-radius: 20px; background: #fff; box-shadow: 0 18px 48px rgba(59,48,95,.09); }
+        .login-heading { margin-bottom: 28px; text-align: center; }
+        .login-kicker { display: inline-flex; align-items: center; gap: 7px; padding: 5px 12px; border: 1px solid #e0d7ed; border-radius: 999px; background: #f0ebf7; color: #594a75; font-size: .75rem; font-weight: 800; }
+        .login-heading h1 { margin: 12px 0 5px; color: #302b46; font-size: 1.55rem; font-weight: 800; letter-spacing: -.035em; }
+        .login-heading p { color: #777188; font-size: .88rem; line-height: 1.6; }
+        .login-error { margin-bottom: 20px; padding: 12px 15px; border: 1px solid #efd6d1; border-radius: 12px; background: #fbf1ef; color: #8b4f46; font-size: .84rem; font-weight: 700; text-align: center; }
         .form-group { margin-bottom: 20px; }
-        .form-group label { display: block; font-size: 0.85rem; font-weight: 700; color: var(--text-dark); margin-bottom: 6px; }
-        .form-control { width: 100%; padding: 12px 16px; border: 1.5px solid var(--border-soft); border-radius: var(--radius-md); font-size: 0.92rem; background: #fff; outline: none; }
-        .form-control:focus { border-color: var(--pastel-purple); box-shadow: 0 0 0 3px rgba(139,92,246,0.15); }
-        
-        .btn-submit { width: 100%; padding: 14px; border-radius: var(--radius-md); background: linear-gradient(135deg, #a78bfa, #818cf8); color: #fff; border: none; font-weight: 700; font-size: 0.95rem; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; }
-    </style>
-</head>
-<body <?php body_class(); ?>>
-
-<header class="site-header">
-    <a href="<?php echo esc_url(home_url('/')); ?>" class="site-logo">
-        GO- <span style="color: var(--pastel-purple);">WEB</span> <span style="font-size: 0.65rem; background: var(--pastel-purple-bg); color: var(--pastel-purple); padding: 2px 6px; border-radius: 6px; border: 1px solid var(--pastel-purple-border);">CORE</span>
-    </a>
-    <a href="<?php echo esc_url(home_url('/')); ?>" class="btn-home">
-        <i class="fa-solid fa-house"></i> Home
-    </a>
-</header>
+        .form-group label { display: block; margin-bottom: 7px; color: #403a53; font-size: .84rem; font-weight: 750; }
+        .form-control { width: 100%; min-height: 48px; padding: 12px 14px; border: 1px solid #ded8e8; border-radius: 11px; background: #fff; color: #302b46; font: inherit; font-size: .9rem; outline: none; transition: border-color .18s ease, box-shadow .18s ease; }
+        .form-control::placeholder { color: #a09aac; }
+        .form-control:focus { border-color: #8a76ae; box-shadow: 0 0 0 3px rgba(109,90,145,.13); }
+        .login-captcha { margin-bottom: 22px; padding: 16px; border: 1px dashed #cfc3df; border-radius: 13px; background: #f5f2f8; }
+        .login-captcha label { margin-bottom: 7px; color: #594a75; font-size: .78rem; }
+        .login-captcha-question { color: #403a53; font-size: .88rem; font-weight: 750; }
+        .login-captcha .form-control { margin-top: 9px; }
+        .btn-submit { width: 100%; min-height: 48px; padding: 12px 16px; border: 0; border-radius: 11px; background: linear-gradient(135deg, #6d28d9, #4338ca); color: #fff; font: inherit; font-size: .9rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 9px; text-decoration: none; transition: transform .18s ease, box-shadow .18s ease; box-shadow: 0 8px 20px rgba(79,70,149,.18); }
+        .btn-submit:hover { transform: translateY(-1px); color: #fff; box-shadow: 0 11px 24px rgba(79,70,149,.25); }
+        .login-register-link { margin: 20px 0 0; color: #777188; font-size: .84rem; text-align: center; }
+        .login-register-link a { color: #594a75; font-weight: 800; text-decoration: none; }
+        .login-register-link a:hover { color: #43345f; text-decoration: underline; }
+        @media (max-width: 640px) {
+            .login-container { max-width: 460px; padding: 32px 16px 44px; }
+            .login-card { padding: 26px 22px; border-radius: 17px; }
+        }
+</style>
+<?php
+$login_inline_styles = ob_get_clean();
+add_action('wp_head', static function () use ($login_inline_styles) { echo $login_inline_styles; }, 99);
+get_header();
+?>
 
 <main class="login-container">
     <div class="login-card">
         
-        <div style="text-align: center; margin-bottom: 28px;">
-            <span style="background: var(--pastel-purple-bg); color: var(--pastel-purple); border: 1px solid var(--pastel-purple-border); padding: 4px 14px; border-radius: 999px; font-size: 0.78rem; font-weight: 700;"><i class="fa-solid fa-lock"></i> Area Tenant</span>
-            <h2 style="font-size: 1.4rem; font-weight: 800; margin-top: 10px; color: var(--text-dark);">Login Admin GO</h2>
-            <p style="color: var(--text-muted); font-size: 0.88rem; margin-top: 4px;">Masuk ke dashboard toko GO web sharing kamu.</p>
+        <div class="login-heading">
+            <span class="login-kicker"><i class="fa-solid fa-lock"></i> Area Tenant</span>
+            <h1>Masuk ke akun</h1>
+            <p>Masuk ke dashboard toko GO-WEB kamu.</p>
         </div>
 
         <?php if (!empty($login_error)): ?>
-            <div style="background: var(--pastel-peach-bg); border: 1.5px solid #fed7aa; color: #ea580c; padding: 12px 16px; border-radius: var(--radius-md); font-size: 0.85rem; font-weight: 700; margin-bottom: 20px; text-align: center;">
+            <div class="login-error">
                 <i class="fa-solid fa-triangle-exclamation"></i> <?php echo esc_html($login_error); ?>
             </div>
         <?php endif; ?>
@@ -160,13 +163,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['tenant_login_nonce']) 
             <?php wp_nonce_field('tenant_login_action', 'tenant_login_nonce'); ?>
 
             <div class="form-group">
-                <label>Email</label>
-                <input type="email" name="log" class="form-control" required placeholder="Masukkan email toko kamu">
+                <label for="login-email">Email</label>
+                <input type="email" id="login-email" name="log" class="form-control" required autocomplete="username" placeholder="Masukkan email toko kamu">
             </div>
 
             <div class="form-group">
-                <label>Password</label>
-                <input type="password" name="pwd" class="form-control" required placeholder="••••••••">
+                <label for="login-password">Password</label>
+                <input type="password" id="login-password" name="pwd" class="form-control" required autocomplete="current-password" placeholder="Masukkan password">
             </div>
 
             <!-- HONEYPOT TRAP -->
@@ -176,20 +179,19 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['tenant_login_nonce']) 
             </div>
 
             <!-- MATH CAPTCHA -->
-            <div class="form-group" style="background: var(--pastel-purple-bg); border: 1.5px dashed var(--pastel-purple-border); padding: 16px; border-radius: var(--radius-md); margin-bottom: 24px;">
-                <label style="margin-bottom: 6px; display: block; color: var(--pastel-purple); font-size: 0.8rem;">Verifikasi Keamanan (Anti-Bot)</label>
-                <span style="font-size: 0.88rem; font-weight: 700; color: var(--text-dark);">Berapa hasil dari: <?php echo $num1; ?> + <?php echo $num2; ?> ?</span>
-                <input type="number" name="math_answer" class="form-control" required placeholder="Masukkan jawaban" style="margin-top: 8px; background: #fff;">
+            <div class="form-group login-captcha">
+                <label for="login-math-answer">Verifikasi keamanan</label>
+                <div class="login-captcha-question">Berapa hasil dari <?php echo $num1; ?> + <?php echo $num2; ?>?</div>
+                <input type="number" id="login-math-answer" name="math_answer" class="form-control" required inputmode="numeric" placeholder="Masukkan jawaban">
             </div>
 
             <button type="submit" class="btn-submit">
                 <i class="fa-solid fa-right-to-bracket"></i> Masuk ke Dashboard
             </button>
         </form>
+        <p class="login-register-link">Belum punya toko? <a href="<?php echo esc_url(home_url('/register')); ?>">Daftar sekarang</a></p>
 
     </div>
 </main>
 
-<?php wp_footer(); ?>
-</body>
-</html>
+<?php get_footer(); ?>

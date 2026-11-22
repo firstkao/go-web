@@ -41,7 +41,7 @@ define( 'GOWEB_TENANT_SESSION_DAYS', 14 );
  * ======================================================================
  */
 
-define( 'GOWEB_DB_VERSION', '1.8.0' );
+define( 'GOWEB_DB_VERSION', '1.9.0' );
 
 function goweb_get_table_names() {
     global $wpdb;
@@ -56,6 +56,7 @@ function goweb_get_table_names() {
         'tenants'     => $wpdb->prefix . 'goweb_tenants',
         'pending'     => $wpdb->prefix . 'goweb_pending_registrations',
         'settings'    => $wpdb->prefix . 'goweb_tenant_settings',
+        'testimonials' => $wpdb->prefix . 'goweb_testimonials',
     );
 }
 
@@ -260,7 +261,23 @@ function goweb_create_custom_tables() {
 
     dbDelta( $sql_payments );
     dbDelta( $sql_orders );
+    // 2D. TESTIMONI — dikirim pembeli lewat portal publik, dimoderasi admin
+    //    tenant (Pending -> Approved/Rejected). Cuma yang Approved tampil publik.
+    $sql_testimonials = "CREATE TABLE {$t['testimonials']} (
+        id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+        store_id VARCHAR(64) NOT NULL,
+        buyer_name VARCHAR(100) NOT NULL,
+        rating TINYINT UNSIGNED NOT NULL DEFAULT 5,
+        message TEXT NOT NULL,
+        status VARCHAR(20) NOT NULL DEFAULT 'Pending',
+        created_at DATETIME NOT NULL,
+        PRIMARY KEY  (id),
+        KEY store_id (store_id),
+        KEY status (status)
+    ) $charset_collate;";
+
     dbDelta( $sql_invoices );
+    dbDelta( $sql_testimonials );
     dbDelta( $sql_warehouse );
     dbDelta( $sql_wh_boxes );
     dbDelta( $sql_ledger );
@@ -566,8 +583,99 @@ function goweb_find_tenant_by_slug( $slug ) {
     return $tenant;
 }
 
+/* ------------------------------------------------------------------
+   TOKEN DESAIN (warna, radius, gradient) DIKELUARKAN VIA PHP.
+
+   Kenapa tidak di style.css? Karena style.css adalah file statis: browser,
+   page-cache (LiteSpeed/WP Rocket) dan CDN bisa terus menyajikan versi LAMA
+   walau file di disk sudah berubah. Dulu hal itu membuat token baru
+   (mis. --accent-gradient) tidak pernah sampai ke browser, sehingga semua
+   elemen yang memakainya tampil TANPA background: tombol putih dengan
+   huruf putih (tak terlihat) dan section CTA putih di latar terang
+   (tak terbaca). Header HTML selalu segar, jadi menaruh token di sini
+   membuat nilai tema SELALU ikut file terbaru.
+
+   Ini SATU-SATUNYA sumber nilai token. style.css hanya berisi komponen
+   dan memakai var() dari sini. Kalau mau ganti warna/radius tema, ubah
+   fungsi ini.
+   ------------------------------------------------------------------ */
+function goweb_get_design_tokens() {
+    return array(
+        // Palet pastel (identitas utama GO-WEB)
+        'pastel-purple'        => '#8b5cf6',
+        'pastel-purple-bg'     => '#f5f3ff',
+        'pastel-purple-border' => '#ddd6fe',
+        'pastel-pink'          => '#f472b6',
+        'pastel-pink-bg'       => '#fdf2f8',
+        'pastel-mint'          => '#10b981',
+        'pastel-mint-bg'       => '#ecfdf5',
+        'pastel-mint-border'   => '#a7f3d0',
+        'pastel-peach'         => '#fb923c',
+        'pastel-peach-bg'      => '#fff7ed',
+        'pastel-blue-bg'       => '#eff6ff',
+        // Netral
+        'bg-page'              => '#faf8ff',
+        'card-bg'              => '#ffffff',
+        'text-dark'            => '#2e2a47',
+        'text-muted'           => '#7c7794',
+        'border-soft'          => '#ede9fe',
+        // Radius
+        'radius-lg'            => '20px',
+        'radius-md'            => '12px',
+        // Gradient CTA. Nilainya HARUS literal (bukan var() ke dirinya
+        // sendiri) — referensi melingkar membuat properti invalid dan semua
+        // tombol gradient kehilangan latar.
+        /* Gradient berkontras tinggi agar teks putih pada CTA benar-benar
+         * terbaca. Gradient pastel sebelumnya (#a78bfa -> #818cf8) terlalu
+         * terang; tombol terlihat seperti teks putih mengambang. */
+        'accent-gradient'      => 'linear-gradient(135deg, #7c3aed, #4f46e5)',
+        'accent-gradient-deep' => 'linear-gradient(135deg, #6d28d9, #4338ca)',
+        // Alias modul dashboard (dulu hanya ada di :root admin.php)
+        'primary'              => '#7c3aed',
+        'primary-dark'         => '#6d28d9',
+        'slate-900'            => 'var(--text-dark)',
+        'slate-800'            => 'var(--text-dark)',
+        'slate-700'            => 'var(--text-dark)',
+        'slate-600'            => 'var(--text-muted)',
+        'slate-500'            => 'var(--text-muted)',
+        'slate-400'            => 'var(--text-muted)',
+        'slate-100'            => 'var(--pastel-purple-bg)',
+        'slate-50'             => 'var(--bg-page)',
+        'border'               => 'var(--border-soft)',
+        // Semantik
+        'emerald'              => 'var(--pastel-mint)',
+        'emerald-bg'           => 'var(--pastel-mint-bg)',
+        'amber'                => '#f59e0b',
+        'amber-bg'             => 'var(--pastel-peach-bg)',
+        'rose'                 => '#ef4444',
+        'rose-bg'              => '#fef2f2',
+    );
+}
+
+/**
+ * Cetak token desain sebagai custom property CSS.
+ * Dipasang di wp_head prioritas 20 supaya SELALU ikut (style.css statis
+ * bisa tertahan cache, blok ini tidak).
+ */
+function goweb_print_design_tokens() {
+    $css = ':root{';
+    foreach ( goweb_get_design_tokens() as $name => $value ) {
+        $css .= '--' . $name . ':' . $value . ';';
+    }
+    $css .= '}';
+    echo "\n<style id=\"goweb-design-tokens\">" . $css . "</style>\n";
+}
+add_action( 'wp_head', 'goweb_print_design_tokens', 20 );
+
 function goweb_enqueue_styles() {
-    wp_enqueue_style('goweb-style', get_stylesheet_uri());
+    // Versi style.css diambil dari waktu modifikasi file, BUKAN nomor versi
+    // tema statis. Tanpa ini, browser & page-cache (LiteSpeed, WP Rocket,
+    // CDN) bisa terus menyajikan style.css LAMA setelah file diubah, sehingga
+    // token baru (mis. --accent-gradient) tidak pernah sampai ke browser dan
+    // tombol/teks yang memakainya tampil transparan alias tidak terlihat.
+    $style_path = get_template_directory() . '/style.css';
+    $style_ver  = file_exists( $style_path ) ? filemtime( $style_path ) : null;
+    wp_enqueue_style( 'goweb-style', get_stylesheet_uri(), array(), $style_ver );
 }
 add_action('wp_enqueue_scripts', 'goweb_enqueue_styles');
 
@@ -685,6 +793,12 @@ add_action('template_redirect', 'goweb_force_custom_templates', 1);
 define( 'GOWEB_OFFLINE_GRACE_DAYS', 1 ); // H+1 — baru offline setelah lewat 1 hari dari jatuh tempo (H sendiri masih online normal)
 define( 'GOWEB_LAPSE_GRACE_DAYS', 2 );   // H+2 — data dihapus permanen kalau masih belum diperpanjang
 define( 'GOWEB_MAX_RETENTION_DAYS', 365 );
+// Usia maksimal pendaftaran yang masih menggantung di antrean Super Admin.
+// Pendaftaran yang tidak pernah di-approve/reject dulu tersimpan SELAMANYA
+// (baris + file bukti transfer di disk) — antrean jadi makin panjang dan
+// disk terus terpakai. 90 hari cukup longgar: kalau selama 3 bulan tidak
+// diurus, memang sudah bukan pendaftaran serius.
+define( 'GOWEB_PENDING_MAX_DAYS', 90 );
 
 function goweb_schedule_cleanup_cron() {
     // Throttle: cek/jadwal ulang cron ini cukup 1x/jam, bukan di SETIAP
@@ -808,6 +922,7 @@ function goweb_delete_tenant_completely( $tenant_id ) {
     $wpdb->delete( $t['payments'], array( 'store_id' => $tenant_id ) );
     $wpdb->delete( $t['orders'], array( 'store_id' => $tenant_id ) );
     $wpdb->delete( $t['invoices'], array( 'store_id' => $tenant_id ) );
+    $wpdb->delete( $t['testimonials'], array( 'store_id' => $tenant_id ) );
     $wpdb->delete( $t['warehouse'], array( 'store_id' => $tenant_id ) );
     $wpdb->delete( $t['wh_boxes'], array( 'store_id' => $tenant_id ) );
     $wpdb->delete( $t['ledger'], array( 'store_id' => $tenant_id ) );
@@ -869,6 +984,10 @@ function goweb_calculate_tenant_storage_bytes( $tenant_id ) {
     $total += (int) $wpdb->get_var( $wpdb->prepare(
         "SELECT COALESCE(SUM(LENGTH(setting_key)+LENGTH(COALESCE(setting_value,''))), 0)
          FROM {$t['settings']} WHERE tenant_id = %s", $tenant_id
+    ) );
+    $total += (int) $wpdb->get_var( $wpdb->prepare(
+        "SELECT COALESCE(SUM(LENGTH(buyer_name)+LENGTH(message)+LENGTH(status)+16), 0)
+         FROM {$t['testimonials']} WHERE store_id = %s", $tenant_id
     ) );
     $total += (int) $wpdb->get_var( $wpdb->prepare(
         "SELECT COALESCE(SUM(LENGTH(category)+LENGTH(status)+16), 0)
@@ -952,6 +1071,51 @@ function goweb_run_tenant_cleanup() {
         }
         update_option( 'goweb_deleted_tenants_log', $deleted_log );
     }
+
+    // Bersihkan pendaftaran yang menggantung terlalu lama (#39).
+    // Sebelum ini, pendaftaran yang tidak pernah diurus Super Admin
+    // tersimpan selamanya: baris di wp_goweb_pending_registrations + file
+    // bukti transfernya di disk. Tidak ada satu pun kode yang menghapusnya
+    // kecuali approve/reject manual, jadi antrean & disk terus membengkak.
+    // Di fungsi ini tidak ada variabel $t (cuma $tenants_table) — pakai
+    // helper tabel langsung biar tidak fatal error "undefined variable".
+    $pending_table = goweb_get_table_names()['pending'];
+    $pending_rows  = $wpdb->get_results( "SELECT * FROM {$pending_table}", ARRAY_A );
+    if ( ! empty( $pending_rows ) ) {
+        $pending_cutoff = $now - ( GOWEB_PENDING_MAX_DAYS * DAY_IN_SECONDS );
+        $pending_log    = get_option( 'goweb_deleted_pending_log', array() );
+        if ( ! is_array( $pending_log ) ) { $pending_log = array(); }
+        $pending_changed = false;
+
+        foreach ( $pending_rows as $p ) {
+            $p_created = ! empty( $p['created_at'] )
+                ? strtotime( str_replace( '/', '-', $p['created_at'] ) ) - ( get_option('gmt_offset') * HOUR_IN_SECONDS )
+                : $now;
+            if ( $p_created > $pending_cutoff ) continue;
+
+            // File bukti transfer dibersihkan dulu, baru barisnya.
+            // CATATAN: tabel pending tidak punya kolom `id` — primary key-nya
+            // `request_id` (lihat skema di goweb_create_tables).
+            if ( ! empty( $p['proof_url'] ) ) {
+                goweb_delete_uploaded_file_by_url( $p['proof_url'] );
+            }
+            $wpdb->delete( $pending_table, array( 'request_id' => $p['request_id'] ) );
+            $pending_log[] = array(
+                'store_name' => isset( $p['store_name'] ) ? $p['store_name'] : '',
+                'email'      => isset( $p['email'] ) ? $p['email'] : '',
+                'created_at' => isset( $p['created_at'] ) ? $p['created_at'] : '',
+                'deleted_at' => current_time('mysql'),
+            );
+            $pending_changed = true;
+        }
+
+        if ( $pending_changed ) {
+            if ( count( $pending_log ) > 200 ) {
+                $pending_log = array_slice( $pending_log, -200 );
+            }
+            update_option( 'goweb_deleted_pending_log', $pending_log );
+        }
+    }
 }
 
 /**
@@ -965,11 +1129,11 @@ function goweb_render_tenant_picker( $all_tenants ) {
     ?>
     <main style="padding: 40px 32px 80px; max-width: 900px; margin: 0 auto;">
         <div style="margin-bottom: 28px;">
-            <h1 style="font-size: 1.6rem; font-weight: 800; color: var(--text-dark, #1f2937);">Pilih Tenant</h1>
-            <p style="color: var(--text-muted, #6b7280); font-size: 0.9rem;">Kamu login sebagai Super Admin. Pilih toko yang mau dilihat dashboard-nya.</p>
+            <h1 style="font-size: 1.6rem; font-weight: 800; color: var(--text-dark);">Pilih Tenant</h1>
+            <p style="color: var(--text-muted); font-size: 0.9rem;">Kamu login sebagai Super Admin. Pilih toko yang mau dilihat dashboard-nya.</p>
         </div>
         <?php if ( empty( $all_tenants ) ): ?>
-            <div style="background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:32px; text-align:center; color:#6b7280;">
+            <div style="background:#fff; border:1px solid var(--border-soft); border-radius:var(--radius-md); padding:32px; text-align:center; color:var(--text-muted);">
                 Belum ada tenant terdaftar.
             </div>
         <?php else: ?>
@@ -979,12 +1143,12 @@ function goweb_render_tenant_picker( $all_tenants ) {
                     $t_status = isset($t['status']) ? $t['status'] : 'Offline';
                     $link     = home_url( '/dashboard/overview/?store=' . rawurlencode( $t_slug ) );
                 ?>
-                <a href="<?php echo esc_url($link); ?>" style="display:flex; align-items:center; justify-content:space-between; background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:16px 20px; text-decoration:none; color:inherit;">
+                <a href="<?php echo esc_url($link); ?>" style="display:flex; align-items:center; justify-content:space-between; background:#fff; border:1px solid var(--border-soft); border-radius:var(--radius-md); padding:16px 20px; text-decoration:none; color:inherit;">
                     <div>
-                        <div style="font-weight:700; color:#1f2937; font-size:0.95rem;"><?php echo esc_html($t['store_name']); ?></div>
-                        <div style="font-size:0.8rem; color:#6b7280; margin-top:2px;"><?php echo esc_html($t['admin_name']); ?> &middot; <?php echo esc_html($t['email']); ?></div>
+                        <div style="font-weight:700; color:var(--text-dark); font-size:0.95rem;"><?php echo esc_html($t['store_name']); ?></div>
+                        <div style="font-size:0.8rem; color:var(--text-muted); margin-top:2px;"><?php echo esc_html($t['admin_name']); ?> &middot; <?php echo esc_html($t['email']); ?></div>
                     </div>
-                    <span style="font-size:0.75rem; font-weight:700; padding:4px 12px; border-radius:999px; <?php echo ($t_status === 'Active') ? 'background:#dcfce7;color:#15803d;' : 'background:#fef3c7;color:#b45309;'; ?>"><?php echo esc_html($t_status); ?></span>
+                    <span class="status-badge <?php echo ($t_status === 'Active') ? 'badge-mint' : 'badge-peach'; ?>"><?php echo esc_html($t_status); ?></span>
                 </a>
                 <?php endforeach; ?>
             </div>
@@ -1017,7 +1181,36 @@ function goweb_get_tenant_setting( $tenant_id, $key, $default = null ) {
     ) );
     if ( $value === null ) return $default;
     $decoded = json_decode( $value, true );
+    // Jaring pengaman (#28): daftar KOSONG yang sudah terlanjur tersimpan
+    // (dari versi lama) diperlakukan seperti "belum pernah diatur" — kalau
+    // dibiarkan, fitur terkait mati total (tak ada status/jenis bayar yang
+    // valid). Daftar kosong tidak pernah jadi pilihan yang sah di UI.
+    if ( is_array( $decoded ) && empty( $decoded ) && is_array( $default ) ) return $default;
     return ( $decoded !== null ) ? $decoded : $default;
+}
+
+/**
+ * Sinkronkan orders.payment_status dari daftar tagihan PO tersebut (#33).
+ * Kolom ini dulu MATI: cuma ada di skema + terisi dari migrasi data lama,
+ * tak pernah diisi/ditampilkan aplikasi. Aturannya sederhana dan mengikuti
+ * cara kerja menu Tagihan: kalau PO punya tagihan dan SEMUA-nya Lunas →
+ * 'Lunas'; selain itu 'Belum Lunas'.
+ */
+function goweb_sync_order_payment_status( $store_id, $order_id ) {
+    global $wpdb;
+    $t = goweb_get_table_names();
+    $order_id = intval( $order_id );
+    if ( $order_id <= 0 ) return;
+
+    $total = intval( $wpdb->get_var( $wpdb->prepare(
+        "SELECT COUNT(*) FROM {$t['invoices']} WHERE store_id = %s AND order_id = %d", $store_id, $order_id
+    ) ) );
+    $lunas = intval( $wpdb->get_var( $wpdb->prepare(
+        "SELECT COUNT(*) FROM {$t['invoices']} WHERE store_id = %s AND order_id = %d AND status = 'Lunas'", $store_id, $order_id
+    ) ) );
+
+    $new_status = ( $total > 0 && $total === $lunas ) ? 'Lunas' : 'Belum Lunas';
+    $wpdb->update( $t['orders'], array( 'payment_status' => $new_status ), array( 'id' => $order_id, 'store_id' => $store_id ) );
 }
 
 function goweb_set_tenant_setting( $tenant_id, $key, $value ) {

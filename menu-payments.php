@@ -12,7 +12,7 @@ if (!$has_payment) {
 // dari rotasi palet (konsisten per kategori, gak perlu diatur manual).
 function goweb_payment_type_badge( $type ) {
     if ( empty( $type ) ) {
-        return '<span style="display:inline-block; padding:3px 8px; border-radius:999px; font-size:10.5px; font-weight:800; text-transform:uppercase; background:#f1f5f9; color:#64748b;">—</span>';
+        return '<span style="display:inline-block; padding:3px 8px; border-radius:999px; font-size:10.5px; font-weight:800; text-transform:uppercase; background:var(--slate-100); color:var(--text-muted);">—</span>';
     }
     $c = goweb_category_badge_color( $type );
     return '<span style="display:inline-block; padding:3px 8px; border-radius:999px; font-size:10.5px; font-weight:800; text-transform:uppercase; background:' . $c['bg'] . '; color:' . $c['color'] . ';">' . esc_html( goweb_invoice_category_label( $type ) ) . '</span>';
@@ -92,22 +92,22 @@ function goweb_payment_type_badge( $type ) {
 
     <!-- KONTROL PAGINATION -->
     <div id="payments-pagination" style="display: none; justify-content: space-between; align-items: center; padding: 14px 4px 2px; flex-wrap: wrap; gap: 10px;">
-        <span id="payments-page-info" style="font-size: 12.5px; color: var(--slate-500, #64748b); font-weight: 600;"></span>
+        <span id="payments-page-info" style="font-size: 12.5px; color: var(--slate-500); font-weight: 600;"></span>
         <div style="display: flex; gap: 6px; align-items: center;">
-            <button type="button" id="payments-prev" style="padding: 7px 14px; border-radius: 8px; border: 1.5px solid var(--border-soft, #e2e8f0); background: #fff; font-weight: 700; font-size: 12.5px; cursor: pointer;">‹ Sebelumnya</button>
+            <button type="button" id="payments-prev" style="padding: 7px 14px; border-radius: 8px; border: 1.5px solid var(--border-soft); background: #fff; font-weight: 700; font-size: 12.5px; cursor: pointer;">‹ Sebelumnya</button>
             <span id="payments-page-numbers" style="display: flex; gap: 4px;"></span>
-            <button type="button" id="payments-next" style="padding: 7px 14px; border-radius: 8px; border: 1.5px solid var(--border-soft, #e2e8f0); background: #fff; font-weight: 700; font-size: 12.5px; cursor: pointer;">Berikutnya ›</button>
+            <button type="button" id="payments-next" style="padding: 7px 14px; border-radius: 8px; border: 1.5px solid var(--border-soft); background: #fff; font-weight: 700; font-size: 12.5px; cursor: pointer;">Berikutnya ›</button>
         </div>
     </div>
 </div>
 
 <!-- MODAL KONFIRMASI GENERIC (gantiin confirm() bawaan browser) -->
 <div class="modal-overlay" id="genericConfirmModal" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 20px;">
-    <div style="background: #ffffff; border-radius: 20px; width: 100%; max-width: 400px; padding: 28px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); text-align: center;">
+    <div style="background: #ffffff; border-radius: var(--radius-lg); width: 100%; max-width: 400px; padding: 28px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); text-align: center;">
         <div style="font-size: 2.5rem; color: #f59e0b; margin-bottom: 12px;"><i class="fa-solid fa-circle-question"></i></div>
-        <p id="genericConfirmMessage" style="font-size: 0.95rem; font-weight: 700; color: #0f172a; margin-bottom: 24px;"></p>
+        <p id="genericConfirmMessage" style="font-size: 0.95rem; font-weight: 700; color: var(--slate-900); margin-bottom: 24px;"></p>
         <div style="display: flex; gap: 10px;">
-            <button type="button" id="genericConfirmCancel" style="flex: 1; padding: 12px; border-radius: 10px; border: 1.5px solid #e2e8f0; background: #fff; font-weight: 700; color: #64748b; cursor: pointer;">Batal</button>
+            <button type="button" id="genericConfirmCancel" style="flex: 1; padding: 12px; border-radius: 10px; border: 1.5px solid var(--border-soft); background: #fff; font-weight: 700; color: var(--text-muted); cursor: pointer;">Batal</button>
             <button type="button" id="genericConfirmOk" style="flex: 1; padding: 12px; border-radius: 10px; border: none; background: #ef4444; color: #fff; font-weight: 800; cursor: pointer;">Ya, Lanjutkan</button>
         </div>
     </div>
@@ -199,7 +199,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 btn.type = 'button';
                 btn.textContent = p;
                 const isActive = p === payCurrentPage;
-                btn.style.cssText = `padding: 7px 12px; border-radius: 8px; border: 1.5px solid ${isActive ? 'var(--pastel-purple, #8b5cf6)' : 'var(--border-soft, #e2e8f0)'}; background: ${isActive ? 'var(--pastel-purple, #8b5cf6)' : '#fff'}; color: ${isActive ? '#fff' : 'inherit'}; font-weight: 700; font-size: 12.5px; cursor: pointer;`;
+                btn.style.cssText = `padding: 7px 12px; border-radius: 8px; border: 1.5px solid ${isActive ? 'var(--pastel-purple)' : 'var(--border-soft)'}; background: ${isActive ? 'var(--pastel-purple)' : '#fff'}; color: ${isActive ? '#fff' : 'inherit'}; font-weight: 700; font-size: 12.5px; cursor: pointer;`;
                 btn.addEventListener('click', () => { payCurrentPage = p; renderPayPage(); });
                 payPageNumbers.appendChild(btn);
             }

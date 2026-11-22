@@ -22,10 +22,45 @@ class GoWebUserFacingError extends \Exception {}
 $submitted_success = false;
 $submission_error = '';
 
+// Graceful fallback bila functions.php yang terpasang belum memiliki helper QRIS.
+// Ini mencegah template berhenti di tengah HTML sebelum JavaScript wizard termuat.
+$reg_qris_fee_config = function_exists('goweb_qris_fee_config')
+    ? goweb_qris_fee_config()
+    : array( 'threshold' => 500000, 'low_pct' => 0.003, 'high_pct' => 0.007, 'low_label' => '0,3%', 'high_label' => '0,7%' );
+$reg_starter_price = goweb_get_package('starter')['price'];
+$reg_starter_fee = function_exists('goweb_calculate_qris_fee')
+    ? goweb_calculate_qris_fee( $reg_starter_price )
+    : array(
+        'fee' => ceil( $reg_starter_price * ( $reg_starter_price < $reg_qris_fee_config['threshold'] ? $reg_qris_fee_config['low_pct'] : $reg_qris_fee_config['high_pct'] ) ),
+        'total' => $reg_starter_price + ceil( $reg_starter_price * ( $reg_starter_price < $reg_qris_fee_config['threshold'] ? $reg_qris_fee_config['low_pct'] : $reg_qris_fee_config['high_pct'] ) ),
+    );
+$reg_qris_image_url = function_exists('goweb_get_qris_image_url')
+    ? goweb_get_qris_image_url()
+    : 'https://mercatoria.id/wp-content/uploads/2026/02/qris-barcode.jpg';
+
 if ( $_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_tenant_registration']) ) {
     if ( ! isset($_POST['goweb_register_nonce']) || ! wp_verify_nonce($_POST['goweb_register_nonce'], 'goweb_register_action') ) {
         wp_die('Sesi form kedaluwarsa. Silakan muat ulang halaman dan coba lagi.');
     }
+
+    // ANTI-SPAM (#34) — halaman ini publik dan tiap pendaftaran menyimpan
+    // 1 file bukti ke disk, jadi tanpa proteksi siapa pun bisa membanjiri
+    // antrean Super Admin + menghabiskan disk. Login & form pembayaran
+    // publik sudah punya proteksi (captcha/honeypot/validasi), registrasi
+    // justru paling berisiko karena belum pernah dijaga.
+    //   (a) honeypot: field tersembunyi, hanya bot yang mengisinya
+    if ( ! empty( $_POST['reg_website_trap'] ) ) {
+        wp_die( 'Spam terdeteksi!' );
+    }
+    //   (b) throttle sederhana per IP: maks 5 percobaan pendaftaran / jam
+    $reg_ip = isset($_SERVER['REMOTE_ADDR']) ? sanitize_text_field($_SERVER['REMOTE_ADDR']) : 'unknown';
+    $reg_throttle_key = 'goweb_reg_throttle_' . md5( $reg_ip );
+    $reg_attempts = (int) get_transient( $reg_throttle_key );
+    if ( $reg_attempts >= 5 ) {
+        wp_die( 'Terlalu banyak percobaan pendaftaran dari koneksi ini. Silakan coba lagi dalam 1 jam.' );
+    }
+    set_transient( $reg_throttle_key, $reg_attempts + 1, HOUR_IN_SECONDS );
+
     try {
         // Validasi SERVER-SIDE — dulu semua cek cuma ada di JS/HTML (required,
         // step wizard), gampang dilewati via POST langsung (#16):
@@ -52,7 +87,7 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_tenant_registr
         // dari client gak boleh masuk DB. Kalau field-nya gak ada / bukan
         // array, perlakukan seperti pilihan default UI: SEMUA fitur aktif
         // (semua checkbox memang tercentang by design).
-        $known_features = array('calculator', 'public_calc', 'customer_payment', 'po_recap', 'tagihan_recap', 'warehouse');
+        $known_features = array('calculator', 'public_calc', 'customer_payment', 'po_recap', 'tagihan_recap', 'warehouse', 'testimonials');
         if ( isset($_POST['reg_features']) && is_array($_POST['reg_features']) ) {
             $features = array_values( array_intersect( array_map('sanitize_text_field', $_POST['reg_features']), $known_features ) );
         } else {
@@ -81,6 +116,13 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_tenant_registr
         
         $features    = $features; // sudah divalidasi + whitelisted di atas (#16)
         $proof_url   = '';
+
+        // Batas ukuran bukti transfer (#34) — dulu tanpa batas sama sekali,
+        // file sangat besar tetap diterima apa adanya sebelum dikompres.
+        $reg_proof_max_bytes = 5 * 1048576; // 5 MB
+        if ( ! empty($_FILES['reg_payment_proof']['name']) && intval($_FILES['reg_payment_proof']['size'] ?? 0) > $reg_proof_max_bytes ) {
+            throw new GoWebUserFacingError( 'Ukuran bukti transfer maksimal 5 MB. Silakan kompres/perkecil gambarnya lalu kirim ulang.' );
+        }
 
         // Proses upload dan KOMPRESI GAMBAR mandiri
         if ( ! empty($_FILES['reg_payment_proof']['name']) ) {
@@ -182,30 +224,22 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_tenant_registr
     }
 }
 ?>
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pendaftaran Tenant Baru | GO-WEB</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <?php wp_head(); ?>
-    <style>
+<?php ob_start(); ?>
+<style>
         /* Token warna & font TIDAK didefinisikan di sini lagi — sumber
            tunggal ada di :root style.css (Plus Jakarta Sans + palet pastel),
            jadi halaman register & portal publik tampil dengan identitas sama. */
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
-        .site-header { display: flex; justify-content: space-between; align-items: center; padding: 18px 36px; background: #fff; border-bottom: 1px solid var(--border-soft); box-shadow: 0 2px 10px rgba(0,0,0,0.02); }
-        .site-logo { font-size: 1.25rem; font-weight: 800; color: var(--text-dark); text-decoration: none; display: flex; align-items: center; gap: 8px; }
-        .btn-home { display: inline-flex; align-items: center; gap: 8px; background: var(--pastel-purple-bg); color: var(--pastel-purple); border: 1.5px solid var(--pastel-purple-border); padding: 8px 16px; border-radius: 999px; font-size: 0.85rem; font-weight: 700; text-decoration: none; transition: 0.2s; }
-        .btn-home:hover { background: var(--pastel-purple); color: #fff; }
-
-        .reg-container { max-width: 700px; margin: 40px auto; padding: 0 20px 80px; }
-        .reg-card { background: #fff; border: 1px solid var(--border-soft); border-radius: var(--radius-lg); padding: 36px; box-shadow: 0 4px 20px rgba(139,92,246,0.04); }
+        .reg-container { --pastel-purple: #665587; --pastel-purple-bg: #f2eef7; --pastel-purple-border: #ded7e9; --pastel-mint: #6f9278; --pastel-mint-bg: #edf4ee; --bg-page: #faf9fc; --text-dark: #302b46; --text-muted: #777188; --border-soft: #e5dfef; --accent-gradient: linear-gradient(135deg, #6d28d9, #4338ca); width: 100%; max-width: 780px; margin: 42px auto; padding: 0 20px 64px; flex: 1 0 auto; }
+        .reg-intro { max-width: 640px; margin: 0 auto 30px; text-align: center; }
+        .reg-intro-kicker { display: inline-flex; padding: 5px 12px; border: 1px solid #e0d7ed; border-radius: 999px; background: #f0ebf7; color: #594a75; font-size: .74rem; font-weight: 800; letter-spacing: .04em; }
+        .reg-intro h1 { margin: 12px 0 7px; color: #302b46; font-size: clamp(1.55rem, 3vw, 1.9rem); font-weight: 800; line-height: 1.2; letter-spacing: -.04em; }
+        .reg-intro p { color: #777188; font-size: .9rem; line-height: 1.65; }
+        .reg-card { padding: 32px; border: 1px solid #e5dfef; border-radius: 20px; background: #fff; box-shadow: 0 18px 48px rgba(59,48,95,.08); }
+        .reg-login-link { margin: 18px 0 0; color: #777188; font-size: .84rem; text-align: center; }
+        .reg-login-link a { color: #594a75; font-weight: 800; text-decoration: none; }
+        .reg-login-link a:hover { color: #43345f; text-decoration: underline; }
         
         /* Step Indicator Header */
         .step-indicators { display: flex; justify-content: space-between; margin-bottom: 32px; position: relative; }
@@ -222,15 +256,16 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_tenant_registr
         @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 
         .form-group { margin-bottom: 20px; }
-        .form-group label { display: block; font-size: 0.85rem; font-weight: 700; color: var(--text-dark); margin-bottom: 6px; }
-        .form-control { width: 100%; padding: 12px 16px; border: 1.5px solid var(--border-soft); border-radius: var(--radius-md); font-size: 0.92rem; background: #fff; outline: none; }
-        .form-control:focus { border-color: var(--pastel-purple); box-shadow: 0 0 0 3px rgba(139,92,246,0.15); }
+        .form-group label { display: block; font-size: 0.83rem; font-weight: 750; color: #403a53; margin-bottom: 7px; }
+        .form-control { width: 100%; min-height: 46px; padding: 11px 14px; border: 1px solid #ded8e8; border-radius: 11px; color: #302b46; font: inherit; font-size: 0.9rem; background: #fff; outline: none; transition: border-color .18s ease, box-shadow .18s ease; }
+        .form-control:focus { border-color: #8a76ae; box-shadow: 0 0 0 3px rgba(109,90,145,.13); }
+        .form-control::placeholder { color: #a09aac; }
         
         /* Grid Paket Langganan */
-        .pkg-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px; }
-        .pkg-card { border: 1.5px solid var(--border-soft); border-radius: var(--radius-md); padding: 16px; cursor: pointer; transition: 0.2s; text-align: center; background: #faf8ff; }
-        .pkg-card:hover { border-color: var(--pastel-purple); }
-        .pkg-card.selected { border-color: var(--pastel-purple); background: var(--pastel-purple-bg); box-shadow: 0 4px 12px rgba(139,92,246,0.15); }
+        .pkg-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 24px; }
+        .pkg-card { border: 1px solid #e3ddec; border-radius: 13px; padding: 17px 14px; cursor: pointer; transition: border-color .18s ease, background .18s ease, box-shadow .18s ease, transform .18s ease; text-align: center; background: #fbfaff; }
+        .pkg-card:hover { border-color: #b7a8cf; transform: translateY(-1px); }
+        .pkg-card.selected { border-color: #8b79a8; background: #f2eef7; box-shadow: 0 5px 15px rgba(91,70,132,.11); }
         .pkg-title { font-size: 0.9rem; font-weight: 800; color: var(--text-dark); margin-bottom: 4px; }
         .pkg-price { font-size: 1.1rem; font-weight: 800; color: var(--pastel-purple); margin-bottom: 8px; }
         .pkg-storage { font-size: 0.75rem; font-weight: 700; color: #fff; background: var(--text-muted); padding: 2px 8px; border-radius: 999px; display: inline-block; }
@@ -238,45 +273,54 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_tenant_registr
         .pkg-card input[type="radio"] { display: none; }
 
         .btn-action-group { display: flex; gap: 12px; margin-top: 28px; }
-        .btn-next, .btn-submit { flex: 1; padding: 14px; border-radius: var(--radius-md); background: linear-gradient(135deg, #a78bfa, #818cf8); color: #fff; border: none; font-weight: 700; font-size: 0.95rem; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; }
-        .btn-prev { padding: 14px 24px; border-radius: var(--radius-md); background: #fff; color: var(--text-muted); border: 1.5px solid var(--border-soft); font-weight: 700; font-size: 0.95rem; cursor: pointer; }
+        .btn-next, .btn-submit { flex: 1; min-height: 48px; padding: 12px 16px; border-radius: 11px; background: var(--accent-gradient); color: #fff; border: none; font-weight: 800; font-size: 0.9rem; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; transition: transform .18s ease, box-shadow .18s ease; box-shadow: 0 7px 17px rgba(79,70,149,.15); }
+        .btn-next:hover, .btn-submit:hover { transform: translateY(-1px); color: #fff; box-shadow: 0 10px 21px rgba(79,70,149,.22); }
+        .btn-prev { min-height: 48px; padding: 12px 20px; border-radius: 11px; background: #fff; color: #625a72; border: 1px solid #ded8e8; font-weight: 750; font-size: 0.9rem; cursor: pointer; }
         
-        .tnc-box { background: #faf8ff; border: 1.5px solid var(--border-soft); padding: 20px; border-radius: var(--radius-md); font-size: 0.85rem; color: var(--text-muted); line-height: 1.6; max-height: 220px; overflow-y: auto; margin-bottom: 16px; }
+        .tnc-box { background: var(--bg-page); border: 1.5px solid var(--border-soft); padding: 20px; border-radius: var(--radius-md); font-size: 0.85rem; color: var(--text-muted); line-height: 1.6; max-height: 220px; overflow-y: auto; margin-bottom: 16px; }
         .tnc-box ul { padding-left: 20px; margin-top: 6px; }
 
         .reg-2col-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 
-        @media (max-width: 640px) {
-            .site-header { padding: 14px 20px; }
-            .reg-container { margin: 24px auto; padding: 0 14px 60px; }
-            .reg-card { padding: 22px; }
-            .reg-2col-grid { grid-template-columns: 1fr; gap: 0; }
-            .pkg-grid { grid-template-columns: 1fr; }
-            .step-label { font-size: 0.68rem; }
-            .step-circle { width: 30px; height: 30px; font-size: 0.8rem; }
+        @media (max-width: 760px) {
+            .pkg-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         }
-    </style>
-</head>
-<body <?php body_class(); ?>>
-
-<header class="site-header">
-    <a href="<?php echo esc_url(home_url('/')); ?>" class="site-logo">
-        GO- <span style="color: var(--pastel-purple);">WEB</span> <span style="font-size: 0.65rem; background: var(--pastel-purple-bg); color: var(--pastel-purple); padding: 2px 6px; border-radius: 6px; border: 1px solid var(--pastel-purple-border);">CORE</span>
-    </a>
-    <a href="<?php echo esc_url(home_url('/')); ?>" class="btn-home">
-        <i class="fa-solid fa-house"></i> Home
-    </a>
-</header>
+        @media (max-width: 640px) {
+            .reg-container { margin: 30px auto; padding: 0 16px 44px; }
+            .reg-intro { margin-bottom: 24px; }
+            .reg-card { padding: 23px 18px; border-radius: 17px; }
+            .reg-2col-grid { grid-template-columns: 1fr; gap: 0; }
+            .step-indicators { margin-bottom: 25px; }
+            .step-item { padding: 0 5px; }
+            .step-label { max-width: 98px; font-size: 0.66rem; line-height: 1.3; }
+            .step-circle { width: 32px; height: 32px; font-size: 0.8rem; }
+            .pkg-grid { gap: 9px; }
+            .pkg-card { padding: 14px 9px; }
+            .pkg-price { font-size: 1rem; }
+            .tnc-box { padding: 16px; font-size: .82rem; }
+        }
+        @media (max-width: 380px) {
+            .reg-card { padding: 20px 15px; }
+            .btn-action-group { gap: 8px; }
+            .btn-prev { padding: 12px 13px; }
+            .btn-next, .btn-submit { padding: 12px 10px; }
+        }
+</style>
+<?php
+$register_inline_styles = ob_get_clean();
+add_action('wp_head', static function () use ($register_inline_styles) { echo $register_inline_styles; }, 99);
+get_header();
+?>
 
 <div class="reg-container">
-    <div style="text-align: center; margin-bottom: 32px;">
-        <span style="background: var(--pastel-purple-bg); color: var(--pastel-purple); border: 1px solid var(--pastel-purple-border); padding: 4px 14px; border-radius: 999px; font-size: 0.78rem; font-weight: 700;">GO-WEB PLATFORM</span>
-        <h1 style="font-size: 1.8rem; font-weight: 800; margin-top: 10px; color: var(--text-dark);">Pendaftaran Tenant & Sewa Web</h1>
-        <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 4px;">Ikuti 3 langkah mudah untuk mendaftarkan proxy, jastip, atau WH kamu di GO-WEB.</p>
+    <div class="reg-intro">
+        <span class="reg-intro-kicker">GO-WEB PLATFORM</span>
+        <h1>Pendaftaran tenant</h1>
+        <p>Ikuti 3 langkah mudah untuk mendaftarkan proxy, jastip, atau WH kamu di GO-WEB.</p>
     </div>
 
     <?php if ($submitted_success): ?>
-        <div style="background: #ecfdf5; border: 1.5px solid #a7f3d0; color: #065f46; padding: 32px; border-radius: var(--radius-lg); text-align: center; box-shadow: 0 4px 20px rgba(16,185,129,0.05);">
+        <div style="background: var(--pastel-mint-bg); border: 1.5px solid #a7f3d0; color: #065f46; padding: 32px; border-radius: var(--radius-lg); text-align: center; box-shadow: 0 4px 20px rgba(16,185,129,0.05);">
             <div style="font-size: 2.5rem; color: #10b981; margin-bottom: 12px;"><i class="fa-solid fa-circle-check"></i></div>
             <h3 style="font-size: 1.3rem; font-weight: 800; margin-bottom: 8px;">Pendaftaran Berhasil Dikirim!</h3>
             <p style="font-size: 0.92rem; line-height: 1.6; margin-bottom: 20px;">
@@ -379,7 +423,7 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_tenant_registr
 
                     <div class="form-group">
                         <label>URL WEB</label>
-                        <div style="display: flex; align-items: stretch; border: 1.5px solid var(--border-soft); border-radius: var(--radius-md); background: #faf8ff; overflow: hidden;">
+                        <div style="display: flex; align-items: stretch; border: 1.5px solid var(--border-soft); border-radius: var(--radius-md); background: var(--bg-page); overflow: hidden;">
                             <span style="display: flex; align-items: center; padding: 0 16px; color: var(--text-muted); font-weight: 700; border-right: 1.5px solid var(--border-soft); font-size: 0.88rem; white-space: nowrap; background: #f3f0ff; flex-shrink: 0;">go-web.cloud/</span>
                             <input type="text" name="reg_store_slug" id="reg-store-slug" class="form-control" placeholder="cth: sakura-jastip" style="border: none; background: #fff; border-radius: 0; width: 100%;" required>
                         </div>
@@ -392,7 +436,7 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_tenant_registr
                             <input type="text" name="reg_admin_name" id="reg-admin-name" class="form-control" placeholder="cth: Dinda Pratiwi">
                         </div>
                         <div class="form-group">
-                            <label>EMAIL KONTAK / AKUN</label>
+                            <label>EMAIL KONTAK</label>
                             <input type="email" name="reg_email" id="reg-email" class="form-control" placeholder="cth: admin@store.com">
                         </div>
                     </div>
@@ -402,7 +446,7 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_tenant_registr
                         <input type="password" name="reg_password" id="reg-password" class="form-control" placeholder="Buat password untuk login ke dashboard" required>
                     </div>
 
-                    <div class="form-group" style="background: #faf8ff; padding: 16px; border-radius: var(--radius-md); border: 1.5px solid var(--border-soft);">
+                    <div class="form-group" style="background: var(--bg-page); padding: 16px; border-radius: var(--radius-md); border: 1.5px solid var(--border-soft);">
                         <label style="display: block; font-size: 0.85rem; font-weight: 700; color: var(--text-dark); margin-bottom: 10px;"><i class="fa-solid fa-puzzle-piece" style="color:var(--pastel-purple);"></i> FITUR YANG DIAKTIFKAN</label>
                         <div class="reg-2col-grid" style="gap: 10px;">
                             <label style="font-size: 0.82rem; font-weight: 600; cursor: pointer;"><input type="checkbox" name="reg_features[]" value="calculator" checked style="accent-color: var(--pastel-purple);"> Kalkulator Harga Jual</label>
@@ -411,6 +455,7 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_tenant_registr
                             <label style="font-size: 0.82rem; font-weight: 600; cursor: pointer;"><input type="checkbox" name="reg_features[]" value="po_recap" checked style="accent-color: var(--pastel-purple);"> Kelola Rekapan PO</label>
                             <label style="font-size: 0.82rem; font-weight: 600; cursor: pointer;"><input type="checkbox" name="reg_features[]" value="tagihan_recap" checked style="accent-color: var(--pastel-purple);"> Kelola Rekapan Tagihan</label>
                             <label style="font-size: 0.82rem; font-weight: 600; cursor: pointer;"><input type="checkbox" name="reg_features[]" value="warehouse" checked style="accent-color: var(--pastel-purple);"> Database Warehouse</label>
+                            <label style="font-size: 0.82rem; font-weight: 600; cursor: pointer;"><input type="checkbox" name="reg_features[]" value="testimonials" checked style="accent-color: var(--pastel-purple);"> Kelola Testimoni</label>
                         </div>
                     </div>
 
@@ -430,7 +475,7 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_tenant_registr
                     
                     <div style="background: var(--pastel-purple-bg); border: 1.5px dashed var(--pastel-purple-border); padding: 16px 20px; border-radius: var(--radius-md); margin-bottom: 20px; font-size: 0.88rem;">
                         <strong>Informasi Transfer:</strong><br>
-                        Silakan lakukan pembayaran biaya sewa awal ke rekening pusat atau scan QRIS di bawah ini, lalu unggah buktinya.
+                        Silakan lakukan pembayaran biaya sewa awal dengan cara scan QRIS di bawah ini lalu unggah buktinya.
                         
                         <!-- DETAIL HARGA DAN BIAYA QRIS — default (Starter) dihitung
                              dari kamus paket + kamus fee terpusat, bukan hardcode -->
@@ -440,25 +485,25 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_tenant_registr
                                 <strong id="display-base-price">Rp <?php echo number_format( goweb_get_package('starter')['price'], 0, ',', '.'); ?></strong>
                             </div>
                             <div style="display: flex; justify-content: space-between; margin-bottom: 4px; color: var(--text-muted); font-size: 0.8rem;">
-                                <span id="display-fee-label">Biaya Layanan QRIS (<?php echo esc_html( goweb_qris_fee_config()['low_label'] ); ?>):</span>
-                                <strong id="display-fee-price">Rp <?php echo number_format( goweb_calculate_qris_fee( goweb_get_package('starter')['price'] )['fee'], 0, ',', '.'); ?></strong>
+                                <span id="display-fee-label">Biaya Layanan QRIS (<?php echo esc_html( $reg_qris_fee_config['low_label'] ); ?>):</span>
+                                <strong id="display-fee-price">Rp <?php echo number_format( $reg_starter_fee['fee'], 0, ',', '.'); ?></strong>
                             </div>
                             <hr style="border: 0; border-top: 1px solid var(--border-soft); margin: 8px 0;">
                             <div style="display: flex; justify-content: space-between; font-size: 1.1rem;">
                                 <strong>Total Transfer:</strong>
-                                <strong id="display-total-price" style="color: var(--pastel-purple);">Rp <?php echo number_format( goweb_calculate_qris_fee( goweb_get_package('starter')['price'] )['total'], 0, ',', '.'); ?></strong>
+                                <strong id="display-total-price" style="color: var(--pastel-purple);">Rp <?php echo number_format( $reg_starter_fee['total'], 0, ',', '.'); ?></strong>
                             </div>
                         </div>
                     </div>
 
-                    <div style="text-align: center; margin-bottom: 20px; background: #faf8ff; padding: 14px; border: 1.5px dashed var(--pastel-purple-border); border-radius: var(--radius-md);">
+                    <div style="text-align: center; margin-bottom: 20px; background: var(--bg-page); padding: 14px; border: 1.5px dashed var(--pastel-purple-border); border-radius: var(--radius-md);">
                         <p style="font-size: 0.78rem; font-weight: 700; color: var(--pastel-purple); margin-bottom: 8px;">SCAN QRIS DIBAWAH INI</p>
-                        <img src="<?php echo esc_url( goweb_get_qris_image_url() ); ?>" alt="QRIS Barcode" style="width: 150px; height: 150px; object-fit: contain; border-radius: 8px; border: 1px solid var(--border-soft);">
+                        <img src="<?php echo esc_url( $reg_qris_image_url ); ?>" alt="QRIS Barcode" style="width: 150px; height: 150px; object-fit: contain; border-radius: 8px; border: 1px solid var(--border-soft);">
                     </div>
 
                     <div class="form-group" style="margin-bottom: 24px;">
-                        <label>Unggah Bukti Transfer (Otomatis Terkompresi)</label>
-                        <input type="file" name="reg_payment_proof" id="reg-proof" class="form-control" accept="image/*" style="background: #faf8ff;">
+                        <label>Unggah Bukti Transfer</label>
+                        <input type="file" name="reg_payment_proof" id="reg-proof" class="form-control" accept="image/*" style="background: var(--bg-page);">
                     </div>
 
                     <div id="step3-error-msg" style="color: #ef4444; font-size: 0.82rem; font-weight: 700; margin-top: 8px; display: none; margin-bottom: 12px;">
@@ -467,6 +512,12 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_tenant_registr
 
                     <div class="btn-action-group">
                         <button type="button" class="btn-prev" id="btn-back-to-step-2"><i class="fa-solid fa-arrow-left"></i> Kembali</button>
+                        <!-- HONEYPOT anti-bot (#34): disembunyikan dari manusia, -->
+                        <!-- bot pengisi-semua-field akan mengisinya dan ditolak. -->
+                        <div style="position: absolute; left: -9999px; top: auto; width: 1px; height: 1px; overflow: hidden;" aria-hidden="true">
+                            <label for="reg-website-trap">Website</label>
+                            <input type="text" name="reg_website_trap" id="reg-website-trap" tabindex="-1" autocomplete="off">
+                        </div>
                         <button type="submit" name="submit_tenant_registration" class="btn-submit">
                             <i class="fa-solid fa-paper-plane"></i> Kirim Konfirmasi
                         </button>
@@ -476,6 +527,7 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_tenant_registr
             </form>
         </div>
     <?php endif; ?>
+    <p class="reg-login-link">Sudah punya akun? <a href="<?php echo esc_url(home_url('/login')); ?>">Masuk ke dashboard</a></p>
 
 </div>
 
@@ -486,7 +538,7 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_tenant_registr
 // & goweb_qris_fee_config di functions.php), jadi kalau harga/policy berubah
 // cukup ubah satu tempat.
 const priceMap = <?php echo wp_json_encode( array_combine( array_keys( goweb_get_package_definitions() ), array_column( goweb_get_package_definitions(), 'price' ) ) ); ?>;
-const QRIS_FEE = <?php echo wp_json_encode( goweb_qris_fee_config() ); ?>;
+const QRIS_FEE = <?php echo wp_json_encode( $reg_qris_fee_config ); ?>;
 
 // Fungsi format angka ke format Rupiah
 function formatRupiah(angka) {
@@ -635,6 +687,4 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 
-<?php wp_footer(); ?>
-</body>
-</html>
+<?php get_footer(); ?>

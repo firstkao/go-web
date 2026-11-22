@@ -17,11 +17,11 @@ if (!$has_calc) {
         <div style="margin-bottom: 24px;">
             <label style="display: block; font-size: 0.85rem; font-weight: 700; color: var(--text-dark); margin-bottom: 8px;">Pilih Valuta Asal:</label>
             <div id="currency-pills" style="display: flex; gap: 10px; flex-wrap: wrap;">
-                <button type="button" class="curr-pill active" data-rate="<?php echo esc_attr($active_rates['CNY']); ?>" data-symbol="¥" style="padding: 10px 18px; border-radius: 12px; border: 1.5px solid var(--border-soft); background: #fff; font-weight: 700; font-size: 0.85rem; cursor: pointer; color: var(--text-muted);">🇨🇳 Yuan (CNY)</button>
-                <button type="button" class="curr-pill" data-rate="<?php echo esc_attr($active_rates['JPY']); ?>" data-symbol="¥" style="padding: 10px 18px; border-radius: 12px; border: 1.5px solid var(--border-soft); background: #fff; font-weight: 700; font-size: 0.85rem; cursor: pointer; color: var(--text-muted);">🇯🇵 Yen (JPY)</button>
-                <button type="button" class="curr-pill" data-rate="<?php echo esc_attr( isset($active_rates['THB']) ? $active_rates['THB'] : 460 ); ?>" data-symbol="฿" style="padding: 10px 18px; border-radius: 12px; border: 1.5px solid var(--border-soft); background: #fff; font-weight: 700; font-size: 0.85rem; cursor: pointer; color: var(--text-muted);">🇹🇭 Baht (THB)</button>
-                <button type="button" class="curr-pill" data-rate="<?php echo esc_attr($active_rates['KRW']); ?>" data-symbol="₩" style="padding: 10px 18px; border-radius: 12px; border: 1.5px solid var(--border-soft); background: #fff; font-weight: 700; font-size: 0.85rem; cursor: pointer; color: var(--text-muted);">🇰🇷 Won (KRW)</button>
-                <button type="button" class="curr-pill" data-rate="<?php echo esc_attr($active_rates['USD']); ?>" data-symbol="$" style="padding: 10px 18px; border-radius: 12px; border: 1.5px solid var(--border-soft); background: #fff; font-weight: 700; font-size: 0.85rem; cursor: pointer; color: var(--text-muted);">🇺🇸 USD ($)</button>
+                <button type="button" class="curr-pill active" data-rate="<?php echo esc_attr($active_rates['CNY']); ?>" data-symbol="¥" style="padding: 10px 18px; border-radius: var(--radius-md); border: 1.5px solid var(--border-soft); background: #fff; font-weight: 700; font-size: 0.85rem; cursor: pointer; color: var(--text-muted);">🇨🇳 Yuan (CNY)</button>
+                <button type="button" class="curr-pill" data-rate="<?php echo esc_attr($active_rates['JPY']); ?>" data-symbol="¥" style="padding: 10px 18px; border-radius: var(--radius-md); border: 1.5px solid var(--border-soft); background: #fff; font-weight: 700; font-size: 0.85rem; cursor: pointer; color: var(--text-muted);">🇯🇵 Yen (JPY)</button>
+                <button type="button" class="curr-pill" data-rate="<?php echo esc_attr( isset($active_rates['THB']) ? $active_rates['THB'] : 460 ); ?>" data-symbol="฿" style="padding: 10px 18px; border-radius: var(--radius-md); border: 1.5px solid var(--border-soft); background: #fff; font-weight: 700; font-size: 0.85rem; cursor: pointer; color: var(--text-muted);">🇹🇭 Baht (THB)</button>
+                <button type="button" class="curr-pill" data-rate="<?php echo esc_attr($active_rates['KRW']); ?>" data-symbol="₩" style="padding: 10px 18px; border-radius: var(--radius-md); border: 1.5px solid var(--border-soft); background: #fff; font-weight: 700; font-size: 0.85rem; cursor: pointer; color: var(--text-muted);">🇰🇷 Won (KRW)</button>
+                <button type="button" class="curr-pill" data-rate="<?php echo esc_attr($active_rates['USD']); ?>" data-symbol="$" style="padding: 10px 18px; border-radius: var(--radius-md); border: 1.5px solid var(--border-soft); background: #fff; font-weight: 700; font-size: 0.85rem; cursor: pointer; color: var(--text-muted);">🇺🇸 USD ($)</button>
             </div>
         </div>
 
@@ -32,14 +32,14 @@ if (!$has_calc) {
                 <div class="form-group" style="margin-bottom:0;">
                     <label>HARGA BARANG ASLI:</label>
                     <div style="display: flex; align-items: center; border: 1.5px solid var(--border-soft); border-radius: var(--radius-md); background: #fff; overflow: hidden;">
-                        <span id="curr-symbol" style="padding: 0 12px; background: #faf8ff; color: var(--text-muted); font-weight: 700; border-right: 1.5px solid var(--border-soft); font-size: 0.9rem;">¥</span>
+                        <span id="curr-symbol" style="padding: 0 12px; background: var(--bg-page); color: var(--text-muted); font-weight: 700; border-right: 1.5px solid var(--border-soft); font-size: 0.9rem;">¥</span>
                         <input type="number" id="calc-price-valas" class="form-control" value="120" style="border: none; background: transparent;">
                     </div>
                 </div>
                 <div class="form-group" style="margin-bottom:0;">
                     <label>KURS BUFFER (IDR):</label>
                     <div style="display: flex; align-items: center; border: 1.5px solid var(--border-soft); border-radius: var(--radius-md); background: #fff; overflow: hidden;">
-                        <span style="padding: 0 12px; background: #faf8ff; color: var(--text-muted); font-weight: 700; border-right: 1.5px solid var(--border-soft); font-size: 0.9rem;">Rp</span>
+                        <span style="padding: 0 12px; background: var(--bg-page); color: var(--text-muted); font-weight: 700; border-right: 1.5px solid var(--border-soft); font-size: 0.9rem;">Rp</span>
                         <input type="number" id="calc-rate" class="form-control" value="<?php echo esc_attr($active_rates['CNY']); ?>" style="border: none; background: transparent;">
                     </div>
                 </div>
@@ -53,7 +53,7 @@ if (!$has_calc) {
                 <div class="form-group" style="margin-bottom:0;">
                     <label>ONGKIR LOKAL KE WH:</label>
                     <div style="display: flex; align-items: center; border: 1.5px solid var(--border-soft); border-radius: var(--radius-md); background: #fff; overflow: hidden;">
-                        <span id="curr-symbol-2" style="padding: 0 12px; background: #faf8ff; color: var(--text-muted); font-weight: 700; border-right: 1.5px solid var(--border-soft); font-size: 0.9rem;">¥</span>
+                        <span id="curr-symbol-2" style="padding: 0 12px; background: var(--bg-page); color: var(--text-muted); font-weight: 700; border-right: 1.5px solid var(--border-soft); font-size: 0.9rem;">¥</span>
                         <input type="number" id="calc-local-ship" class="form-control" value="10" style="border: none; background: transparent;">
                     </div>
                 </div>
@@ -61,7 +61,7 @@ if (!$has_calc) {
                     <label>ESTIMASI BOBOT BARANG:</label>
                     <div style="display: flex; align-items: center; border: 1.5px solid var(--border-soft); border-radius: var(--radius-md); background: #fff; overflow: hidden;">
                         <input type="number" id="calc-weight" class="form-control" value="350" style="border: none; background: transparent;">
-                        <span style="padding: 0 12px; background: #faf8ff; color: var(--text-muted); font-weight: 700; border-left: 1.5px solid var(--border-soft); font-size: 0.85rem;">gram</span>
+                        <span style="padding: 0 12px; background: var(--bg-page); color: var(--text-muted); font-weight: 700; border-left: 1.5px solid var(--border-soft); font-size: 0.85rem;">gram</span>
                     </div>
                 </div>
             </div>
@@ -77,9 +77,9 @@ if (!$has_calc) {
             <div class="form-group" style="margin-bottom:0;">
                 <label style="display: block; font-size: 0.8rem; font-weight: 700; color: var(--text-dark); margin-bottom: 6px;">TARIF KARGO INT'L PER KG (IDR):</label>
                 <div style="display: flex; align-items: center; border: 1.5px solid var(--border-soft); border-radius: var(--radius-md); background: #fff; overflow: hidden;">
-                    <span style="padding: 0 12px; background: #faf8ff; color: var(--text-muted); font-weight: 700; border-right: 1.5px solid var(--border-soft); font-size: 0.9rem;">Rp</span>
+                    <span style="padding: 0 12px; background: var(--bg-page); color: var(--text-muted); font-weight: 700; border-right: 1.5px solid var(--border-soft); font-size: 0.9rem;">Rp</span>
                     <input type="number" id="calc-shipping-rate" class="form-control" value="<?php echo esc_attr($active_currency_cargo['CNY']['air'] ?? 140000); ?>" style="border: none; background: transparent;">
-                    <span style="padding: 0 12px; background: #faf8ff; color: var(--text-muted); font-weight: 700; border-left: 1.5px solid var(--border-soft); font-size: 0.85rem;">/ kg</span>
+                    <span style="padding: 0 12px; background: var(--bg-page); color: var(--text-muted); font-weight: 700; border-left: 1.5px solid var(--border-soft); font-size: 0.85rem;">/ kg</span>
                 </div>
             </div>
         </div>
@@ -88,7 +88,7 @@ if (!$has_calc) {
         <div>
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                 <h4 style="font-size: 0.9rem; font-weight: 800; color: var(--pastel-purple); margin:0;">3. PAJAK, FEE PACKING & PROFIT</h4>
-                <div style="display: flex; background: #f1f5f9; padding: 3px; border-radius: 8px; border: 1px solid var(--border);">
+                <div style="display: flex; background: var(--slate-100); padding: 3px; border-radius: 8px; border: 1px solid var(--border);">
                     <button type="button" class="tax-mode-pill active" data-mode="percent" style="padding: 4px 12px; border-radius: 6px; border: none; background: var(--pastel-purple); color: #fff; font-weight: 800; font-size: 0.75rem; cursor: pointer;">Mode (%)</button>
                     <button type="button" class="tax-mode-pill" data-mode="flat" style="padding: 4px 12px; border-radius: 6px; border: none; background: transparent; color: var(--text-muted); font-weight: 800; font-size: 0.75rem; cursor: pointer;">Mode (Rp)</button>
                 </div>
@@ -100,20 +100,20 @@ if (!$has_calc) {
                     <label id="tax-label-title">ESTIMASI TAX / BEA MASUK (%):</label>
                     <div style="display: flex; align-items: center; border: 1.5px solid var(--border-soft); border-radius: var(--radius-md); background: #fff; overflow: hidden;">
                         <input type="number" id="calc-tax-val" class="form-control" value="<?php echo esc_attr($active_currency_cargo['CNY']['tax_percent'] ?? 7.5); ?>" style="border: none; background: transparent;">
-                        <span id="tax-suffix-unit" style="padding: 0 12px; background: #faf8ff; color: var(--text-muted); font-weight: 700; border-left: 1.5px solid var(--border-soft); font-size: 0.85rem;">%</span>
+                        <span id="tax-suffix-unit" style="padding: 0 12px; background: var(--bg-page); color: var(--text-muted); font-weight: 700; border-left: 1.5px solid var(--border-soft); font-size: 0.85rem;">%</span>
                     </div>
                 </div>
                 <div class="form-group" style="margin-bottom:0;">
                     <label>MARGIN PROFIT JASTIP (%):</label>
                     <div style="display: flex; align-items: center; border: 1.5px solid var(--border-soft); border-radius: var(--radius-md); background: #fff; overflow: hidden;">
                         <input type="number" id="calc-margin" class="form-control" value="15" style="border: none; background: transparent;">
-                        <span style="padding: 0 12px; background: #faf8ff; color: var(--text-muted); font-weight: 700; border-left: 1.5px solid var(--border-soft); font-size: 0.85rem;">%</span>
+                        <span style="padding: 0 12px; background: var(--bg-page); color: var(--text-muted); font-weight: 700; border-left: 1.5px solid var(--border-soft); font-size: 0.85rem;">%</span>
                     </div>
                 </div>
                 <div class="form-group" style="margin-bottom:0;">
                     <label>PACKING & HANDLING FEE:</label>
                     <div style="display: flex; align-items: center; border: 1.5px solid var(--border-soft); border-radius: var(--radius-md); background: #fff; overflow: hidden;">
-                        <span style="padding: 0 12px; background: #faf8ff; color: var(--text-muted); font-weight: 700; border-right: 1.5px solid var(--border-soft); font-size: 0.85rem;">Rp</span>
+                        <span style="padding: 0 12px; background: var(--bg-page); color: var(--text-muted); font-weight: 700; border-right: 1.5px solid var(--border-soft); font-size: 0.85rem;">Rp</span>
                         <input type="number" id="calc-packing-fee" class="form-control" value="<?php echo esc_attr($active_packing_fee); ?>" style="border: none; background: transparent;">
                     </div>
                 </div>
@@ -122,7 +122,7 @@ if (!$has_calc) {
     </div>
 
     <!-- KARTU HASIL KANAN -->
-    <div class="mc-result-card" style="background: linear-gradient(135deg, #a78bfa, #818cf8); color: #fff; padding: 28px; border-radius: 20px; box-shadow: 0 10px 25px rgba(139,92,246,0.35);">
+    <div class="mc-result-card" style="background: var(--accent-gradient); color: #fff; padding: 28px; border-radius: var(--radius-lg); box-shadow: 0 10px 25px rgba(139,92,246,0.35);">
         <span style="font-size: 0.72rem; font-weight: 700; color: rgba(255,255,255,0.75); text-transform: uppercase; letter-spacing: 0.5px;">REKOMENDASI HARGA JUAL (IDR)</span>
         <h1 id="res-final-price" style="font-size: 2.3rem; font-weight: 800; color: #ffffff; margin: 6px 0 20px;">Rp 0</h1>
         

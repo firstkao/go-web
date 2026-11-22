@@ -12,7 +12,7 @@ $payment_category_options = goweb_get_tenant_setting( $store_id, 'payment_catego
 </div>
 
 <?php if (isset($submission_success) && $submission_success): ?>
-    <div style="background: #ecfdf5; border: 1.5px solid #a7f3d0; color: #065f46; padding: 16px 20px; border-radius: var(--radius-md); margin-bottom: 20px; font-weight: 700; font-size: 0.9rem; text-align: center;">
+    <div style="background: var(--pastel-mint-bg); border: 1.5px solid #a7f3d0; color: #065f46; padding: 16px 20px; border-radius: var(--radius-md); margin-bottom: 20px; font-weight: 700; font-size: 0.9rem; text-align: center;">
         <i class="fa-solid fa-circle-check"></i> Konfirmasi pembayaran berhasil dikirim! Data akan segera diverifikasi oleh admin.
     </div>
 <?php endif; ?>

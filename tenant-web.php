@@ -39,6 +39,7 @@ $features   = isset($current_tenant['features']) ? $current_tenant['features'] :
 
 $has_public_calc = ($is_active && in_array('public_calc', $features));
 $has_payment= ($is_active && in_array('customer_payment', $features));
+$has_testi = ($is_active && in_array('testimonials', $features));
 $has_po     = ($is_active && in_array('po_recap', $features));
 $has_tagihan= ($is_active && in_array('tagihan_recap', $features));
 $has_wh     = ($is_active && in_array('warehouse', $features));
@@ -52,8 +53,24 @@ $default_tab = 'calculator';
 if (!$has_public_calc && $has_po) $default_tab = 'po';
 else if (!$has_public_calc && !$has_po && $has_wh) $default_tab = 'resi';
 else if (!$has_public_calc && !$has_po && !$has_wh && $has_payment) $default_tab = 'payment';
+else if (!$has_public_calc && !$has_po && !$has_wh && !$has_payment && $has_testi) $default_tab = 'testimoni';
 
 $current_tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : $default_tab;
+
+// Gating tab publik (#24) — dulu ?tab=... cuma mengatur TOMBOL yang tampil;
+// akses langsung via URL ke tab fitur yang dimatikan tetap me-render data
+// (PO/tagihan/resi/pembayaran/kalkulator) & tetap menerima submission.
+// Sekarang tab yang tidak aktif di-fallback ke tab default yang aktif.
+$tab_allowed = array();
+if ($has_public_calc) $tab_allowed[] = 'calculator';
+if ($has_po) $tab_allowed[] = 'po';
+if ($has_tagihan) $tab_allowed[] = 'tagihan';
+if ($has_wh) $tab_allowed[] = 'resi';
+if ($has_payment) $tab_allowed[] = 'payment';
+if ($has_testi) $tab_allowed[] = 'testimoni';
+if ( ! in_array( $current_tab, $tab_allowed, true ) ) {
+    $current_tab = $default_tab;
+}
 $base_url = remove_query_arg('tab');
 
 // Handler Simpan Konfirmasi Pembayaran ke Database Tenant
@@ -62,6 +79,9 @@ global $wpdb;
 $payments_table = goweb_get_table_names()['payments'];
 
 if ( $_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_public_confirmation']) ) {
+    if ( ! $has_payment ) {
+        wp_die('Fitur konfirmasi pembayaran tidak aktif untuk toko ini.');
+    }
     if ( ! isset($_POST['goweb_public_confirm_nonce']) || ! wp_verify_nonce($_POST['goweb_public_confirm_nonce'], 'goweb_public_confirm_' . $store_id) ) {
         wp_die('Sesi form kedaluwarsa. Silakan muat ulang halaman dan kirim ulang konfirmasi.');
     }
@@ -130,7 +150,10 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_public_confirm
         }
     }
 
-    $wpdb->insert( $payments_table, array(
+    // Cek hasil insert (#36) — dulu kegagalan DB diabaikan dan pembeli tetap
+    // melihat pesan "berhasil terkirim" padahal datanya tidak tersimpan
+    // (kelas bug yang sama dengan #14 di approve tenant).
+    $payment_inserted = $wpdb->insert( $payments_table, array(
         'store_id'         => $store_id,
         'payment_category' => 'po',
         'period'           => $po_name,
@@ -141,8 +164,58 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_public_confirm
         'status'           => 'Pending',
         'created_at'       => current_time('mysql'),
     ) );
+    if ( $payment_inserted === false ) {
+        // Jangan tinggalkan file bukti yatim kalau barisnya gagal dibuat.
+        if ( ! empty( $proof_url ) ) {
+            goweb_delete_uploaded_file_by_url( $proof_url );
+        }
+        wp_die( 'Maaf, konfirmasi pembayaran gagal disimpan karena kendala teknis. Silakan coba lagi beberapa saat lagi atau hubungi admin toko.' );
+    }
     $submission_success = true;
     $current_tab = 'payment';
+}
+
+// HANDLER KIRIM TESTIMONI PUBLIK — pembeli kirim dari portal, status awal
+// Pending; admin tenant yang memutuskan tampil/tidak lewat menu Testimoni
+// di dashboard. Validasi SERVER-SIDE lengkap (pola #15e/#18): nama maks
+// 100 char, rating wajib 1-5, isi maks 1000 char, plus anti-spam ringan:
+// maksimal 3 testimoni Pending per nama di toko ini.
+$testimonials_table = goweb_get_table_names()['testimonials'];
+$testi_success = false;
+if ( $_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_public_testimonial']) ) {
+    if ( ! $has_testi ) {
+        wp_die('Fitur testimoni tidak aktif untuk toko ini.');
+    }
+    if ( ! isset($_POST['goweb_public_testi_nonce']) || ! wp_verify_nonce($_POST['goweb_public_testi_nonce'], 'goweb_public_testi_' . $store_id) ) {
+        wp_die('Sesi form kedaluwarsa. Silakan muat ulang halaman dan kirim ulang testimoni.');
+    }
+    $testi_name    = sanitize_text_field($_POST['testi_name'] ?? '');
+    $testi_rating  = intval($_POST['testi_rating'] ?? 0);
+    $testi_message = sanitize_textarea_field($_POST['testi_message'] ?? '');
+    $testi_errors  = array();
+    if ( $testi_name === '' || strlen( $testi_name ) > 100 ) $testi_errors[] = 'Nama wajib diisi (maksimal 100 karakter).';
+    if ( $testi_rating < 1 || $testi_rating > 5 ) $testi_errors[] = 'Rating harus 1 sampai 5 bintang.';
+    if ( $testi_message === '' || strlen( $testi_message ) > 1000 ) $testi_errors[] = 'Testimoni wajib diisi (maksimal 1000 karakter).';
+    $testi_pending_same = $wpdb->get_var( $wpdb->prepare(
+        "SELECT COUNT(*) FROM {$testimonials_table} WHERE store_id = %s AND status = 'Pending' AND buyer_name = %s", $store_id, $testi_name
+    ) );
+    if ( intval( $testi_pending_same ) >= 3 ) $testi_errors[] = 'Kamu sudah punya beberapa testimoni yang masih menunggu moderasi. Tunggu sampai diproses admin toko.';
+    if ( ! empty( $testi_errors ) ) {
+        wp_die( 'Testimoni ditolak: ' . esc_html( implode( ' ', $testi_errors ) ) );
+    }
+    // Cek hasil insert (#36) — jangan bilang "terkirim" kalau gagal simpan.
+    $testi_inserted = $wpdb->insert( $testimonials_table, array(
+        'store_id'   => $store_id,
+        'buyer_name' => $testi_name,
+        'rating'     => $testi_rating,
+        'message'    => $testi_message,
+        'status'     => 'Pending',
+        'created_at' => current_time('mysql'),
+    ) );
+    if ( $testi_inserted === false ) {
+        wp_die( 'Maaf, testimoni gagal disimpan karena kendala teknis. Silakan coba lagi beberapa saat lagi.' );
+    }
+    $testi_success = true;
 }
 ?>
 <!DOCTYPE html>
@@ -176,7 +249,7 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_public_confirm
         /* NAVIGASI TAB PILL DENGAN EFEK SOFT & GLOW UNGU */
         .feature-tabs { display: flex; justify-content: center; gap: 8px; margin-bottom: 32px; flex-wrap: wrap; background: #ffffff; padding: 6px; border-radius: 999px; border: 1.5px solid var(--border-soft); width: fit-content; margin-left: auto; margin-right: auto; box-shadow: 0 4px 15px rgba(139,92,246,0.04); }
         .feature-tab-btn { display: inline-flex; align-items: center; gap: 8px; padding: 9px 20px; border-radius: 999px; border: none; background: transparent; font-weight: 700; font-size: 0.88rem; cursor: pointer; color: var(--text-muted); transition: all 0.2s; text-decoration: none; }
-        .feature-tab-btn.active { background: #7c3aed; color: #fff; box-shadow: 0 4px 14px rgba(124,58,237,0.3); }
+        .feature-tab-btn.active { background: var(--pastel-purple); color: #fff; box-shadow: 0 4px 14px rgba(124,58,237,0.3); }
 
         .feature-panel { background: #fff; border: 1px solid var(--border-soft); border-radius: var(--radius-lg); padding: 32px; box-shadow: 0 4px 20px rgba(139,92,246,0.03); }
         
@@ -188,7 +261,7 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_public_confirm
         .form-group label { display: block; font-size: 0.82rem; font-weight: 700; color: var(--text-dark); margin-bottom: 6px; }
         .form-control { width: 100%; padding: 10px 14px; border: 1.5px solid var(--border-soft); border-radius: var(--radius-md); font-size: 0.9rem; background: #fff; }
         
-        .btn-submit { padding: 12px 24px; border-radius: var(--radius-md); background: linear-gradient(135deg, #a78bfa, #818cf8); color: #fff; border: none; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; width: 100%; justify-content: center; box-shadow: 0 4px 14px rgba(124,58,237,0.25); }
+        .btn-submit { padding: 12px 24px; border-radius: var(--radius-md); background: var(--accent-gradient); color: #fff; border: none; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; width: 100%; justify-content: center; box-shadow: 0 4px 14px rgba(124,58,237,0.25); }
         .disabled-notice { background: #fef2f2; border: 1.5px solid #fecaca; color: #991b1b; padding: 20px; border-radius: var(--radius-md); font-weight: 700; text-align: center; font-size: 0.9rem; }
         .pub-curr-pill.active { background: var(--pastel-purple) !important; color: #fff !important; border-color: var(--pastel-purple) !important; box-shadow: 0 4px 12px rgba(139,92,246,0.25); }
     </style>
@@ -244,6 +317,12 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_public_confirm
                     <i class="fa-solid fa-receipt"></i> Konfirmasi Pembayaran
                 </a>
             <?php endif; ?>
+
+            <?php if ($has_testi): ?>
+                <a href="<?php echo esc_url(add_query_arg('tab', 'testimoni', $base_url)); ?>" class="feature-tab-btn <?php echo $current_tab === 'testimoni' ? 'active' : ''; ?>">
+                    <i class="fa-solid fa-comments"></i> Testimoni
+                </a>
+            <?php endif; ?>
         </div>
 
         <!-- RENDER KONTEN PANEL — file ini ada di folder utama tema
@@ -269,6 +348,11 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_public_confirm
                     $file_part = get_stylesheet_directory() . '/page-resi.php';
                     break;
                 case 'payment':
+                    $file_part = get_stylesheet_directory() . '/page-payment.php';
+                    break;
+                case 'testimoni':
+                    $file_part = get_stylesheet_directory() . '/page-testimoni.php';
+                    break;
                 default:
                     $file_part = get_stylesheet_directory() . '/page-payment.php';
                     break;

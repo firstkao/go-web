@@ -26,7 +26,7 @@ $pending_table = $goweb_tables['pending'];
 
 // Daftar fitur yang dikenal sistem (whitelist edit tenant #19). Sama dengan
 // yang dirender di checkbox modal edit & yang dikirim form registrasi.
-$goweb_known_features = array('calculator', 'public_calc', 'customer_payment', 'po_recap', 'tagihan_recap', 'warehouse');
+$goweb_known_features = array('calculator', 'public_calc', 'customer_payment', 'po_recap', 'tagihan_recap', 'warehouse', 'testimonials');
 
 $pending_requests = $wpdb->get_results( "SELECT * FROM {$pending_table} ORDER BY created_at DESC", ARRAY_A );
 
@@ -75,7 +75,7 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' ) {
             while ( $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$tenants_table} WHERE tenant_id = %s", $new_tenant_id ) ) > 0 ) {
                 $new_tenant_id = 'tenant_' . time() . '_' . bin2hex( random_bytes( 4 ) );
             }
-            $req_features = ! empty( $req['features'] ) ? json_decode( $req['features'], true ) : array('calculator', 'public_calc', 'customer_payment', 'po_recap', 'tagihan_recap', 'warehouse');
+            $req_features = ! empty( $req['features'] ) ? json_decode( $req['features'], true ) : array('calculator', 'public_calc', 'customer_payment', 'po_recap', 'tagihan_recap', 'warehouse', 'testimonials');
 
             // CEK HASIL INSERT — dulu kegagalan insert (mis. PK bentrok,
             // koneksi putus) diabaikan dan tetap nampil "berhasil disetujui"
@@ -235,7 +235,7 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' ) {
                 ),
                 array( 'tenant_id' => $t_id )
             );
-            echo '<div style="background:#faf8ff; border: 1.5px solid #c4b5fd; color:#5b21b6; padding:16px 24px; text-align:center; font-weight:700; margin-bottom:20px; border-radius:10px;">
+            echo '<div style="background:var(--bg-page); border: 1.5px solid #c4b5fd; color:#5b21b6; padding:16px 24px; text-align:center; font-weight:700; margin-bottom:20px; border-radius:10px;">
                 🔑 Password baru buat tenant ini: <span style="font-family:monospace; font-size:1.1rem; background:#fff; padding:4px 10px; border-radius:6px; margin:0 4px;">' . esc_html($new_plain_password) . '</span>
                 <br><span style="font-weight:400; font-size:0.8rem;">Salin sekarang &amp; kirim ke tenant secara pribadi — password ini TIDAK akan ditampilkan lagi setelah halaman ini ditutup/dimuat ulang. Sesi login yang lagi aktif juga otomatis keusir, tenant perlu login ulang pakai password baru.</span>
             </div>';
@@ -355,18 +355,18 @@ get_header();
     <!-- RINGKASAN CEPAT — biar gak perlu scroll ke tiap section satu-satu
          cuma buat tau ada berapa yang perlu ditindaklanjuti. -->
     <div style="display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 28px;">
-        <a href="#section-pending-registrations" style="text-decoration: none; flex: 1; min-width: 220px; background: #fff; border: 1.5px solid <?php echo count($pending_requests) > 0 ? '#fde68a' : 'var(--border-soft, #e2e8f0)'; ?>; border-radius: 16px; padding: 18px 22px; display: flex; align-items: center; gap: 14px;">
-            <div style="width: 42px; height: 42px; border-radius: 12px; background: <?php echo count($pending_requests) > 0 ? '#fef3c7' : '#f1f5f9'; ?>; display: flex; align-items: center; justify-content: center; font-size: 1.1rem;">🕐</div>
+        <a href="#section-pending-registrations" style="text-decoration: none; flex: 1; min-width: 220px; background: #fff; border: 1.5px solid <?php echo count($pending_requests) > 0 ? '#fde68a' : 'var(--border-soft)'; ?>; border-radius: var(--radius-lg); padding: 18px 22px; display: flex; align-items: center; gap: 14px;">
+            <div style="width: 42px; height: 42px; border-radius: var(--radius-md); background: <?php echo count($pending_requests) > 0 ? '#fef3c7' : 'var(--bg-page)'; ?>; display: flex; align-items: center; justify-content: center; font-size: 1.1rem;">🕐</div>
             <div>
-                <div style="font-size: 1.4rem; font-weight: 800; color: <?php echo count($pending_requests) > 0 ? '#b45309' : 'var(--text-dark, #0f172a)'; ?>;"><?php echo count($pending_requests); ?></div>
-                <div style="font-size: 12.5px; color: var(--text-muted, #64748b); font-weight: 600;">Pendaftaran Baru Nunggu</div>
+                <div style="font-size: 1.4rem; font-weight: 800; color: <?php echo count($pending_requests) > 0 ? '#b45309' : 'var(--text-dark)'; ?>;"><?php echo count($pending_requests); ?></div>
+                <div style="font-size: 12.5px; color: var(--text-muted); font-weight: 600;">Pendaftaran Baru Nunggu</div>
             </div>
         </a>
-        <a href="#section-pending-subscriptions" style="text-decoration: none; flex: 1; min-width: 220px; background: #fff; border: 1.5px solid <?php echo count($pending_subscriptions) > 0 ? '#fde68a' : 'var(--border-soft, #e2e8f0)'; ?>; border-radius: 16px; padding: 18px 22px; display: flex; align-items: center; gap: 14px;">
-            <div style="width: 42px; height: 42px; border-radius: 12px; background: <?php echo count($pending_subscriptions) > 0 ? '#fef3c7' : '#f1f5f9'; ?>; display: flex; align-items: center; justify-content: center; font-size: 1.1rem;">💳</div>
+        <a href="#section-pending-subscriptions" style="text-decoration: none; flex: 1; min-width: 220px; background: #fff; border: 1.5px solid <?php echo count($pending_subscriptions) > 0 ? '#fde68a' : 'var(--border-soft)'; ?>; border-radius: var(--radius-lg); padding: 18px 22px; display: flex; align-items: center; gap: 14px;">
+            <div style="width: 42px; height: 42px; border-radius: var(--radius-md); background: <?php echo count($pending_subscriptions) > 0 ? '#fef3c7' : 'var(--bg-page)'; ?>; display: flex; align-items: center; justify-content: center; font-size: 1.1rem;">💳</div>
             <div>
-                <div style="font-size: 1.4rem; font-weight: 800; color: <?php echo count($pending_subscriptions) > 0 ? '#b45309' : 'var(--text-dark, #0f172a)'; ?>;"><?php echo count($pending_subscriptions); ?></div>
-                <div style="font-size: 12.5px; color: var(--text-muted, #64748b); font-weight: 600;">Perpanjangan Sewa Nunggu Verifikasi</div>
+                <div style="font-size: 1.4rem; font-weight: 800; color: <?php echo count($pending_subscriptions) > 0 ? '#b45309' : 'var(--text-dark)'; ?>;"><?php echo count($pending_subscriptions); ?></div>
+                <div style="font-size: 12.5px; color: var(--text-muted); font-weight: 600;">Perpanjangan Sewa Nunggu Verifikasi</div>
             </div>
         </a>
     </div>
@@ -389,18 +389,18 @@ get_header();
     <div class="tab-panel active" style="margin-bottom: 32px;">
         <h3 class="panel-title"><i class="fa-solid fa-database" style="color:var(--pastel-purple);"></i> Kesehatan Database (Hosting)</h3>
         <p class="panel-desc">Ukuran aktual database MySQL dibanding batas hosting shared kamu — dipakai buat nentuin kapan waktunya migrasi ke VPS.</p>
-        <div style="background: #fff; border: 1px solid var(--border-soft, #e2e8f0); border-radius: 16px; padding: 20px 24px; margin-top: 12px;">
+        <div style="background: #fff; border: 1px solid var(--border-soft); border-radius: var(--radius-lg); padding: 20px 24px; margin-top: 12px;">
             <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
                 <div>
-                    <span style="font-size: 1.5rem; font-weight: 800; color: var(--text-dark, #0f172a);"><?php echo number_format($db_size_mb, 1); ?> MB</span>
-                    <span style="color: var(--text-muted, #64748b); font-size: 0.9rem;"> / <?php echo number_format(GOWEB_DB_SIZE_LIMIT_MB, 0); ?> MB (<?php echo GOWEB_DB_SIZE_LIMIT_MB / 1024; ?> GB)</span>
+                    <span style="font-size: 1.5rem; font-weight: 800; color: var(--text-dark);"><?php echo number_format($db_size_mb, 1); ?> MB</span>
+                    <span style="color: var(--text-muted); font-size: 0.9rem;"> / <?php echo number_format(GOWEB_DB_SIZE_LIMIT_MB, 0); ?> MB (<?php echo GOWEB_DB_SIZE_LIMIT_MB / 1024; ?> GB)</span>
                 </div>
                 <span style="padding: 4px 12px; border-radius: 999px; background: <?php echo esc_attr($db_health_color); ?>1a; color: <?php echo esc_attr($db_health_color); ?>; font-weight: 800; font-size: 0.8rem;"><?php echo $db_size_pct; ?>% — <?php echo esc_html($db_health_label); ?></span>
             </div>
-            <div style="background: var(--border-soft, #e2e8f0); border-radius: 999px; height: 10px; width: 100%; overflow: hidden;">
+            <div style="background: var(--border-soft); border-radius: 999px; height: 10px; width: 100%; overflow: hidden;">
                 <div style="background: <?php echo esc_attr($db_health_color); ?>; height: 100%; width: <?php echo $db_size_pct; ?>%; transition: width 0.3s;"></div>
             </div>
-            <p style="font-size: 0.78rem; color: var(--text-muted, #64748b); margin-top: 10px;">Dihitung langsung dari MySQL (<code>information_schema</code>), bukan estimasi — jadi angkanya akurat 100% sesuai kondisi database kamu saat ini.</p>
+            <p style="font-size: 0.78rem; color: var(--text-muted); margin-top: 10px;">Dihitung langsung dari MySQL (<code>information_schema</code>), bukan estimasi — jadi angkanya akurat 100% sesuai kondisi database kamu saat ini.</p>
         </div>
     </div>
 
@@ -546,6 +546,7 @@ get_header();
                         <th>Email Login</th>
                         <th>Tanggal Daftar</th>
                         <th>Status Akun</th>
+                        <th>Fitur Aktif</th>
                         <th>Aksi</th>
                     </tr>
                 </thead>
@@ -566,6 +567,33 @@ get_header();
                                     <?php endif; ?>
                                 </td>
                                 <td>
+                                    <?php
+                                    // Ringkasan fitur di daftar (#38): sebelumnya fitur
+                                    // hanya kelihatan setelah buka modal Edit, jadi Super
+                                    // Admin tak bisa membandingkan paket antar tenant sekilas.
+                                    // Label pendek dipakai supaya kolom tidak melebar.
+                                    $t_feature_labels = array(
+                                        'calculator'       => 'Kalkulator',
+                                        'public_calc'      => 'Kalk. Publik',
+                                        'customer_payment' => 'Bayar Pelanggan',
+                                        'po_recap'         => 'Rekapan PO',
+                                        'tagihan_recap'    => 'Rekapan Tagihan',
+                                        'warehouse'        => 'Warehouse',
+                                        'testimonials'     => 'Testimoni',
+                                    );
+                                    $t_features_valid = array_values( array_intersect( (array) $t_features, array_keys( $t_feature_labels ) ) );
+                                    ?>
+                                    <?php if ( ! empty( $t_features_valid ) ): ?>
+                                        <div style="display: flex; flex-wrap: wrap; gap: 4px; max-width: 190px;">
+                                            <?php foreach ( $t_features_valid as $t_feat ): ?>
+                                                <span style="font-size: 0.65rem; font-weight: 700; padding: 3px 7px; border-radius: 20px; background: var(--pastel-purple-bg); color: var(--primary); border: 1px solid var(--pastel-purple-border); white-space: nowrap;"><?php echo esc_html( $t_feature_labels[ $t_feat ] ); ?></span>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    <?php else: ?>
+                                        <span style="color: var(--text-muted); font-size: 0.75rem;">—</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
                                     <div style="display: flex; gap: 6px;">
                                         <button type="button" class="btn-edit-trigger" 
                                             data-id="<?php echo esc_attr($t_id); ?>" 
@@ -574,7 +602,7 @@ get_header();
                                             data-email="<?php echo esc_attr($tenant['email']); ?>" 
                                             data-status="<?php echo esc_attr($tenant['status']); ?>" 
                                             data-features="<?php echo esc_attr(json_encode($t_features)); ?>"
-                                            style="padding: 6px 12px; font-size: 0.75rem; background:#6366f1; color:#fff; border:none; border-radius:6px; cursor:pointer;">
+                                            style="padding: 6px 12px; font-size: 0.75rem; background:var(--pastel-purple); color:#fff; border:none; border-radius:6px; cursor:pointer;">
                                             <i class="fa-solid fa-pen-to-square"></i> Edit
                                         </button>
                                         
@@ -589,7 +617,7 @@ get_header();
                         <?php endforeach; ?>
                     <?php else: ?>
                         <tr>
-                            <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 20px;">Belum ada data tenant aktif di database.</td>
+                            <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 20px;">Belum ada data tenant aktif di database.</td>
                         </tr>
                     <?php endif; ?>
                 </tbody>
@@ -669,13 +697,14 @@ get_header();
             <!-- CHECKBOX FITUR DI MODAL EDIT -->
             <div class="form-group" style="margin-bottom: 24px;">
                 <label style="display: block; font-size: 0.85rem; font-weight: 700; color: var(--text-dark); margin-bottom: 8px;">Akses Fitur Tenant:</label>
-                <div style="display: flex; flex-direction: column; gap: 8px; background: #faf8ff; padding: 12px 16px; border-radius: 8px; border: 1px solid var(--border-soft);">
+                <div style="display: flex; flex-direction: column; gap: 8px; background: var(--bg-page); padding: 12px 16px; border-radius: 8px; border: 1px solid var(--border-soft);">
                     <label style="font-size: 0.85rem; font-weight: 600; cursor: pointer;"><input type="checkbox" name="edit_features[]" value="calculator" id="feat-calc"> Kalkulator Harga Jual (Dashboard)</label>
                     <label style="font-size: 0.85rem; font-weight: 600; cursor: pointer;"><input type="checkbox" name="edit_features[]" value="public_calc" id="feat-pubcalc"> Kalkulator Estimasi (Halaman Depan)</label>
                     <label style="font-size: 0.85rem; font-weight: 600; cursor: pointer;"><input type="checkbox" name="edit_features[]" value="customer_payment" id="feat-payment"> Konfirmasi Bayar Pelanggan</label>
                     <label style="font-size: 0.85rem; font-weight: 600; cursor: pointer;"><input type="checkbox" name="edit_features[]" value="po_recap" id="feat-po"> Kelola Rekapan PO</label>
                     <label style="font-size: 0.85rem; font-weight: 600; cursor: pointer;"><input type="checkbox" name="edit_features[]" value="tagihan_recap" id="feat-tagihan"> Kelola Rekapan Tagihan</label>
                     <label style="font-size: 0.85rem; font-weight: 600; cursor: pointer;"><input type="checkbox" name="edit_features[]" value="warehouse" id="feat-wh"> Database Warehouse</label>
+                    <label style="font-size: 0.85rem; font-weight: 600; cursor: pointer;"><input type="checkbox" name="edit_features[]" value="testimonials" id="feat-testi"> Kelola Testimoni</label>
                 </div>
             </div>
 
@@ -701,11 +730,11 @@ get_header();
 
 <!-- MODAL KONFIRMASI GENERIC (gantiin confirm() bawaan browser) -->
 <div class="modal-overlay" id="genericConfirmModal" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 10000; padding: 20px;">
-    <div style="background: #ffffff; border-radius: 20px; width: 100%; max-width: 400px; padding: 28px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); text-align: center;">
+    <div style="background: #ffffff; border-radius: var(--radius-lg); width: 100%; max-width: 400px; padding: 28px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); text-align: center;">
         <div style="font-size: 2.5rem; color: #f59e0b; margin-bottom: 12px;"><i class="fa-solid fa-circle-question"></i></div>
-        <p id="genericConfirmMessage" style="font-size: 0.95rem; font-weight: 700; color: #0f172a; margin-bottom: 24px;"></p>
+        <p id="genericConfirmMessage" style="font-size: 0.95rem; font-weight: 700; color: var(--text-dark); margin-bottom: 24px;"></p>
         <div style="display: flex; gap: 10px;">
-            <button type="button" id="genericConfirmCancel" style="flex: 1; padding: 12px; border-radius: 10px; border: 1.5px solid #e2e8f0; background: #fff; font-weight: 700; color: #64748b; cursor: pointer;">Batal</button>
+            <button type="button" id="genericConfirmCancel" style="flex: 1; padding: 12px; border-radius: 10px; border: 1.5px solid var(--border-soft); background: #fff; font-weight: 700; color: var(--text-muted); cursor: pointer;">Batal</button>
             <button type="button" id="genericConfirmOk" style="flex: 1; padding: 12px; border-radius: 10px; border: none; background: #ef4444; color: #fff; font-weight: 800; cursor: pointer;">Ya, Lanjutkan</button>
         </div>
     </div>
@@ -772,6 +801,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const featPo = document.getElementById('feat-po');
     const featTagihan = document.getElementById('feat-tagihan');
     const featWh = document.getElementById('feat-wh');
+    const featTesti = document.getElementById('feat-testi');
 
     document.querySelectorAll('.btn-edit-trigger').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -791,6 +821,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 featPo.checked = features.includes('po_recap');
                 featTagihan.checked = features.includes('tagihan_recap');
                 featWh.checked = features.includes('warehouse');
+                featTesti.checked = features.includes('testimonials');
             } catch(e) {
                 featCalc.checked = false;
                 featPubCalc.checked = false;
@@ -798,6 +829,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 featPo.checked = false;
                 featTagihan.checked = false;
                 featWh.checked = false;
+                featTesti.checked = false;
             }
             
             editModal.style.display = 'flex';

@@ -7,33 +7,12 @@
     </div>
 </div>
 
-<footer style="background: #ffffff; border-top: 1px solid var(--border-soft); padding: 24px 0; font-size: 0.85rem; color: var(--text-muted); width: 100%;">
-    <!-- Menggunakan padding full width 32px konsisten dengan header & dashboard -->
+<footer class="site-footer">
     <div class="site-footer-inner">
-        <div>&copy; <?php echo date('Y'); ?> GO-WEB Platform. All rights reserved.</div>
-        <div>Powered by <a href="https://x.com/first_kao" target="_blank" rel="noopener noreferrer" style="color: var(--pastel-purple); text-decoration: none; font-weight: 700;">First Kao</a></div>
+        <div class="site-footer-brand">&copy; <?php echo date('Y'); ?> GO-WEB Platform. All rights reserved.</div>
+        <div class="site-footer-credit">Powered by <a href="https://x.com/first_kao" target="_blank" rel="noopener noreferrer">First Kao</a></div>
     </div>
 </footer>
-
-<style>
-.site-footer-inner {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0 32px;
-    width: 100%;
-    flex-wrap: wrap;
-    gap: 8px;
-}
-@media (max-width: 600px) {
-    .site-footer-inner {
-        flex-direction: column;
-        text-align: center;
-        padding: 0 20px;
-        gap: 6px;
-    }
-}
-</style>
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {

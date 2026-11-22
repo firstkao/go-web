@@ -174,7 +174,7 @@ if (!defined('ABSPATH')) exit;
                     <div class="form-group-fin"><label class="form-label-fin">Nominal Saldo Terpotong:</label><input type="number" step="0.01" id="supplier-amount-input" name="fin_amount" class="form-input-fin" placeholder="Misal: 280" required></div>
                     <div class="form-group-fin">
                         <label class="form-label-fin">Estimasi Total Rupiah (otomatis):</label>
-                        <div id="supplier-idr-preview" style="padding: 10px 14px; border: 1.5px solid var(--border-soft); border-radius: 10px; background: #f8fafc; font-weight: 700; color: var(--text-dark);">Rp 0</div>
+                        <div id="supplier-idr-preview" style="padding: 10px 14px; border: 1.5px solid var(--border-soft); border-radius: 10px; background: var(--slate-50); font-weight: 700; color: var(--text-dark);">Rp 0</div>
                         <small style="color: var(--text-muted); font-size: 11px;">Dihitung otomatis berdasarkan rata-rata rate Top-Up dompet ini, sehingga nilainya tetap konsisten dengan cost basis yang sebenarnya.</small>
                     </div>
                     <button type="submit" name="action_save_finance" class="btn-submit-action btn-green">💾 Catat Belanja Supplier</button>
@@ -261,11 +261,11 @@ if (!defined('ABSPATH')) exit;
 
         <!-- KONTROL PAGINATION -->
         <div id="fin-pagination" style="display: none; justify-content: space-between; align-items: center; padding: 14px 4px 2px; flex-wrap: wrap; gap: 10px;">
-            <span id="fin-page-info" style="font-size: 12.5px; color: var(--slate-500, #64748b); font-weight: 600;"></span>
+            <span id="fin-page-info" style="font-size: 12.5px; color: var(--slate-500); font-weight: 600;"></span>
             <div style="display: flex; gap: 6px; align-items: center;">
-                <button type="button" id="fin-prev" style="padding: 7px 14px; border-radius: 8px; border: 1.5px solid var(--border-soft, #e2e8f0); background: #fff; font-weight: 700; font-size: 12.5px; cursor: pointer;">‹ Sebelumnya</button>
+                <button type="button" id="fin-prev" style="padding: 7px 14px; border-radius: 8px; border: 1.5px solid var(--border-soft); background: #fff; font-weight: 700; font-size: 12.5px; cursor: pointer;">‹ Sebelumnya</button>
                 <span id="fin-page-numbers" style="display: flex; gap: 4px;"></span>
-                <button type="button" id="fin-next" style="padding: 7px 14px; border-radius: 8px; border: 1.5px solid var(--border-soft, #e2e8f0); background: #fff; font-weight: 700; font-size: 12.5px; cursor: pointer;">Berikutnya ›</button>
+                <button type="button" id="fin-next" style="padding: 7px 14px; border-radius: 8px; border: 1.5px solid var(--border-soft); background: #fff; font-weight: 700; font-size: 12.5px; cursor: pointer;">Berikutnya ›</button>
             </div>
         </div>
     </div>
@@ -273,12 +273,12 @@ if (!defined('ABSPATH')) exit;
 
 <!-- MODAL KONFIRMASI HAPUS 1 MUTASI -->
 <div class="modal-overlay" id="deleteFinanceModal" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 1000; opacity: 0; pointer-events: none; transition: opacity 0.25s ease; padding: 20px;">
-    <div style="background: #ffffff; border-radius: 20px; width: 100%; max-width: 400px; padding: 28px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); text-align: center;">
+    <div style="background: #ffffff; border-radius: var(--radius-lg); width: 100%; max-width: 400px; padding: 28px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); text-align: center;">
         <div style="font-size: 2.5rem; color: #ef4444; margin-bottom: 12px;"><i class="fa-solid fa-trash-can"></i></div>
-        <h3 style="font-size: 1.15rem; font-weight: 800; color: #0f172a; margin-bottom: 8px;">Hapus Mutasi Ini?</h3>
-        <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 24px;">Mutasi ini akan dihapus permanen dan saldo dompet terkait akan dikoreksi balik otomatis.</p>
+        <h3 style="font-size: 1.15rem; font-weight: 800; color: var(--slate-900); margin-bottom: 8px;">Hapus Mutasi Ini?</h3>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 24px;">Mutasi ini akan dihapus permanen dan saldo dompet terkait akan dikoreksi balik otomatis.</p>
         <div style="display: flex; gap: 10px;">
-            <button type="button" id="cancel-delete-finance" style="flex: 1; padding: 12px; border-radius: 10px; border: 1.5px solid #e2e8f0; background: #fff; font-weight: 700; color: #64748b; cursor: pointer;">Batal</button>
+            <button type="button" id="cancel-delete-finance" style="flex: 1; padding: 12px; border-radius: 10px; border: 1.5px solid var(--border-soft); background: #fff; font-weight: 700; color: var(--text-muted); cursor: pointer;">Batal</button>
             <a id="confirm-delete-finance" href="#" style="flex: 1; padding: 12px; border-radius: 10px; border: none; background: #ef4444; color: #fff; font-weight: 800; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; justify-content: center;">Ya, Hapus</a>
         </div>
     </div>
@@ -286,12 +286,12 @@ if (!defined('ABSPATH')) exit;
 
 <!-- MODAL KONFIRMASI RESET SEMUA DATA KEUANGAN -->
 <div class="modal-overlay" id="resetFinanceModal" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 1000; opacity: 0; pointer-events: none; transition: opacity 0.25s ease; padding: 20px;">
-    <div style="background: #ffffff; border-radius: 20px; width: 100%; max-width: 420px; padding: 28px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); text-align: center;">
+    <div style="background: #ffffff; border-radius: var(--radius-lg); width: 100%; max-width: 420px; padding: 28px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); text-align: center;">
         <div style="font-size: 2.5rem; color: #ef4444; margin-bottom: 12px;"><i class="fa-solid fa-triangle-exclamation"></i></div>
-        <h3 style="font-size: 1.15rem; font-weight: 800; color: #0f172a; margin-bottom: 8px;">Reset SELURUH Data Keuangan?</h3>
-        <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 24px;">Semua mutasi &amp; saldo dompet tenant ini akan dihapus permanen. Tindakan ini tidak bisa dibatalkan.</p>
+        <h3 style="font-size: 1.15rem; font-weight: 800; color: var(--slate-900); margin-bottom: 8px;">Reset SELURUH Data Keuangan?</h3>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 24px;">Semua mutasi &amp; saldo dompet tenant ini akan dihapus permanen. Tindakan ini tidak bisa dibatalkan.</p>
         <div style="display: flex; gap: 10px;">
-            <button type="button" id="cancel-reset-finance" style="flex: 1; padding: 12px; border-radius: 10px; border: 1.5px solid #e2e8f0; background: #fff; font-weight: 700; color: #64748b; cursor: pointer;">Batal</button>
+            <button type="button" id="cancel-reset-finance" style="flex: 1; padding: 12px; border-radius: 10px; border: 1.5px solid var(--border-soft); background: #fff; font-weight: 700; color: var(--text-muted); cursor: pointer;">Batal</button>
             <button type="button" id="confirm-reset-finance" style="flex: 1; padding: 12px; border-radius: 10px; border: none; background: #ef4444; color: #fff; font-weight: 800; cursor: pointer;">Ya, Reset Semua</button>
         </div>
     </div>
@@ -403,7 +403,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if(titleText) titleText.innerText = `🗓️ Rekap Kesehatan Finansial Tahunan (${selectedYear})`;
 
         for (let m = 1; m <= 12; m++) {
-            let icon = '⚪', label = 'Belum Ada', labelColor = '#64748b', marginStr = '—';
+            let icon = '⚪', label = 'Belum Ada', labelColor = 'var(--text-muted)', marginStr = '—';
             const key = `${selectedYear}-${m}`;
             const data = MONTHLY_FIN_DATA[key];
 
@@ -525,7 +525,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 btn.type = 'button';
                 btn.textContent = p;
                 const isActive = p === finCurrentPage;
-                btn.style.cssText = `padding: 7px 12px; border-radius: 8px; border: 1.5px solid ${isActive ? 'var(--pastel-purple, #8b5cf6)' : 'var(--border-soft, #e2e8f0)'}; background: ${isActive ? 'var(--pastel-purple, #8b5cf6)' : '#fff'}; color: ${isActive ? '#fff' : 'inherit'}; font-weight: 700; font-size: 12.5px; cursor: pointer;`;
+                btn.style.cssText = `padding: 7px 12px; border-radius: 8px; border: 1.5px solid ${isActive ? 'var(--pastel-purple)' : 'var(--border-soft)'}; background: ${isActive ? 'var(--pastel-purple)' : '#fff'}; color: ${isActive ? '#fff' : 'inherit'}; font-weight: 700; font-size: 12.5px; cursor: pointer;`;
                 btn.addEventListener('click', () => { finCurrentPage = p; applyLedgerFilterAndPaginate(); });
                 pageNumbers.appendChild(btn);
             }

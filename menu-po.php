@@ -10,15 +10,15 @@ $active_rates = goweb_get_tenant_setting( $store_id, 'rates', array('CNY' => 245
 ?>
 <div class="fin-wrap">
     <div style="margin-bottom: 24px;">
-        <h2 style="font-size: 1.25rem; font-weight: 800; color: var(--text-dark, #0f172a); margin-bottom: 6px;">Rekapan Order PO</h2>
-        <p style="color: var(--text-muted, #64748b); font-size: 0.875rem;">Manajemen status antrean kargo per PO/Invoice. Buat pencatatan tagihan &amp; status pembayaran, cek menu Rekapan Tagihan.</p>
+        <h2 style="font-size: 1.25rem; font-weight: 800; color: var(--text-dark); margin-bottom: 6px;">Rekapan Order PO</h2>
+        <p style="color: var(--text-muted); font-size: 0.875rem;">Manajemen status antrean kargo per PO/Invoice. Buat pencatatan tagihan &amp; status pembayaran, cek menu Rekapan Tagihan.</p>
     </div>
 
     <!-- FILTER SIKLUS BULAN (dipakai buat filter statistik di bawah) -->
-    <div style="background: #ffffff; border: 1px solid var(--border-soft, #e2e8f0); border-radius: 22px; padding: 18px 24px; margin-bottom: 20px; box-shadow: 0 4px 15px -2px rgba(15, 23, 42, 0.04); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+    <div style="background: #ffffff; border: 1px solid var(--border-soft); border-radius: var(--radius-lg); padding: 18px 24px; margin-bottom: 20px; box-shadow: 0 4px 15px -2px rgba(15, 23, 42, 0.04); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
         <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-            <span style="font-size: 13px; font-weight: 800; color: var(--slate-700, #334155);">📅 Filter Siklus:</span>
-            <select id="diag-select-year" class="year-select" onchange="changeDiagCycle()" style="padding: 6px 12px; border: 1.5px solid var(--border-soft, #e2e8f0); border-radius: 8px; font-weight: 700; font-size: 12.5px; background: #fff; outline: none;">
+            <span style="font-size: 13px; font-weight: 800; color: var(--slate-700);">📅 Filter Siklus:</span>
+            <select id="diag-select-year" class="year-select" onchange="changeDiagCycle()" style="padding: 6px 12px; border: 1.5px solid var(--border-soft); border-radius: 8px; font-weight: 700; font-size: 12.5px; background: #fff; outline: none;">
                 <?php
                 // Tahun digenerate dinamis (2 tahun ke belakang s/d 2 tahun ke
                 // depan dari tahun sekarang) — sebelumnya hardcode 2026-2028,
@@ -29,7 +29,7 @@ $active_rates = goweb_get_tenant_setting( $store_id, 'rates', array('CNY' => 245
                     <option value="<?php echo esc_attr($diag_year_opt); ?>" <?php selected($diag_year_opt, date('Y')); ?>><?php echo esc_html($diag_year_opt); ?></option>
                 <?php endforeach; ?>
             </select>
-            <select id="diag-select-month" class="cycle-select" onchange="changeDiagCycle()" style="padding: 6px 12px; border: 1.5px solid var(--border-soft, #e2e8f0); border-radius: 8px; font-weight: 700; font-size: 12.5px; background: #fff; outline: none;">
+            <select id="diag-select-month" class="cycle-select" onchange="changeDiagCycle()" style="padding: 6px 12px; border: 1.5px solid var(--border-soft); border-radius: 8px; font-weight: 700; font-size: 12.5px; background: #fff; outline: none;">
                 <option value="1">Januari</option>
                 <option value="2">Februari</option>
                 <option value="3">Maret</option>
@@ -44,7 +44,7 @@ $active_rates = goweb_get_tenant_setting( $store_id, 'rates', array('CNY' => 245
                 <option value="12">Desember</option>
             </select>
         </div>
-        <div id="diag-range-label" style="font-size: 12px; font-weight: 700; color: var(--text-muted, #64748b); background: var(--slate-50, #f8fafc); padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border-soft, #e2e8f0);">
+        <div id="diag-range-label" style="font-size: 12px; font-weight: 700; color: var(--text-muted); background: var(--slate-50); padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border-soft);">
             Rentang: Memuat...
         </div>
     </div>
@@ -94,10 +94,10 @@ $active_rates = goweb_get_tenant_setting( $store_id, 'rates', array('CNY' => 245
 
             <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                 <!-- KOLOM SEARCH BAR -->
-                <input type="text" id="order-search" class="form-input-fin po-search-input" placeholder="🔍 Cari PO, Invoice, Customer..." oninput="handleSearchInput(this.value)" style="padding: 8px 14px; border: 1.5px solid var(--border-soft, #e2e8f0); border-radius: 10px; font-size: 13px; font-weight: 600; width: 240px;">
+                <input type="text" id="order-search" class="form-input-fin po-search-input" placeholder="🔍 Cari PO, Invoice, Customer..." oninput="handleSearchInput(this.value)" style="padding: 8px 14px; border: 1.5px solid var(--border-soft); border-radius: 10px; font-size: 13px; font-weight: 600; width: 240px;">
                 
                 <button type="button" class="btn-export-csv" onclick="downloadOrdersCSV()" style="background: #15803d; color: #fff; border: none; padding: 9px 18px; border-radius: 10px; font-weight: 800; cursor: pointer; font-size: 13px;">📥 Download CSV</button>
-                <button type="button" class="btn-export-csv" onclick="openOrderModal()" style="background: var(--primary, #0284c7); color: #fff; border: none; padding: 9px 18px; border-radius: 10px; font-weight: 800; cursor: pointer; font-size: 13px;">+ Tambah Order Baru</button>
+                <button type="button" class="btn-export-csv" onclick="openOrderModal()" style="background: var(--primary); color: #fff; border: none; padding: 9px 18px; border-radius: 10px; font-weight: 800; cursor: pointer; font-size: 13px;">+ Tambah Order Baru</button>
             </div>
         </div>
 
@@ -110,6 +110,7 @@ $active_rates = goweb_get_tenant_setting( $store_id, 'rates', array('CNY' => 245
                         <th style="width: 140px;">Nama Customer</th>
                         <th style="width: 300px;">Detail Item</th>
                         <th style="width: 150px;">Status Order</th>
+                        <th style="width: 130px;">Status Bayar</th>
                         <th style="width: 60px; text-align: center;">Aksi</th>
                     </tr>
                 </thead>
@@ -121,11 +122,11 @@ $active_rates = goweb_get_tenant_setting( $store_id, 'rates', array('CNY' => 245
 
         <!-- KONTROL PAGINATION -->
         <div id="po-pagination" style="display: none; justify-content: space-between; align-items: center; padding: 14px 4px 2px; flex-wrap: wrap; gap: 10px;">
-            <span id="po-page-info" style="font-size: 12.5px; color: var(--slate-500, #64748b); font-weight: 600;"></span>
+            <span id="po-page-info" style="font-size: 12.5px; color: var(--slate-500); font-weight: 600;"></span>
             <div style="display: flex; gap: 6px; align-items: center;">
-                <button type="button" id="po-prev" style="padding: 7px 14px; border-radius: 8px; border: 1.5px solid var(--border-soft, #e2e8f0); background: #fff; font-weight: 700; font-size: 12.5px; cursor: pointer;">‹ Sebelumnya</button>
+                <button type="button" id="po-prev" style="padding: 7px 14px; border-radius: 8px; border: 1.5px solid var(--border-soft); background: #fff; font-weight: 700; font-size: 12.5px; cursor: pointer;">‹ Sebelumnya</button>
                 <span id="po-page-numbers" style="display: flex; gap: 4px;"></span>
-                <button type="button" id="po-next" style="padding: 7px 14px; border-radius: 8px; border: 1.5px solid var(--border-soft, #e2e8f0); background: #fff; font-weight: 700; font-size: 12.5px; cursor: pointer;">Berikutnya ›</button>
+                <button type="button" id="po-next" style="padding: 7px 14px; border-radius: 8px; border: 1.5px solid var(--border-soft); background: #fff; font-weight: 700; font-size: 12.5px; cursor: pointer;">Berikutnya ›</button>
             </div>
         </div>
     </div>
@@ -133,10 +134,10 @@ $active_rates = goweb_get_tenant_setting( $store_id, 'rates', array('CNY' => 245
 
 <!-- MODAL FORM INPUT ORDER -->
 <div class="modal-overlay" id="orderModal" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 999; opacity: 0; pointer-events: none; transition: opacity 0.25s ease; padding: 20px;">
-    <div class="modal-box" style="background: #ffffff; border-radius: 24px; width: 100%; max-width: 480px; padding: 30px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);">
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid var(--border-soft, #e2e8f0);">
-            <div style="font-size: 18px; font-weight: 800; color: var(--text-dark, #0f172a);">Tambah Data Order PO Baru</div>
-            <button type="button" onclick="closeOrderModal()" style="background: none; border: none; font-size: 20px; color: #94a3b8; cursor: pointer; font-weight: 700;">&times;</button>
+    <div class="modal-box" style="background: #ffffff; border-radius: var(--radius-lg); width: 100%; max-width: 480px; padding: 30px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid var(--border-soft);">
+            <div style="font-size: 18px; font-weight: 800; color: var(--text-dark);">Tambah Data Order PO Baru</div>
+            <button type="button" onclick="closeOrderModal()" style="background: none; border: none; font-size: 20px; color: var(--text-muted); cursor: pointer; font-weight: 700;">&times;</button>
         </div>
         
         <form method="POST" action="<?php echo esc_url( home_url('/dashboard/po/') . $store_query_suffix ); ?>">
@@ -144,33 +145,33 @@ $active_rates = goweb_get_tenant_setting( $store_id, 'rates', array('CNY' => 245
             <input type="hidden" name="action_add_order" value="1">
 
             <div class="form-group-fin" style="margin-bottom: 14px;">
-                <label class="form-label-fin" style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-dark, #0f172a); margin-bottom: 6px;">Tanggal Transaksi (Auto Deteksi Bulan):</label>
-                <input type="date" id="in-date" name="po_date" class="form-input-fin" value="<?php echo date('Y-m-d'); ?>" style="width: 100%; padding: 10px 14px; border: 1.5px solid var(--border-soft, #e2e8f0); border-radius: 10px; font-weight: 600;" required>
+                <label class="form-label-fin" style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-dark); margin-bottom: 6px;">Tanggal Transaksi (Auto Deteksi Bulan):</label>
+                <input type="date" id="in-date" name="po_date" class="form-input-fin" value="<?php echo date('Y-m-d'); ?>" style="width: 100%; padding: 10px 14px; border: 1.5px solid var(--border-soft); border-radius: 10px; font-weight: 600;" required>
             </div>
 
             <div class="form-group-fin" style="margin-bottom: 14px;">
-                <label class="form-label-fin" style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-dark, #0f172a); margin-bottom: 6px;">Nama PO / ID Invoice:</label>
-                <input type="text" id="in-batch" name="po_batch" class="form-input-fin" placeholder="Misal: PO Genshin Standee #14 atau INV-9821" style="width: 100%; padding: 10px 14px; border: 1.5px solid var(--border-soft, #e2e8f0); border-radius: 10px; font-weight: 600;" required>
+                <label class="form-label-fin" style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-dark); margin-bottom: 6px;">Nama PO / ID Invoice:</label>
+                <input type="text" id="in-batch" name="po_batch" class="form-input-fin" placeholder="Misal: PO Genshin Standee #14 atau INV-9821" style="width: 100%; padding: 10px 14px; border: 1.5px solid var(--border-soft); border-radius: 10px; font-weight: 600;" required>
             </div>
 
             <div class="form-group-fin" style="margin-bottom: 14px;">
-                <label class="form-label-fin" style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-dark, #0f172a); margin-bottom: 6px;">Nama Customer:</label>
-                <input type="text" id="in-name" name="po_buyer_name" class="form-input-fin" placeholder="Misal: Adriana S." style="width: 100%; padding: 10px 14px; border: 1.5px solid var(--border-soft, #e2e8f0); border-radius: 10px; font-weight: 600;" required>
+                <label class="form-label-fin" style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-dark); margin-bottom: 6px;">Nama Customer:</label>
+                <input type="text" id="in-name" name="po_buyer_name" class="form-input-fin" placeholder="Misal: Adriana S." style="width: 100%; padding: 10px 14px; border: 1.5px solid var(--border-soft); border-radius: 10px; font-weight: 600;" required>
             </div>
 
             <div class="form-group-fin" style="margin-bottom: 14px;">
-                <label class="form-label-fin" style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-dark, #0f172a); margin-bottom: 6px;">Detail Item Pesanan:</label>
-                <input type="text" id="in-item" name="po_item_detail" class="form-input-fin" placeholder="Misal: Genshin Acrylic Standee x2" style="width: 100%; padding: 10px 14px; border: 1.5px solid var(--border-soft, #e2e8f0); border-radius: 10px; font-weight: 600;" required>
+                <label class="form-label-fin" style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-dark); margin-bottom: 6px;">Detail Item Pesanan:</label>
+                <input type="text" id="in-item" name="po_item_detail" class="form-input-fin" placeholder="Misal: Genshin Acrylic Standee x2" style="width: 100%; padding: 10px 14px; border: 1.5px solid var(--border-soft); border-radius: 10px; font-weight: 600;" required>
             </div>
 
             <div class="form-group-fin" style="margin-bottom: 20px;">
-                <label class="form-label-fin" style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-dark, #0f172a); margin-bottom: 6px;">Total Nilai PO (Rp, opsional):</label>
-                <input type="number" id="in-total" name="po_total_value" class="form-input-fin" placeholder="Misal: 850000 — kosongkan kalau belum fix" style="width: 100%; padding: 10px 14px; border: 1.5px solid var(--border-soft, #e2e8f0); border-radius: 10px; font-weight: 600;" min="0">
+                <label class="form-label-fin" style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-dark); margin-bottom: 6px;">Total Nilai PO (Rp, opsional):</label>
+                <input type="number" id="in-total" name="po_total_value" class="form-input-fin" placeholder="Misal: 850000 — kosongkan kalau belum fix" style="width: 100%; padding: 10px 14px; border: 1.5px solid var(--border-soft); border-radius: 10px; font-weight: 600;" min="0">
             </div>
 
             <div class="form-group-fin" style="margin-bottom: 20px;">
-                <label class="form-label-fin" style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-dark, #0f172a); margin-bottom: 6px;">Status Proses Barang:</label>
-                <select id="in-status" name="po_status" class="form-select-fin" style="width: 100%; padding: 10px 14px; border: 1.5px solid var(--border-soft, #e2e8f0); border-radius: 10px; font-weight: 600;">
+                <label class="form-label-fin" style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-dark); margin-bottom: 6px;">Status Proses Barang:</label>
+                <select id="in-status" name="po_status" class="form-select-fin" style="width: 100%; padding: 10px 14px; border: 1.5px solid var(--border-soft); border-radius: 10px; font-weight: 600;">
                     <?php foreach($active_custom_statuses as $st_opt): ?>
                         <option value="<?php echo esc_attr($st_opt); ?>"><?php echo esc_html($st_opt); ?></option>
                     <?php endforeach; ?>
@@ -178,8 +179,8 @@ $active_rates = goweb_get_tenant_setting( $store_id, 'rates', array('CNY' => 245
             </div>
 
             <div style="display: flex; gap: 10px;">
-                <button type="button" onclick="closeOrderModal()" style="flex: 1; background: #f1f5f9; color: #334155; font-weight: 700; padding: 12px; border-radius: 10px; border: none; cursor: pointer;">Batal</button>
-                <button type="submit" style="flex: 1; background: var(--primary, #0284c7); color: #fff; font-weight: 800; padding: 12px; border-radius: 10px; border: none; cursor: pointer;">Simpan Order</button>
+                <button type="button" onclick="closeOrderModal()" style="flex: 1; background: var(--slate-100); color: var(--slate-700); font-weight: 700; padding: 12px; border-radius: 10px; border: none; cursor: pointer;">Batal</button>
+                <button type="submit" style="flex: 1; background: var(--primary); color: #fff; font-weight: 800; padding: 12px; border-radius: 10px; border: none; cursor: pointer;">Simpan Order</button>
             </div>
         </form>
     </div>
@@ -187,12 +188,12 @@ $active_rates = goweb_get_tenant_setting( $store_id, 'rates', array('CNY' => 245
 
 <!-- MODAL KONFIRMASI HAPUS ORDER -->
 <div class="modal-overlay" id="deleteOrderModal" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 1000; opacity: 0; pointer-events: none; transition: opacity 0.25s ease; padding: 20px;">
-    <div style="background: #ffffff; border-radius: 20px; width: 100%; max-width: 400px; padding: 28px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); text-align: center;">
+    <div style="background: #ffffff; border-radius: var(--radius-lg); width: 100%; max-width: 400px; padding: 28px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); text-align: center;">
         <div style="font-size: 2.5rem; color: #ef4444; margin-bottom: 12px;"><i class="fa-solid fa-trash-can"></i></div>
-        <h3 style="font-size: 1.15rem; font-weight: 800; color: #0f172a; margin-bottom: 8px;">Hapus Order Ini?</h3>
-        <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 24px;">Data yang sudah dihapus tidak bisa dikembalikan lagi.</p>
+        <h3 style="font-size: 1.15rem; font-weight: 800; color: var(--slate-900); margin-bottom: 8px;">Hapus Order Ini?</h3>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 24px;">Tagihan yang terikat ke PO ini ikut terhapus, dan item Warehouse-nya dilepas dari PO (tidak dihapus). Tindakan ini tidak bisa dibatalkan.</p>
         <div style="display: flex; gap: 10px;">
-            <button type="button" id="cancel-delete-order" style="flex: 1; padding: 12px; border-radius: 10px; border: 1.5px solid #e2e8f0; background: #fff; font-weight: 700; color: #64748b; cursor: pointer;">Batal</button>
+            <button type="button" id="cancel-delete-order" style="flex: 1; padding: 12px; border-radius: 10px; border: 1.5px solid var(--border-soft); background: #fff; font-weight: 700; color: var(--text-muted); cursor: pointer;">Batal</button>
             <button type="button" id="confirm-delete-order" style="flex: 1; padding: 12px; border-radius: 10px; border: none; background: #ef4444; color: #fff; font-weight: 800; cursor: pointer;">Ya, Hapus</button>
         </div>
     </div>
@@ -214,6 +215,9 @@ document.addEventListener('DOMContentLoaded', () => {
             'item'   => $o['item_detail'],
             'status' => $o['order_status'],
             'total'  => floatval( $o['total_value'] ),
+            // Status bayar diturunkan dari tagihan PO ini (#33) - kolom
+            // payment_status dulu mati, kini ikut ditampilkan di tabel.
+            'pay'    => isset( $o['payment_status'] ) && $o['payment_status'] !== '' ? $o['payment_status'] : 'Belum Lunas',
         );
     }, $tenant_orders_rows ) ); ?>;
 
@@ -340,7 +344,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateStats(filteredByCycle);
 
         if (filtered.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--slate-400, #94a3b8); padding: 30px;">Belum ada data order pada bulan ini. Silakan klik "+ Tambah Order Baru".</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--slate-400); padding: 30px;">Belum ada data order pada bulan ini. Silakan klik "+ Tambah Order Baru".</td></tr>`;
             renderPoPagination(0, 0, 0);
             return;
         }
@@ -362,17 +366,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td style="font-weight: 700; color: var(--slate-600, #475569); font-size: 13px; white-space: nowrap;">📅 ${getFormattedMonth(o.date)}</td>
+                <td style="font-weight: 700; color: var(--slate-600); font-size: 13px; white-space: nowrap;">📅 ${getFormattedMonth(o.date)}</td>
                 <td><span class="badge-type" style="background: #e0f2fe; color: #0369a1; padding: 4px 10px; border-radius: 8px; font-weight: 800; font-size: 11.5px; border: 1px solid #bae6fd; display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escHtml(o.batch)}">${escHtml(o.batch)}</span></td>
                 <td style="font-weight: 700; word-break: break-word; overflow-wrap: break-word; white-space: normal; max-width: 140px;">${escHtml(o.name)}</td>
-                <td style="word-break: break-word; overflow-wrap: break-word; white-space: normal; max-width: 300px; line-height: 1.4; color: var(--slate-700, #334155);">${escHtml(o.item)}</td>
+                <td style="word-break: break-word; overflow-wrap: break-word; white-space: normal; max-width: 300px; line-height: 1.4; color: var(--slate-700);">${escHtml(o.item)}</td>
                 <td>
-                    <select class="inline-select-status" onchange="changeOrderStatus('${o.uid}', this.value)" style="font-family: inherit; font-size: 11.5px; font-weight: 800; padding: 6px 12px; border-radius: 999px; border: 1px solid #cbd5e1; outline: none; cursor: pointer; text-transform: uppercase; background: #fef3c7; color: #b45309;">
+                    <select class="inline-select-status" onchange="changeOrderStatus('${o.uid}', this.value)" style="font-family: inherit; font-size: 11.5px; font-weight: 800; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--border-soft); outline: none; cursor: pointer; text-transform: uppercase; background: #fef3c7; color: #b45309;">
                         ${optionsHTML}
                     </select>
                 </td>
+                <td>
+                    <span style="display:inline-block; padding: 5px 11px; border-radius: 999px; font-size: 11.5px; font-weight: 800; background: ${o.pay === 'Lunas' ? '#dcfce7' : '#fee2e2'}; color: ${o.pay === 'Lunas' ? '#15803d' : '#b91c1c'};">${escHtml(o.pay)}</span>
+                </td>
                 <td style="text-align: center;">
-                    <button type="button" onclick="deleteOrder('${o.uid}')" style="background: transparent; border: none; color: #94a3b8; cursor: pointer; font-size: 15px; padding: 4px 8px; border-radius: 6px;" title="Hapus Baris">✕</button>
+                    <button type="button" onclick="deleteOrder('${o.uid}')" style="background: transparent; border: none; color: var(--text-muted); cursor: pointer; font-size: 15px; padding: 4px 8px; border-radius: 6px;" title="Hapus Baris">✕</button>
                 </td>
             `;
             tbody.appendChild(tr);
@@ -408,7 +415,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 btn.type = 'button';
                 btn.textContent = p;
                 const isActive = p === poCurrentPage;
-                btn.style.cssText = `padding: 7px 12px; border-radius: 8px; border: 1.5px solid ${isActive ? 'var(--primary, #0284c7)' : 'var(--border-soft, #e2e8f0)'}; background: ${isActive ? 'var(--primary, #0284c7)' : '#fff'}; color: ${isActive ? '#fff' : 'inherit'}; font-weight: 700; font-size: 12.5px; cursor: pointer;`;
+                btn.style.cssText = `padding: 7px 12px; border-radius: 8px; border: 1.5px solid ${isActive ? 'var(--primary)' : 'var(--border-soft)'}; background: ${isActive ? 'var(--primary)' : '#fff'}; color: ${isActive ? '#fff' : 'inherit'}; font-weight: 700; font-size: 12.5px; cursor: pointer;`;
                 btn.addEventListener('click', () => { poCurrentPage = p; renderTable(); });
                 pageNumbers.appendChild(btn);
             }
@@ -488,7 +495,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.downloadOrdersCSV = function() {
         let csvContent = "\uFEFFREKAPAN ORDER PO\n\n";
-        csvContent += "BULAN,NAMA PO / ID INVOICE,NAMA CUSTOMER,DETAIL ITEM,STATUS ORDER,TOTAL NILAI (RP)\n";
+        csvContent += "BULAN,NAMA PO / ID INVOICE,NAMA CUSTOMER,DETAIL ITEM,STATUS ORDER,STATUS BAYAR,TOTAL NILAI (RP)\n";
 
         // Ekspor dari DATA (bukan dari baris tabel yang kerender), biar
         // tetap dapet SELURUH hasil filter — bukan cuma 25 baris di
@@ -520,7 +527,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return s;
         };
         exportRows.forEach(o => {
-            csvContent += `"${clean(getFormattedMonth(o.date))}","${clean(o.batch)}","${clean(o.name)}","${clean(o.item)}","${clean(o.status)}","${clean(o.total)}"\n`;
+            csvContent += `"${clean(getFormattedMonth(o.date))}","${clean(o.batch)}","${clean(o.name)}","${clean(o.item)}","${clean(o.status)}","${clean(o.pay)}","${clean(o.total)}"\n`;
         });
 
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });

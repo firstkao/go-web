@@ -30,11 +30,11 @@ $default_cc = isset($active_currency_cargo['CNY']) ? $active_currency_cargo['CNY
                 $cc_krw = isset($active_currency_cargo['KRW']) ? $active_currency_cargo['KRW'] : array('air'=>150000,'sea'=>90000,'tax_percent'=>10);
                 $cc_usd = isset($active_currency_cargo['USD']) ? $active_currency_cargo['USD'] : array('air'=>220000,'sea'=>130000,'tax_percent'=>12.5);
                 ?>
-                <button type="button" class="curr-pill active" data-rate="<?php echo esc_attr($active_rates['CNY']); ?>" data-symbol="¥" data-air="<?php echo esc_attr($cc_cny['air']); ?>" data-sea="<?php echo esc_attr($cc_cny['sea']); ?>" data-tax="<?php echo esc_attr($cc_cny['tax_percent']); ?>" style="padding: 10px 18px; border-radius: 12px; border: 1.5px solid var(--border-soft); background: #fff; font-weight: 700; font-size: 0.85rem; cursor: pointer; color: var(--text-muted);">🇨🇳 Yuan (CNY)</button>
-                <button type="button" class="curr-pill" data-rate="<?php echo esc_attr($active_rates['JPY']); ?>" data-symbol="¥" data-air="<?php echo esc_attr($cc_jpy['air']); ?>" data-sea="<?php echo esc_attr($cc_jpy['sea']); ?>" data-tax="<?php echo esc_attr($cc_jpy['tax_percent']); ?>" style="padding: 10px 18px; border-radius: 12px; border: 1.5px solid var(--border-soft); background: #fff; font-weight: 700; font-size: 0.85rem; cursor: pointer; color: var(--text-muted);">🇯🇵 Yen (JPY)</button>
-                <button type="button" class="curr-pill" data-rate="<?php echo esc_attr(isset($active_rates['THB']) ? $active_rates['THB'] : 460); ?>" data-symbol="฿" data-air="<?php echo esc_attr($cc_thb['air']); ?>" data-sea="<?php echo esc_attr($cc_thb['sea']); ?>" data-tax="<?php echo esc_attr($cc_thb['tax_percent']); ?>" style="padding: 10px 18px; border-radius: 12px; border: 1.5px solid var(--border-soft); background: #fff; font-weight: 700; font-size: 0.85rem; cursor: pointer; color: var(--text-muted);">🇹🇭 Baht (THB)</button>
-                <button type="button" class="curr-pill" data-rate="<?php echo esc_attr($active_rates['KRW']); ?>" data-symbol="₩" data-air="<?php echo esc_attr($cc_krw['air']); ?>" data-sea="<?php echo esc_attr($cc_krw['sea']); ?>" data-tax="<?php echo esc_attr($cc_krw['tax_percent']); ?>" style="padding: 10px 18px; border-radius: 12px; border: 1.5px solid var(--border-soft); background: #fff; font-weight: 700; font-size: 0.85rem; cursor: pointer; color: var(--text-muted);">🇰🇷 Won (KRW)</button>
-                <button type="button" class="curr-pill" data-rate="<?php echo esc_attr($active_rates['USD']); ?>" data-symbol="$" data-air="<?php echo esc_attr($cc_usd['air']); ?>" data-sea="<?php echo esc_attr($cc_usd['sea']); ?>" data-tax="<?php echo esc_attr($cc_usd['tax_percent']); ?>" style="padding: 10px 18px; border-radius: 12px; border: 1.5px solid var(--border-soft); background: #fff; font-weight: 700; font-size: 0.85rem; cursor: pointer; color: var(--text-muted);">🇺🇸 USD ($)</button>
+                <button type="button" class="curr-pill active" data-rate="<?php echo esc_attr($active_rates['CNY']); ?>" data-symbol="¥" data-air="<?php echo esc_attr($cc_cny['air']); ?>" data-sea="<?php echo esc_attr($cc_cny['sea']); ?>" data-tax="<?php echo esc_attr($cc_cny['tax_percent']); ?>" style="padding: 10px 18px; border-radius: var(--radius-md); border: 1.5px solid var(--border-soft); background: #fff; font-weight: 700; font-size: 0.85rem; cursor: pointer; color: var(--text-muted);">🇨🇳 Yuan (CNY)</button>
+                <button type="button" class="curr-pill" data-rate="<?php echo esc_attr($active_rates['JPY']); ?>" data-symbol="¥" data-air="<?php echo esc_attr($cc_jpy['air']); ?>" data-sea="<?php echo esc_attr($cc_jpy['sea']); ?>" data-tax="<?php echo esc_attr($cc_jpy['tax_percent']); ?>" style="padding: 10px 18px; border-radius: var(--radius-md); border: 1.5px solid var(--border-soft); background: #fff; font-weight: 700; font-size: 0.85rem; cursor: pointer; color: var(--text-muted);">🇯🇵 Yen (JPY)</button>
+                <button type="button" class="curr-pill" data-rate="<?php echo esc_attr(isset($active_rates['THB']) ? $active_rates['THB'] : 460); ?>" data-symbol="฿" data-air="<?php echo esc_attr($cc_thb['air']); ?>" data-sea="<?php echo esc_attr($cc_thb['sea']); ?>" data-tax="<?php echo esc_attr($cc_thb['tax_percent']); ?>" style="padding: 10px 18px; border-radius: var(--radius-md); border: 1.5px solid var(--border-soft); background: #fff; font-weight: 700; font-size: 0.85rem; cursor: pointer; color: var(--text-muted);">🇹🇭 Baht (THB)</button>
+                <button type="button" class="curr-pill" data-rate="<?php echo esc_attr($active_rates['KRW']); ?>" data-symbol="₩" data-air="<?php echo esc_attr($cc_krw['air']); ?>" data-sea="<?php echo esc_attr($cc_krw['sea']); ?>" data-tax="<?php echo esc_attr($cc_krw['tax_percent']); ?>" style="padding: 10px 18px; border-radius: var(--radius-md); border: 1.5px solid var(--border-soft); background: #fff; font-weight: 700; font-size: 0.85rem; cursor: pointer; color: var(--text-muted);">🇰🇷 Won (KRW)</button>
+                <button type="button" class="curr-pill" data-rate="<?php echo esc_attr($active_rates['USD']); ?>" data-symbol="$" data-air="<?php echo esc_attr($cc_usd['air']); ?>" data-sea="<?php echo esc_attr($cc_usd['sea']); ?>" data-tax="<?php echo esc_attr($cc_usd['tax_percent']); ?>" style="padding: 10px 18px; border-radius: var(--radius-md); border: 1.5px solid var(--border-soft); background: #fff; font-weight: 700; font-size: 0.85rem; cursor: pointer; color: var(--text-muted);">🇺🇸 USD ($)</button>
             </div>
         </div>
 
@@ -45,7 +45,7 @@ $default_cc = isset($active_currency_cargo['CNY']) ? $active_currency_cargo['CNY
                 <div class="form-group" style="margin-bottom:0;">
                     <label>HARGA SATUAN:</label>
                     <div style="display: flex; align-items: center; border: 1.5px solid var(--border-soft); border-radius: var(--radius-md); background: #fff; overflow: hidden;">
-                        <span id="curr-symbol" style="padding: 0 12px; background: #faf8ff; color: var(--text-muted); font-weight: 700; border-right: 1.5px solid var(--border-soft); font-size: 0.9rem;">¥</span>
+                        <span id="curr-symbol" style="padding: 0 12px; background: var(--bg-page); color: var(--text-muted); font-weight: 700; border-right: 1.5px solid var(--border-soft); font-size: 0.9rem;">¥</span>
                         <input type="number" id="calc-price-valas" class="form-control" value="120" style="border: none; background: transparent;" min="0">
                     </div>
                 </div>
@@ -65,7 +65,7 @@ $default_cc = isset($active_currency_cargo['CNY']) ? $active_currency_cargo['CNY
                 <div class="form-group" style="margin-bottom:0;">
                     <label>ONGKIR LOKAL KE WH:</label>
                     <div style="display: flex; align-items: center; border: 1.5px solid var(--border-soft); border-radius: var(--radius-md); background: #fff; overflow: hidden;">
-                        <span id="curr-symbol-2" style="padding: 0 12px; background: #faf8ff; color: var(--text-muted); font-weight: 700; border-right: 1.5px solid var(--border-soft); font-size: 0.9rem;">¥</span>
+                        <span id="curr-symbol-2" style="padding: 0 12px; background: var(--bg-page); color: var(--text-muted); font-weight: 700; border-right: 1.5px solid var(--border-soft); font-size: 0.9rem;">¥</span>
                         <input type="number" id="calc-local-ship" class="form-control" value="10" style="border: none; background: transparent;" min="0">
                     </div>
                 </div>
@@ -73,7 +73,7 @@ $default_cc = isset($active_currency_cargo['CNY']) ? $active_currency_cargo['CNY
                     <label>ESTIMASI BOBOT / BERAT:</label>
                     <div style="display: flex; align-items: center; border: 1.5px solid var(--border-soft); border-radius: var(--radius-md); background: #fff; overflow: hidden;">
                         <input type="number" id="calc-weight" class="form-control" value="350" style="border: none; background: transparent;" min="0">
-                        <span style="padding: 0 12px; background: #faf8ff; color: var(--text-muted); font-weight: 700; border-left: 1.5px solid var(--border-soft); font-size: 0.85rem;">gram</span>
+                        <span style="padding: 0 12px; background: var(--bg-page); color: var(--text-muted); font-weight: 700; border-left: 1.5px solid var(--border-soft); font-size: 0.85rem;">gram</span>
                     </div>
                 </div>
             </div>
@@ -93,7 +93,7 @@ $default_cc = isset($active_currency_cargo['CNY']) ? $active_currency_cargo['CNY
     </div>
 
     <!-- SISI KANAN: KARTU HASIL ESTIMASI -->
-    <div class="calc-result-card" style="background: linear-gradient(135deg, #a78bfa, #818cf8); color: #fff; padding: 28px; border-radius: 20px; box-shadow: 0 10px 25px rgba(139,92,246,0.35);">
+    <div class="calc-result-card" style="background: var(--accent-gradient); color: #fff; padding: 28px; border-radius: var(--radius-lg); box-shadow: 0 10px 25px rgba(139,92,246,0.35);">
         <span style="font-size: 0.72rem; font-weight: 700; color: rgba(255,255,255,0.75); text-transform: uppercase; letter-spacing: 0.5px;">ESTIMASI TOTAL BIAYA (IDR)</span>
         <h1 id="res-final-price" style="font-size: 2.2rem; font-weight: 800; color: #ffffff; margin: 6px 0 20px;">Rp 0</h1>
         

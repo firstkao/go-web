@@ -31,7 +31,7 @@ $saved_invoices = $wpdb->get_results( $wpdb->prepare(
     <div style="overflow-x: auto;">
         <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.88rem;">
             <thead>
-                <tr style="background: #f8fafc; border-bottom: 1.5px solid var(--border-soft); color: var(--text-muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.5px;">
+                <tr style="background: var(--bg-page); border-bottom: 1.5px solid var(--border-soft); color: var(--text-muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.5px;">
                     <th style="padding: 14px 16px;">Nama PO / Invoice</th>
                     <th style="padding: 14px 16px;">Nama Pemesan</th>
                     <th style="padding: 14px 16px;">Jenis Tagihan</th>
@@ -65,7 +65,7 @@ $saved_invoices = $wpdb->get_results( $wpdb->prepare(
                             </td>
                             <td style="padding: 14px 16px;">
                                 <?php if ($inv['status'] === 'Lunas'): ?>
-                                    <span style="display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 700; background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0;">✓ Lunas</span>
+                                    <span style="display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 700; background: var(--pastel-mint-bg); color: #15803d; border: 1px solid #bbf7d0;">✓ Lunas</span>
                                 <?php else: ?>
                                     <span style="display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 700; background: #fef3c7; color: #b45309; border: 1px solid #fde68a;">✕ Belum Bayar</span>
                                 <?php endif; ?>
@@ -124,7 +124,7 @@ function renderPublicPagination(containerId, totalItems, start, totalPages, perP
     startPage = Math.max(1, endPage - 4);
     for (let p = startPage; p <= endPage; p++) {
         const isActive = p === currentPage;
-        html += `<button type="button" data-pg="${p}" style="padding: 7px 12px; border-radius: 8px; border: 1.5px solid ${isActive ? 'var(--pastel-purple, #8b5cf6)' : 'var(--border-soft)'}; background: ${isActive ? 'var(--pastel-purple, #8b5cf6)' : '#fff'}; color: ${isActive ? '#fff' : 'inherit'}; font-weight: 700; font-size: 12.5px; cursor: pointer;">${p}</button>`;
+        html += `<button type="button" data-pg="${p}" style="padding: 7px 12px; border-radius: 8px; border: 1.5px solid ${isActive ? 'var(--pastel-purple)' : 'var(--border-soft)'}; background: ${isActive ? 'var(--pastel-purple)' : '#fff'}; color: ${isActive ? '#fff' : 'inherit'}; font-weight: 700; font-size: 12.5px; cursor: pointer;">${p}</button>`;
     }
     html += `</span>`;
     html += `<button type="button" data-pg="${currentPage + 1}" ${currentPage === totalPages ? 'disabled' : ''} style="padding: 7px 14px; border-radius: 8px; border: 1.5px solid var(--border-soft); background: #fff; font-weight: 700; font-size: 12.5px; cursor: ${currentPage === totalPages ? 'not-allowed' : 'pointer'}; opacity: ${currentPage === totalPages ? '0.4' : '1'};">Berikutnya ›</button>`;

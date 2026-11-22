@@ -2,30 +2,18 @@
 Theme Name: GO-WEB Jastip & Proxy
 Theme URI: https://go-web.shop
 Author: GO-WEB Team
-Version: 2.1.0
+Version: 2.2.0
 Description: Core Theme for GO-WEB proxy and forwarding services with dynamic rate settings.
 */
 
-:root {
-    --pastel-purple: #8b5cf6;
-    --pastel-purple-bg: #f5f3ff;
-    --pastel-purple-border: #ddd6fe;
-    --pastel-pink: #f472b6;
-    --pastel-pink-bg: #fdf2f8;
-    --pastel-mint: #10b981;
-    --pastel-mint-bg: #ecfdf5;
-    --pastel-mint-border: #a7f3d0;
-    --pastel-peach: #fb923c;
-    --pastel-peach-bg: #fff7ed;
-    --pastel-blue-bg: #eff6ff;
-    --bg-page: #faf8ff;
-    --card-bg: #ffffff;
-    --text-dark: #2e2a47;
-    --text-muted: #7c7794;
-    --border-soft: #ede9fe;
-    --radius-lg: 18px;
-    --radius-md: 12px;
-}
+/* ------------------------------------------------------------------
+   TOKEN DESAIN (warna, radius, gradient) TIDAK didefinisikan di file ini.
+   Sumbernya: fungsi goweb_get_design_tokens() di functions.php, yang dicetak
+   sebagai <style id="goweb-design-tokens"> lewat wp_head. Alasan: file CSS
+   statis bisa tertahan cache browser/page-cache/CDN, sehingga token baru
+   tidak sampai ke browser dan elemen yang memakainya tampil transparan.
+   Cari "goweb_get_design_tokens" untuk mengubah nilai token.
+   ------------------------------------------------------------------ */
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -124,7 +112,7 @@ main {
     display: inline-flex;
     background: #ffffff;
     padding: 6px;
-    border-radius: 16px;
+    border-radius: var(--radius-lg);
     gap: 6px;
     border: 1px solid var(--border-soft);
     box-shadow: 0 4px 15px rgba(139, 92, 246, 0.05);
@@ -134,7 +122,7 @@ main {
     border: none;
     background: transparent;
     padding: 10px 16px;
-    border-radius: 12px;
+    border-radius: var(--radius-md);
     font-size: 0.85rem;
     font-weight: 700;
     color: var(--text-muted);
@@ -147,7 +135,7 @@ main {
 }
 .tab-btn:hover { color: var(--pastel-purple); background: var(--pastel-purple-bg); }
 .tab-btn.active {
-    background: linear-gradient(135deg, #a78bfa, #818cf8);
+    background: var(--accent-gradient);
     color: #ffffff;
     box-shadow: 0 4px 12px rgba(167, 139, 250, 0.35);
 }
@@ -184,7 +172,7 @@ main {
 }
 .form-control:focus { background: #ffffff; border-color: #c4b5fd; box-shadow: 0 0 0 3px rgba(196, 181, 253, 0.25); }
 .btn-submit {
-    background: linear-gradient(135deg, #a78bfa, #818cf8);
+    background: var(--accent-gradient);
     color: #fff;
     border: none;
     padding: 12px 24px;
@@ -268,7 +256,7 @@ main {
 .info-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; padding: 6px 0; border-bottom: 1px dashed var(--border-soft); }
 
 .curr-pill.active {
-    background: linear-gradient(135deg, #a78bfa, #818cf8) !important;
+    background: var(--accent-gradient) !important;
     color: #fff !important;
     border-color: #a78bfa !important;
     box-shadow: 0 4px 12px rgba(167, 139, 250, 0.35);

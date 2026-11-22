@@ -113,10 +113,364 @@ Sisanya sudah diaudit: interpolasi `${...}` lain di seluruh tema hanya angka/enu
 
 ---
 
-## ✅ SELESAI — "Alur Aneh" / Isu Desain (#6–#15) + AUDIT KEDUA (#16–#19)
+## 🆕 FITUR TESTIMONI (dikerjakan agent peer, diselesaikan + diaudit + dites di sesi ini)
+
+### Ringkasan fitur
+- Tabel baru `wp_goweb_testimonials` (store_id, buyer_name, rating 1-5,
+  message, status Pending/Approved/Rejected, created_at) — dbDelta +
+  GOWEB_DB_VERSION 1.8.0 → 1.9.0.
+- **Sisi tenant (menu)**: `/dashboard/testimonials/` — kartu moderasi dengan
+  tab Pending/Approved/Rejected/Semua + counter; tombol Tampilkan/Tolak/
+  Hapus; handler di admin.php (nonce `goweb_testi_action_<store_id>`,
+  server-side gating `has_testi`, semua query diikat store_id).
+- **Sisi buyer (page)**: tab `Testimoni` di portal publik
+  (`page-testimoni.php`): daftar testimoni Approved + form kirim
+  (nama maks 100 char, rating 1-5, isi maks 1000 char) — masuk sebagai
+  Pending, tampil setelah di-approve admin tenant.
+- Pembersihan data: testimoni ikut dihapus saat tenant dihapus
+  (goweb_delete_tenant_completely) dan ikut dihitung dalam kuota storage.
+- Fitur `testimonials` ditambah ke: checkbox registrasi + whitelist,
+  modal edit tenant Super Admin + whitelist `#19`, sidebar & overview
+  dashboard, gating server-side (menu + handler).
+
+### Audit & perbaikan atas kerja agent
+- **BUG CSS (kritis, visual)**: `style.css` punya `--accent-gradient:
+  var(--accent-gradient)` (referensi diri / circular) → properti invalid →
+  SEMUA tombol gradient (tab aktif, submit, pill aktif) kehilangan
+  warnanya. Difix: nilai gradient asli ditulis langsung di :root.
+- **Fitur setengah jadi**: sisi buyer belum ada sama sekali saat agent
+  berhenti (tidak ada page, tidak ada tab, tidak ada handler submit).
+  Dibangun lengkap: handler di tenant-web.php (nonce
+  `goweb_public_testi_<store_id>`, validasi server-side pola #15e/#18,
+  anti-spam ringan maks 3 Pending per nama), page-testimoni.php (list +
+  form), integrasi tab & default_tab fallback di tenant-web.php.
+- XSS: nama & pesan buyer di-escape (esc_html), rating di-clamp 1-5.
+- Status non-Approved tidak pernah tampil publik.
+
+**Test baru (6):** `testi-submit-happy` (Pending + data benar),
+`testi-submit-invalid` (rating 9 ditolak), `testi-spam-limit` (maks 3
+Pending/nama), `testi-approve` (moderasi → Approved), `testi-blocked`
+(tanpa fitur → wp_die), `testi-display` (Approved tampil, Pending tidak,
+XSS ter-escape). Total: 50 skenario PHP + 4 standalone ALL-PASS.
+Harness: stub + FakeWPDB ditambah key `testimonials`, `mysql2date`,
+GROUP BY COUNT, dan perbaikan strip klausa ORDER BY (bug lama harness:
+multi-kondisi + ORDER BY selalu 0 baris).
+
+### AUDIT KEEMPAT (pasca fitur testimoni) — #24 — ✅ FIXED
+
+**#24 — Gating tab portal publik cuma mengatur tombol, bukan akses (SERIUS):**
+Dulu `?tab=po|tagihan|resi|payment|calculator` via URL langsung tetap
+me-render data & tetap menerima submission walau tenant MEMATIKAN fitur
+tersebut — tombolnya hilang dari navigasi, tapi datanya masih bisa dilihat
+siapa pun yang tahu URL-nya (mis. tenant matikan Rekapan PO agar data tidak
+publik, nyatanya tetap tampil). Lolos di semua audit sebelumnya karena
+semua test selalu memakai tab yang aktif.
+
+**Fix (tenant-web.php, satu titik):**
+- Daftar tab yang AKTIF (whitelist) + fallback ke `$default_tab` kalau
+  `?tab=` minta tab yang dimatikan — UX tetap halus (bukan error).
+- Handler POST pembayaran publik kini juga di-gate `$has_payment`
+  (dulu cuma dicek nonce; tab fallback saja tidak menutup POST langsung).
+- Handler testimoni sudah ter-gate sejak dibangun; moderasi dashboard
+  sudah ter-gate `has_testi`.
+
+**Minor (dicatat, belum diperbaiki — dampak kecil):**
+- Anti-spam testimoni per-NAMA: ganti nama = bisa kirim terus (per-IP
+  throttle butuh keputusan infra). Batas 3/nama + moderasi manual tetap
+  jaring pertama.
+- `strlen` hitung byte (nama emoji terhitung lebih cepat mencapai batas).
+- Daftar testimoni Approved belum ada pagination (performa kalau ribuan).
+
+**Test baru (3):** `g-tab-po-hidden` (data PO gak tampil + fallback ke
+kalkulator), `g-tab-pay-hidden` (POST pembayaran ditolak, nol insert),
+`g-tab-po-allowed` (fitur aktif tetap tampil). Total: 53 skenario PHP +
+4 standalone ALL-PASS.
+
+## 🔍 AUDIT KELIMA (pasca #24) — #25, #26 — ✅ FIXED
+
+**#25 — File bukti jadi yatim saat delete baris (kembaran #14):**
+`action_delete_warehouse` (foto bukti) & delete payment di dashboard
+(`proof_url`) menghapus baris DB tanpa menghapus file dari disk — file
+yatim menumpuk selamanya dan tetap dihitung di kuota (karena kuota dibaca
+dari URL di DB, yang sudah hilang... jadi justru kuota "nyasar" ke bawah
+padahal file masih di disk).
+**Fix:** ambil URL bukti/foto SEBELUM delete →
+`goweb_delete_uploaded_file_by_url()`.
+
+**#26 — Status warehouse & box free-text (kembaran #20):**
+`action_update_wh_status` & `action_update_box_status` menerima status
+apa pun dari POST — status ngawur merusak badge/filter/portal (sama
+seperti status order dulu).
+**Fix:** validasi terhadap daftar `wh_statuses` / `box_statuses` toko.
+
+**Audit bersih:** escaping menyeluruh (grep semua file: nol `echo $`
+tanpa esc_*), ownership semua handler, index.php landing (esc + kamus
+paket terpusat), handler box (ownership check + pelepasan item saat
+delete box).
+
+**Test baru (4):** `wh-delete-file` (foto ikut dibersihkan),
+`pay-delete-file` (bukti ikut dibersihkan), `wh-bad-status` &
+`box-bad-status` (status ngawur ditolak, nilai tidak berubah). Total:
+57 skenario PHP + 4 standalone ALL-PASS. Harness: FakeWPDB kini
+memproyeksikan daftar kolom SELECT sederhana (dulu get_var
+"SELECT kolom" balikin kolom pertama baris — menyembunyikan asumsi
+query nyata).
+
+## 🔍 AUDIT KEENAM (pasca #25–#26) — #27, #28, #29 — ✅ FIXED
+
+**#27 — Daftar pengaturan tersimpan "berlubang" → status item baru kosong:**
+`array_filter()` mempertahankan KEY asli. Kalau tenant menghapus baris
+PERTAMA di daftar status (Pengaturan), daftar tersimpan punya key 1,2,3
+(tanpa 0) — lalu kode yang membaca `$wh_statuses[0]` /
+`$box_statuses[0]` (item Warehouse & Box baru) dapat null, sehingga item
+baru tersimpan dengan **status kosong** (badge kosong, filter & portal
+rusak).
+**Fix:** `array_values()` di semua handler simpan daftar + pemakaian
+`array_values((array) ...)` di admin.php saat ambil status awal.
+
+**#28 — Daftar kosong bisa disimpan → fitur mati total tanpa pesan jelas:**
+tenant bisa menyimpan daftar status/jenis bayar KOSONG; akibatnya tidak ada
+satu pun nilai valid: tambah order/tagihan selalu ditolak (validasi #20/#21),
+form Konfirmasi Pembayaran publik tidak punya pilihan, dan status WH/Box tak
+bisa diubah (validasi #26). Fitur jadi "bricked" hanya karena pengaturan.
+Bonus bug halus: `array_filter` dijalankan SEBELUM `sanitize_text_field`,
+jadi entri berisi spasi lolos saringan lalu jadi string kosong.
+**Fix:** urutan dibalik (`array_map` dulu, baru `array_filter`, lalu
+`array_values`); kalau hasilnya kosong → dipulihkan ke daftar bawaan + pesan
+notifikasi menjelaskan. Plus jaring pengaman di
+`goweb_get_tenant_setting()`: daftar kosong yang sudah terlanjur tersimpan
+(dari versi lama) diperlakukan sebagai "belum diatur" → default dipakai,
+sehingga data produksi lama ikut pulih tanpa migrasi manual.
+
+**#29 — Kurs & tarif kargo tanpa validasi server-side:**
+`action_save_rates` / `action_save_cargo` cuma `floatval()` mentah (UI juga
+tanpa `min`). Kurs 0 atau negatif tersimpan → kalkulator **PUBLIK** yang
+dilihat buyer menampilkan harga Rp0 / negatif; pajak bisa >100%; packing
+fee bisa negatif.
+**Fix:** kurs wajib > 0; tarif kargo tidak negatif; pajak 0–100%; packing
+fee tidak negatif — semua `wp_die` dengan pesan spesifik.
+
+**Test baru (8):** `set-holey-statuses`, `set-empty-statuses`,
+`set-empty-cats`, `wh-status-from-holey`, `set-zero-rate`,
+`set-negative-cargo`, `set-tax-over-100`, `set-rates-ok`. Total: **65
+skenario PHP + 4 standalone ALL-PASS**. Catatan harness: stub kini punya
+penyimpanan setting in-memory agar alur simpan→baca ulang benar-benar teruji.
+
+## 🔍 AUDIT KETUJUH — #30, #31 — ✅ FIXED
+(catatan: area halaman home `index.php` & CSS SENGAJA di-skip — sedang
+dikerjakan agent UI untuk bug tampilan beranda.)
+
+**#30 — Hapus PO meninggalkan tagihan & item warehouse YATIM:**
+`action_delete_order` cuma menghapus baris order. Akibatnya:
+- Tagihan (`invoices.order_id`) menunjuk PO yang sudah tidak ada → di
+  portal publik buyer `LEFT JOIN` gagal, kolom "Nama PO / Invoice" & "Nama
+  Pemesan" tampil KOSONG; tagihan jadi tidak bisa dikenali siapa pun, dan
+  tidak bisa dipakai lagi (form tagihan wajib pilih PO).
+- Item warehouse (`warehouse.order_id`) juga yatim → batch hilang di portal.
+**Fix:** cascade yang sadar-domain: (1) tagihan milik PO itu ikut dihapus
+(tagihan selalu 1-PO di sistem ini), (2) item warehouse TIDAK dihapus
+(catatan barang fisik) — hanya `order_id` di-null-kan, (3) baru PO dihapus.
+Ownership check ditambah sebelum cascade. Teks modal konfirmasi di
+`menu-po.php` diperbarui supaya jujur menjelaskan efek cascade ini.
+Catatan implementasi: pakai `$goweb_tables['invoices']` langsung karena
+`$invoices_table` baru didefinisikan SETELAH blok ini (ketahuan dari test).
+
+**#31 — Captcha login statis setelah percobaan gagal:**
+Angka soal matematika hanya di-refresh kalau JAWABANNYA salah. Kalau
+password-nya yang salah, soal yang sama terus dipakai → bot cukup
+menghitung SEKALI lalu memakai jawaban itu untuk percobaan password tanpa
+batas (captcha jadi formalitas).
+**Fix:** captcha diganti setiap percobaan login gagal (dan nilai `$num1/$num2`
+untuk render ulang ikut diperbarui).
+
+**Minor (dicatat, belum diubah — keputusan bisnis):**
+- `cycle_daily_rate` hasil perpanjangan dihitung dari `nominal` yang SUDAH
+  termasuk biaya layanan QRIS, jadi rate harian sedikit lebih tinggi dari
+  harga paket murni. Dampak: prorata upgrade sedikit di atas seharusnya.
+- Kapasitas box (`kapasitas_kg`) tidak menolak penambahan item yang membuat
+  isi melebihi kapasitas (persentase di UI di-cap 100%).
+
+**Test baru (3):** `del-po-cascade` (tagihan PO ikut hapus, tagihan PO lain
+utuh, item WH tidak dihapus & `order_id` jadi null), `del-po-cascade-other-store`
+(ownership: data toko lain tidak tersentuh), `login-captcha-refresh`
+(captcha berubah setelah password salah, masih rentang 1-10). Skenario
+`lockout-combo` disesuaikan (menjawab captcha yang baru tiap iterasi) karena
+captcha kini berputar — perilaku kode yang benar, bukan regresi.
+Total: **68 skenario PHP + 4 standalone ALL-PASS**.
+
+## 🔍 AUDIT KEDELAPAN — #32, #33 — ✅ FIXED
+(skip area home `index.php` & CSS — sedang dikerjakan agent UI.)
+
+**#32 — Upload bukti perpanjangan sewa lolos tanpa cek kuota:**
+`menu-subscription.php` mengunggah `confirm_proof` tanpa memeriksa kuota
+storage — celah yang sama dengan upload foto warehouse (yang sudah difix di
+#22). Tenant bisa terus menembus kuota paketnya lewat bukti perpanjangan.
+**Fix:** cek `pemakaian + ukuran file > limit paket` sebelum upload →
+blokir dengan pesan jelas, insert payment tidak dijalankan.
+
+**#33 — Kolom `orders.payment_status` MATI (kelas bug #8):**
+Kolom ada di skema (default 'Belum Lunas') dan cuma terisi dari migrasi data
+lama — tidak pernah diisi, dibaca, atau ditampilkan aplikasi mana pun.
+Akibatnya rekap PO tidak punya informasi status bayar sama sekali.
+**Fix (diputuskan: difungsikan, bukan dihapus):**
+- `functions.php`: helper `goweb_sync_order_payment_status($store_id, $order_id)`
+  — status 'Lunas' kalau PO punya ≥1 tagihan dan SEMUA-nya Lunas, selain itu
+  'Belum Lunas'.
+- `admin.php`: dipanggil setiap tagihan berubah (tambah / toggle Lunas /
+  hapus), termasuk mengambil `order_id` sebelum baris tagihan dihapus.
+- `menu-po.php`: kolom baru **Status Bayar** di tabel rekap PO (badge hijau/
+  merah), ikut di ekspor CSV, dan `payment_status` masuk data JSON tabel.
+
+**Test baru (2):** `pay-status-sync` (tambah tagihan → Belum Lunas, toggle →
+Lunas, hapus → kembali Belum Lunas), `sub-quota-block` (file 300MB > kuota
+paket 250MB → ditolak, nol payment terinsert). Total: **70 skenario PHP + 4
+standalone ALL-PASS**.
+Catatan test: ID invoice diambil dari hasil insert (auto-increment harness
+mulai dari 100), dan kuota mengikuti `storage_limit` PAKET — bukan kolom
+tenant — sehingga test memakai file 300MB.
+
+## 🔍 AUDIT KESEBELAS — #38, #39 — ✅ FIXED
+(skip home `index.php` & CSS — agent UI.)
+
+**#38 — Fitur testimoni tidak kelihatan di daftar tenant Super Admin:**
+Permintaan pemilik: fitur testimoni harus muncul di pilihan register dan di
+detail tenant pada daftar tenant. Dicek: register **sudah** ada checkbox
+`testimonials` (`register.php:440`, ikut whitelist), dan modal Edit tenant
+**sudah** ada `feat-testi` (`super-admin.php:679`). Yang belum: **daftar tenant
+sama sekali tidak menampilkan badge fitur apa pun** — jadi Super Admin tak bisa
+membandingkan paket antar tenant tanpa buka modal satu-satu (dan testimoni pun
+"tak kelihatan" di sana).
+**Fix:** tambah kolom **“Fitur Aktif”** di tabel tenant berisi badge tiap fitur
+(termasuk **Testimoni**), plus `—` kalau tenant tidak punya fitur. Kolom kosong
+*colspan* ikut disesuaikan 7 → 8.
+
+**#39 — Pendaftaran terbengkalai tak pernah dibersihkan (baris + file):**
+`wp_goweb_pending_registrations` hanya terhapus kalau di-approve/reject manual.
+Pendaftaran yang tidak pernah diurus = baris + **file bukti transfer** numpuk
+selamanya, antrean Super Admin makin panjang, disk terus terpakai. Sama kelasnya
+dengan retensi tenant (#13) tapi ini murni sampah, bukan data pelanggan.
+**Fix:** pembersihan ikut cron harian `goweb_run_tenant_cleanup()` — pendaftaran
+lebih tua dari `GOWEB_PENDING_MAX_DAYS` (default **90 hari**, satu konstanta biar
+mudah diubah) dihapus beserta file bukti di disk, lalu dicatat di
+`goweb_deleted_pending_log` (maks 200 entri).
+**Catatan bug proses:** patch pertama pakai `$t['pending']` padahal di fungsi itu
+tidak ada variabel `$t` (cuma `$tenants_table`), dan pakai kolom `id` padahal
+tabel pending primary key-nya `request_id` — keduanya ketahuan **karena test-nya
+gagal**, bukan karena dibaca ulang. Setelah dikoreksi: ALL-PASS.
+
+**Test baru (5):** `sa-feature-column`, `pending-stale-cleanup` (mengekstrak
+fungsi cron **asli** dari `functions.php` lalu `eval`, jadi yang diuji kode
+produksi — bukan tiruan harness). Total: **81 skenario PHP + 4 standalone
+ALL-PASS**.
+
+## 🔍 AUDIT KESEPULUH — #36, #37 — ✅ FIXED
+(skip home `index.php` & CSS — agent UI sedang mengerjakan; area `style.css`,
+markup & token desain milik agent UI.)
+
+**#36 — Insert gagal tapi user tetap diberi tahu "berhasil" (kelas bug #14):**
+Di tiga alur, nilai balik `$wpdb->insert` tidak pernah dicek:
+- konfirmasi pembayaran publik (`tenant-web.php`) → pembeli lihat "terkirim"
+  padahal baris tidak tersimpan (admin toko tidak akan pernah melihatnya);
+- form testimoni publik (`tenant-web.php`) → sama, "terkirim" palsu;
+- konfirmasi perpanjangan/upgrade (`menu-subscription.php`) → tenant merasa
+  sudah bayar padahal sewa **tidak** akan diperpanjang.
+**Fix:** cek `=== false` → pesan gagal yang jelas (bukan pesan sukses), dan
+file bukti yang terlanjur diunggah dihapus lagi supaya tidak jadi file yatim.
+
+**#37 — "Reset Data" keuangan permanen tanpa jejak audit:**
+Tombol reset menghapus SELURUH `finance_ledger` + `wallets` tenant secara
+permanen (tanpa backup/soft delete), bisa dipicu tenant sendiri maupun Super
+Admin lewat `?store=`, dan tidak meninggalkan catatan apa pun — jadi tidak ada
+cara membedakan "sengaja" vs "kepencet", dan reset oleh Super Admin tidak
+terlihat oleh tenant (pola yang sama sudah dibereskan untuk hapus tenant di #2).
+**Fix:** catat log `goweb_finance_reset_log` (maks 200 entri): store_id,
+nama toko, pelaku (Tenant/Super Admin), jumlah baris ledger & dompet yang
+terhapus, waktu. Fungsi reset sendiri TIDAK diubah/dibatasi — tetap fitur tenant.
+
+**Test baru (4):** `pay-insert-fail`, `testi-insert-fail`, `sub-insert-fail`,
+`fin-reset-log` (harness: `FakeWPDB::$fail_tables` untuk simulasi insert gagal).
+Total: **79 skenario PHP + 4 standalone ALL-PASS**.
+
+**Catatan koordinasi:** agent UI memindahkan token desain dari `:root` di
+`style.css` ke `goweb_get_design_tokens()` + `wp_head` (commit 3f41e58). Sudah
+diaudit: semua template yang mencetak HTML memanggil `wp_head()`
+(`header.php`/`login.php`/`register.php`/`tenant-web.php`; `index.php` &
+`super-admin.php` lewat `get_header()`), jadi token tetap tercetak di semua
+halaman — tidak ada halaman yang kehilangan token.
+
+## 🔍 AUDIT KESEMBILAN — #34, #35 — ✅ FIXED
+(skip area home `index.php` & CSS — sedang dikerjakan agent UI.)
+
+**#34 — Form registrasi publik tanpa proteksi spam & tanpa batas ukuran file:**
+`/register` sama sekali tidak punya honeypot/captcha/throttle, padahal tiap
+pendaftaran MENYIMPAN 1 file bukti ke disk. Artinya siapa pun bisa (a)
+membanjiri antrean pending Super Admin, dan (b) menghabiskan disk dengan
+file bukti (tidak ada batas ukuran sama sekali). Login & form pembayaran
+publik justru sudah dijaga — registrasi yang paling berisiko malah tidak.
+**Fix:**
+- Honeypot tersembunyi `reg_website_trap` (bot pengisi-semua-field ditolak).
+- Throttle per IP: maks 5 percobaan pendaftaran / jam (transient).
+- Batas ukuran bukti transfer 5 MB (sebelum upload & kompresi).
+
+**#35 — Tanggal PO/Warehouse tanpa validasi format:**
+`po_date`, `wh_tanggal_masuk`, `wh_tanggal_keluar` cuma di-`sanitize_text_field`.
+Tanggal ngawur membuat `created_at` jadi tidak valid → filter JS
+(`new Date(...)`) gagal dan **baris PO HILANG dari daftar** walau datanya
+ada di DB; di warehouse tanggal tampil `01/01/1970`.
+**Fix:** validasi `YYYY-MM-DD`; kosong/ngawur → pakai tanggal hari ini
+(perilaku yang sudah dipakai saat field kosong).
+
+**Test baru (5):** `reg-honeypot`, `reg-throttle`, `reg-proof-too-big`,
+`po-bad-date`, `wh-bad-date`. Total: **75 skenario PHP + 4 standalone
+ALL-PASS**. Catatan harness: stub `current_time()` kini menghormati format
+(dulu selalu balikin timestamp sehingga bug format tanggal tersembunyi).
+
+## ✅ SELESAI — "Alur Aneh" / Isu Desain (#6–#15) + AUDIT KEDUA (#16–#19) + AUDIT KETIGA (#20–#23) + AUDIT KEEMPAT (#24) + AUDIT KELIMA (#25–#26) + AUDIT KEENAM (#27–#29) + AUDIT KETUJUH (#30–#31) + AUDIT KEDELAPAN (#32–#33) + AUDIT KESEMBILAN (#34–#35) + AUDIT KESEPULUH (#36–#37) + AUDIT KESEBELAS (#38–#39)
 Semua item sudah diperbaiki atau sudah diputuskan pemiliknya. Rincian per item di bawah.
 
 ### AUDIT KEDUA — temuan baru (putaran ulang setelah #6–#15 selesai)
+Audit ulang menyeluruh (cron retensi, auth session, upload/kuota, CSV, proration,
+routing, super-admin edit, semua alur submit) menemukan 4 lubang yang lolos
+putaran pertama. Area yang sudah diverifikasi AMAN: lockout/captcha login,
+session token (hash_equals + expiry), ownership check ?store=, gate
+subscription, proration upgrade, nominal durasi server-side, CSV export
+(formula injection terproteksi), XSS escape, routing & tenant picker, kuota
+storage live, pembersihan file saat delete/reject.
+
+### AUDIT KETIGA — verifikasi fix + temuan kecil (#20–#23) — ✅ FIXED
+Putaran verifikasi atas seluruh fix #6–#19: semuanya masih utuh, 39 test
+ALL-PASS, commit CSS peer (bdeef7d, ad35755) dicek murni style/markup tanpa
+ganggu logic. Sweep baru menemukan 4 validasi longgar di handler dashboard
+(dampaknya "data sampah" tenant sendiri — bukan akses silang):
+
+- **#20 `action_add_order` / `action_update_status` (admin.php)** — Total
+  Nilai PO gak boleh negatif; status order HARUS dari daftar
+  `custom_statuses` toko (add & update-status sama-sama divalidasi; dulu
+  free-text -> status ngawur merusak badge/filter/portal).
+- **#21 `action_add_invoice` (admin.php)** — kategori HARUS dari daftar
+  `payment_categories` toko (sumber yang sama dengan select UI), nominal
+  harus angka > 0 (dulu 0/negatif & kategori bebas bisa masuk).
+- **#22 upload foto warehouse (admin.php)** — kuota storage kini dicek
+  JUGA di sisi dashboard (dulu cuma di upload publik tenant-web.php, jadi
+  tenant bisa menembus kuota paketnya lewat upload foto WH).
+- **#23 `action_save_finance` (admin.php)** — nominal mutasi harus > 0
+  (dulu top-up negatif bisa mengurangi saldo dompet), IDR gak boleh
+  negatif, tanggal harus format YYYY-MM-DD.
+
+**Test baru (9):** `po-neg-total`, `po-bad-status`, `inv-bad-nominal`,
+`inv-bad-cat`, `inv-happy` (kategori dari daftar default + nominal
+150000), `wh-quota` (foto 2MB > kuota 1MB ditolak, gak ada baris insert),
+`fin-bad-amount`, `fin-bad-date`, `fin-happy` (ledger top-up 1jt + Wallet
+A). Total: 44 skenario PHP + 4 test standalone ALL-PASS. Catatan test:
+tabel ledger di stub = `wp_goweb_finance_ledger`.
+
+**Catatan riwayat git:** perubahan kode #20–#23 di `admin.php` ternyata
+ke-commit lebih dulu oleh agent peer di `ad35755` ("De-hardcode warna")
+karena working tree bersama — commit itu sebenarnya berisi campuran CSS
+peer + validasi logic ini. Commit `d8802a4` hanya membawa catatan backlog.
+Isi perubahannya benar & teruji; hanya pesan commit ad35755 yang kurang
+menggambarkan isi penuhnya. Tidak ada amend (aturan no-rewrite).
+
 Audit ulang menyeluruh (cron retensi, auth session, upload/kuota, CSV, proration,
 routing, super-admin edit, semua alur submit) menemukan 4 lubang yang lolos
 putaran pertama. Area yang sudah diverifikasi AMAN: lockout/captcha login,
