@@ -324,45 +324,19 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_tenant_registr
                     <h4 style="font-size: 1.05rem; font-weight: 800; color: var(--pastel-purple); margin-bottom: 14px;"><i class="fa-solid fa-store"></i> Langkah 2: Pilih Paket & Informasi Toko</h4>
                     
                     <!-- PILIHAN PAKET STORAGE -->
+                    <!-- PILIHAN PAKET STORAGE — digenerate dari kamus terpusat
+                         (goweb_get_package_definitions), bukan hardcode lagi (#11) -->
                     <div class="form-group">
                         <label>PILIH PAKET LANGGANAN BULANAN</label>
                         <div class="pkg-grid">
-                            <label class="pkg-card selected" id="card-starter">
-                                <input type="radio" name="reg_package" value="starter" checked onchange="updatePackageSelection(this)">
-                                <div class="pkg-title">Paket Starter</div>
-                                <div class="pkg-price">Rp 79.000</div>
-                                <div class="pkg-storage">Kapasitas 250 MB</div>
+                            <?php foreach ( goweb_get_package_definitions() as $reg_pkg ): ?>
+                            <label class="pkg-card<?php echo $reg_pkg['key'] === 'starter' ? ' selected' : ''; ?>" id="card-<?php echo esc_attr($reg_pkg['key']); ?>">
+                                <input type="radio" name="reg_package" value="<?php echo esc_attr($reg_pkg['key']); ?>"<?php echo $reg_pkg['key'] === 'starter' ? ' checked' : ''; ?> onchange="updatePackageSelection(this)">
+                                <div class="pkg-title">Paket <?php echo esc_html($reg_pkg['name']); ?></div>
+                                <div class="pkg-price">Rp <?php echo number_format($reg_pkg['price'], 0, ',', '.'); ?></div>
+                                <div class="pkg-storage">Kapasitas <?php echo $reg_pkg['storage_limit'] >= 1024 ? round($reg_pkg['storage_limit'] / 1024, 1) . ' GB' : $reg_pkg['storage_limit'] . ' MB'; ?></div>
                             </label>
-                            <label class="pkg-card" id="card-lite">
-                                <input type="radio" name="reg_package" value="lite" onchange="updatePackageSelection(this)">
-                                <div class="pkg-title">Paket Lite</div>
-                                <div class="pkg-price">Rp 99.000</div>
-                                <div class="pkg-storage">Kapasitas 500 MB</div>
-                            </label>
-                            <label class="pkg-card" id="card-standard">
-                                <input type="radio" name="reg_package" value="standard" onchange="updatePackageSelection(this)">
-                                <div class="pkg-title">Paket Standard</div>
-                                <div class="pkg-price">Rp 149.000</div>
-                                <div class="pkg-storage">Kapasitas 1 GB</div>
-                            </label>
-                            <label class="pkg-card" id="card-advanced">
-                                <input type="radio" name="reg_package" value="advanced" onchange="updatePackageSelection(this)">
-                                <div class="pkg-title">Paket Advanced</div>
-                                <div class="pkg-price">Rp 199.000</div>
-                                <div class="pkg-storage">Kapasitas 2 GB</div>
-                            </label>
-                            <label class="pkg-card" id="card-pro">
-                                <input type="radio" name="reg_package" value="pro" onchange="updatePackageSelection(this)">
-                                <div class="pkg-title">Paket Pro</div>
-                                <div class="pkg-price">Rp 299.000</div>
-                                <div class="pkg-storage">Kapasitas 5 GB</div>
-                            </label>
-                            <label class="pkg-card" id="card-ultimate">
-                                <input type="radio" name="reg_package" value="ultimate" onchange="updatePackageSelection(this)">
-                                <div class="pkg-title">Paket Ultimate</div>
-                                <div class="pkg-price">Rp 449.000</div>
-                                <div class="pkg-storage">Kapasitas 10 GB</div>
-                            </label>
+                            <?php endforeach; ?>
                         </div>
                     </div>
 
@@ -426,27 +400,28 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_tenant_registr
                         <strong>Informasi Transfer:</strong><br>
                         Silakan lakukan pembayaran biaya sewa awal ke rekening pusat atau scan QRIS di bawah ini, lalu unggah buktinya.
                         
-                        <!-- DETAIL HARGA DAN BIAYA QRIS -->
+                        <!-- DETAIL HARGA DAN BIAYA QRIS — default (Starter) dihitung
+                             dari kamus paket + kamus fee terpusat, bukan hardcode -->
                         <div style="background: #fff; padding: 12px; margin-top: 10px; border-radius: 8px; border: 1px solid var(--border-soft);">
                             <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
                                 <span>Harga Paket:</span>
-                                <strong id="display-base-price">Rp 79.000</strong>
+                                <strong id="display-base-price">Rp <?php echo number_format( goweb_get_package('starter')['price'], 0, ',', '.'); ?></strong>
                             </div>
                             <div style="display: flex; justify-content: space-between; margin-bottom: 4px; color: var(--text-muted); font-size: 0.8rem;">
-                                <span id="display-fee-label">Biaya Layanan QRIS (0.3%):</span>
-                                <strong id="display-fee-price">Rp 237</strong>
+                                <span id="display-fee-label">Biaya Layanan QRIS (<?php echo esc_html( goweb_qris_fee_config()['low_label'] ); ?>):</span>
+                                <strong id="display-fee-price">Rp <?php echo number_format( goweb_calculate_qris_fee( goweb_get_package('starter')['price'] )['fee'], 0, ',', '.'); ?></strong>
                             </div>
                             <hr style="border: 0; border-top: 1px solid var(--border-soft); margin: 8px 0;">
                             <div style="display: flex; justify-content: space-between; font-size: 1.1rem;">
                                 <strong>Total Transfer:</strong>
-                                <strong id="display-total-price" style="color: var(--pastel-purple);">Rp 79.237</strong>
+                                <strong id="display-total-price" style="color: var(--pastel-purple);">Rp <?php echo number_format( goweb_calculate_qris_fee( goweb_get_package('starter')['price'] )['total'], 0, ',', '.'); ?></strong>
                             </div>
                         </div>
                     </div>
 
                     <div style="text-align: center; margin-bottom: 20px; background: #faf8ff; padding: 14px; border: 1.5px dashed var(--pastel-purple-border); border-radius: var(--radius-md);">
                         <p style="font-size: 0.78rem; font-weight: 700; color: var(--pastel-purple); margin-bottom: 8px;">SCAN QRIS DIBAWAH INI</p>
-                        <img src="https://mercatoria.id/wp-content/uploads/2026/02/qris-barcode.jpg" alt="QRIS Barcode" style="width: 150px; height: 150px; object-fit: contain; border-radius: 8px; border: 1px solid var(--border-soft);">
+                        <img src="<?php echo esc_url( goweb_get_qris_image_url() ); ?>" alt="QRIS Barcode" style="width: 150px; height: 150px; object-fit: contain; border-radius: 8px; border: 1px solid var(--border-soft);">
                     </div>
 
                     <div class="form-group" style="margin-bottom: 24px;">
@@ -473,15 +448,13 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_tenant_registr
 </div>
 
 <script>
-// Logic Update Harga di Step 3 Berdasarkan Paket (Diubah jadi angka / integer)
-const priceMap = {
-    'starter': 79000,
-    'lite': 99000,
-    'standard': 149000,
-    'advanced': 199000,
-    'pro': 299000,
-    'ultimate': 449000
-};
+// Logic Update Harga di Step 3 Berdasarkan Paket.
+// SEBELUMNYA harga paket + persentase/threshold fee QRIS hardcode duplikat di
+// sini — sekarang diambil dari kamus terpusat (goweb_get_package_definitions
+// & goweb_qris_fee_config di functions.php), jadi kalau harga/policy berubah
+// cukup ubah satu tempat.
+const priceMap = <?php echo wp_json_encode( array_combine( array_keys( goweb_get_package_definitions() ), array_column( goweb_get_package_definitions(), 'price' ) ) ); ?>;
+const QRIS_FEE = <?php echo wp_json_encode( goweb_qris_fee_config() ); ?>;
 
 // Fungsi format angka ke format Rupiah
 function formatRupiah(angka) {
@@ -499,13 +472,13 @@ function updatePackageSelection(radio) {
         let feePercentage = 0;
         let feeLabel = "";
 
-        // Logika Biaya Tambahan QRIS
-        if (basePrice < 500000) {
-            feePercentage = 0.003; // 0,3%
-            feeLabel = "0,3%";
+        // Logika Biaya Tambahan QRIS — dari kamus terpusat QRIS_FEE
+        if (basePrice < QRIS_FEE.threshold) {
+            feePercentage = QRIS_FEE.low_pct;
+            feeLabel = QRIS_FEE.low_label;
         } else {
-            feePercentage = 0.007; // 0,7%
-            feeLabel = "0,7%";
+            feePercentage = QRIS_FEE.high_pct;
+            feeLabel = QRIS_FEE.high_label;
         }
 
         // Hitung biaya dan total

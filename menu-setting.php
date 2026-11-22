@@ -13,8 +13,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // langsung ke /dashboard/setting/ walau fitur terkait gak dia punya.
     // Simpan Kurs (Ditambah THB)
     if (isset($_POST['action_save_rates'])) {
-        if ( ! $has_public_calc ) {
-            wp_die('Akses ditolak. Fitur Kalkulator Publik tidak aktif untuk toko ini.');
+        if ( ! $has_calc && ! $has_public_calc ) {
+            wp_die('Akses ditolak. Fitur Kalkulator tidak aktif untuk toko ini.');
         }
         $new_rates = array(
             'CNY' => floatval($_POST['rate_cny']),
@@ -47,8 +47,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Simpan Kargo & Pajak per Mata Uang + Packing Fee
     if (isset($_POST['action_save_cargo'])) {
-        if ( ! $has_public_calc ) {
-            wp_die('Akses ditolak. Fitur Kalkulator Publik tidak aktif untuk toko ini.');
+        if ( ! $has_calc && ! $has_public_calc ) {
+            wp_die('Akses ditolak. Fitur Kalkulator tidak aktif untuk toko ini.');
         }
         $currency_codes = array('CNY', 'JPY', 'THB', 'KRW', 'USD');
         $currency_cargo = array();
@@ -156,7 +156,7 @@ $saved_box_statuses = goweb_get_tenant_setting( $store_id, 'box_statuses', goweb
 
     <div class="ms-2col-grid" style="margin-bottom: 24px;">
         
-        <?php if ($has_public_calc): ?>
+        <?php if ($has_calc || $has_public_calc): ?>
         <!-- KARTU 1: PENGATURAN KURS (TERMASUK THB) -->
         <div style="background: #ffffff; border: 1px solid var(--border-soft, #e2e8f0); border-radius: 20px; padding: 24px 28px; box-shadow: 0 4px 15px -2px rgba(15, 23, 42, 0.04);">
             <div style="margin-bottom: 20px;">
@@ -232,7 +232,7 @@ $saved_box_statuses = goweb_get_tenant_setting( $store_id, 'box_statuses', goweb
 
     <div class="ms-2col-grid">
 
-        <?php if ($has_public_calc): ?>
+        <?php if ($has_calc || $has_public_calc): ?>
         <!-- KARTU 3: KARGO & PAJAK PER MATA UANG (NEMPEL LANGSUNG KE KURS) -->
         <div style="background: #ffffff; border: 1px solid var(--border-soft, #e2e8f0); border-radius: 20px; padding: 24px 28px; box-shadow: 0 4px 15px -2px rgba(15, 23, 42, 0.04);">
             <div style="margin-bottom: 20px;">

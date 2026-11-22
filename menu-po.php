@@ -164,6 +164,11 @@ $active_rates = goweb_get_tenant_setting( $store_id, 'rates', array('CNY' => 245
             </div>
 
             <div class="form-group-fin" style="margin-bottom: 20px;">
+                <label class="form-label-fin" style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-dark, #0f172a); margin-bottom: 6px;">Total Nilai PO (Rp, opsional):</label>
+                <input type="number" id="in-total" name="po_total_value" class="form-input-fin" placeholder="Misal: 850000 — kosongkan kalau belum fix" style="width: 100%; padding: 10px 14px; border: 1.5px solid var(--border-soft, #e2e8f0); border-radius: 10px; font-weight: 600;" min="0">
+            </div>
+
+            <div class="form-group-fin" style="margin-bottom: 20px;">
                 <label class="form-label-fin" style="display: block; font-size: 12.5px; font-weight: 700; color: var(--text-dark, #0f172a); margin-bottom: 6px;">Status Proses Barang:</label>
                 <select id="in-status" name="po_status" class="form-select-fin" style="width: 100%; padding: 10px 14px; border: 1.5px solid var(--border-soft, #e2e8f0); border-radius: 10px; font-weight: 600;">
                     <?php foreach($active_custom_statuses as $st_opt): ?>
@@ -208,6 +213,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'name'   => $o['buyer_name'],
             'item'   => $o['item_detail'],
             'status' => $o['order_status'],
+            'total'  => floatval( $o['total_value'] ),
         );
     }, $tenant_orders_rows ) ); ?>;
 
@@ -482,7 +488,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.downloadOrdersCSV = function() {
         let csvContent = "\uFEFFREKAPAN ORDER PO\n\n";
-        csvContent += "BULAN,NAMA PO / ID INVOICE,NAMA CUSTOMER,DETAIL ITEM,STATUS ORDER\n";
+        csvContent += "BULAN,NAMA PO / ID INVOICE,NAMA CUSTOMER,DETAIL ITEM,STATUS ORDER,TOTAL NILAI (RP)\n";
 
         // Ekspor dari DATA (bukan dari baris tabel yang kerender), biar
         // tetap dapet SELURUH hasil filter — bukan cuma 25 baris di
@@ -514,7 +520,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return s;
         };
         exportRows.forEach(o => {
-            csvContent += `"${clean(getFormattedMonth(o.date))}","${clean(o.batch)}","${clean(o.name)}","${clean(o.item)}","${clean(o.status)}"\n`;
+            csvContent += `"${clean(getFormattedMonth(o.date))}","${clean(o.batch)}","${clean(o.name)}","${clean(o.item)}","${clean(o.status)}","${clean(o.total)}"\n`;
         });
 
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });

@@ -516,9 +516,14 @@ function goweb_tenant_logout() {
     goweb_clear_tenant_auth_cookie();
 }
 
-// Tangkap ?goweb_logout=1 di request manapun (dipakai tombol Keluar di header.php)
+// Tangkap ?goweb_logout=1&_wpnonce=... (dipakai tombol Keluar di header.php).
+// Nonce WAJIB sekarang — dulu GET tanpa proteksi, artinya situs/aplikasi lain
+// bisa memaksa logout tenant hanya dengan membuat dia membuka link (logout-CSRF).
 function goweb_handle_tenant_logout() {
     if ( isset( $_GET['goweb_logout'] ) && $_GET['goweb_logout'] === '1' ) {
+        if ( ! isset( $_GET['_wpnonce'] ) || ! wp_verify_nonce( $_GET['_wpnonce'], 'goweb_logout' ) ) {
+            wp_die( 'Link logout tidak valid atau kedaluwarsa. Silakan buka menu Keluar dari header situs.' );
+        }
         goweb_tenant_logout();
         wp_redirect( home_url('/login') );
         exit;
@@ -1087,6 +1092,49 @@ function goweb_get_package_definitions() {
 function goweb_get_package( $package_key ) {
     $packages = goweb_get_package_definitions();
     return isset( $packages[ $package_key ] ) ? $packages[ $package_key ] : $packages['starter'];
+}
+
+/**
+ * KONFIGURASI BIAYA LAYANAN QRIS — SATU sumber kebenaran. Sebelumnya
+ * persentase + threshold + label hardcode terpisah di 3 tempat
+ * (register.php JS, menu-subscription.php JS, menu-subscription.php PHP
+ * handler) yang gak pernah saling sinkron.
+ * CATATAN POLICY: persentase mengikuti aturan lama persis (di bawah
+ * threshold 0,3%, sama/lebih besar 0,7%) — gak diubah di sini.
+ */
+function goweb_qris_fee_config() {
+    return array(
+        'threshold' => 500000,
+        'low_pct'   => 0.003,
+        'high_pct'  => 0.007,
+        'low_label' => '0,3%',
+        'high_label'=> '0,7%',
+    );
+}
+
+/**
+ * Hitung biaya layanan QRIS + total akhir. Dibulatikan ke atas (ceil)
+ * per komponen fee, sama seperti perilaku lama.
+ */
+function goweb_calculate_qris_fee( $base ) {
+    $c = goweb_qris_fee_config();
+    $is_low = ( $base < $c['threshold'] );
+    $fee = ceil( $base * ( $is_low ? $c['low_pct'] : $c['high_pct'] ) );
+    return array(
+        'base'  => $base,
+        'pct'   => $is_low ? $c['low_pct'] : $c['high_pct'],
+        'fee'   => $fee,
+        'total' => $base + $fee,
+    );
+}
+
+/**
+ * URL gambar QRIS pembayaran platform — SATU sumber. Sebelumnya hardcode
+ * duplikat di register.php dan menu-subscription.php; kalau QRIS ganti,
+ * cukup ubah di sini.
+ */
+function goweb_get_qris_image_url() {
+    return 'https://mercatoria.id/wp-content/uploads/2026/02/qris-barcode.jpg';
 }
 
 /**

@@ -148,6 +148,7 @@ if (!$has_wh) {
                         <th>Foto</th>
                         <th>Nama / PO</th>
                         <th>Resi Masuk</th>
+                        <th>Resi Keluar</th>
                         <th>Lokasi WH</th>
                         <th>Berat</th>
                         <th>Status</th>
@@ -171,6 +172,18 @@ if (!$has_wh) {
                                     <?php if ( ! empty($wh['batch']) ): ?><br><small style="color:var(--text-muted);"><?php echo esc_html($wh['batch']); ?></small><?php endif; ?>
                                 </td>
                                 <td><?php echo esc_html($wh['resi_masuk'] ?: '-'); ?></td>
+                                <td>
+                                    <!-- Resi keluar bisa diisi langsung dari baris ini —
+                                         kolom resi_keluar/tanggal_keluar sebelumnya tidak pernah
+                                         diisi form manapun (tracking keluar gudang mati). -->
+                                    <form method="POST" action="" style="display: flex; gap: 4px; align-items: center;">
+                                        <?php wp_nonce_field('goweb_wh_action_' . $store_id, 'goweb_wh_nonce'); ?>
+                                        <input type="hidden" name="wh_id" value="<?php echo esc_attr($wh['id']); ?>">
+                                        <input type="text" name="wh_resi_keluar" value="<?php echo esc_attr($wh['resi_keluar'] ?: ''); ?>" placeholder="Belum keluar" style="width: 130px; padding: 5px 8px; border: 1.5px solid var(--border-soft, #e2e8f0); border-radius: 6px; font-size: 11.5px; font-weight: 600;">
+                                        <input type="date" name="wh_tanggal_keluar" value="<?php echo esc_attr($wh['tanggal_keluar'] ?: ''); ?>" style="width: 130px; padding: 5px 6px; border: 1.5px solid var(--border-soft, #e2e8f0); border-radius: 6px; font-size: 11.5px;">
+                                        <button type="submit" name="action_update_wh_outgoing" title="Simpan resi keluar" style="background: #ecfdf5; color: #15803d; border: 1px solid #bbf7d0; padding: 5px 9px; border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 11.5px;">💾</button>
+                                    </form>
+                                </td>
                                 <td><?php echo esc_html($wh['lokasi_wh'] ?: '-'); ?></td>
                                 <td><?php echo $wh['berat'] > 0 ? esc_html($wh['berat']) . ' kg' : '-'; ?></td>
                                 <td>
@@ -198,7 +211,7 @@ if (!$has_wh) {
                             </tr>
                         <?php endforeach; ?>
                     <?php else: ?>
-                        <tr id="empty-wh-state"><td colspan="8" style="text-align:center; color: var(--slate-400); padding: 30px;">Belum ada entri warehouse tercatat.</td></tr>
+                        <tr id="empty-wh-state"><td colspan="9" style="text-align:center; color: var(--slate-400); padding: 30px;">Belum ada entri warehouse tercatat.</td></tr>
                     <?php endif; ?>
                 </tbody>
             </table>
@@ -358,17 +371,17 @@ if (!$has_wh) {
     // Dan pastikan tidak error saat ada row yang posisinya di halaman selanjutnya (display: none)
     window.downloadWarehouseCSV = function() {
         let csvContent = "\uFEFFDATABASE WAREHOUSE\n\n";
-        csvContent += "NAMA / PO,RESI MASUK,LOKASI WH,BERAT,STATUS,BOX\n";
+        csvContent += "NAMA / PO,RESI MASUK,RESI KELUAR,LOKASI WH,BERAT,STATUS,BOX\n";
         
         filteredRows.forEach(row => {
             const cols = row.querySelectorAll('td');
-            if (cols.length >= 8) {
+            if (cols.length >= 9) {
                 const clean = (txt) => {
                     let s = txt.replace(/"/g, '""').replace(/\n/g, ' - ').trim();
                     if (/^[=+\-@]/.test(s)) s = "'" + s;
                     return s;
                 };
-                csvContent += `"${clean(cols[1].innerText)}","${clean(cols[2].innerText)}","${clean(cols[3].innerText)}","${clean(cols[4].innerText)}","${clean(cols[5].innerText)}","${clean(cols[6].innerText)}"\n`;
+                csvContent += `"${clean(cols[1].innerText)}","${clean(cols[2].innerText)}","${clean(cols[3].innerText)}","${clean(cols[4].innerText)}","${clean(cols[5].innerText)}","${clean(cols[6].innerText)}","${clean(cols[7].innerText)}"\n`;
             }
         });
         

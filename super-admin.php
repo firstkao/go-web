@@ -63,10 +63,20 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' ) {
             // SETELAH insert tenants, akibatnya cycle_daily_rate selalu 0
             // buat setiap tenant baru.
             $approved_package = goweb_get_package( ! empty($req['package_key']) ? $req['package_key'] : 'starter' );
-            $new_tenant_id = 'tenant_' . time();
+            // ID tenant harus UNIK — dulu 'tenant_' . time() bisa BENTROK (PK
+            // duplicate) kalau 2 pendaftaran di-approve dalam detik yang sama,
+            // dan hasilnya insert gagal diam-diam. Sekarang pakai suffix acak
+            // + loop pengecekan eksistensi.
+            $new_tenant_id = 'tenant_' . time() . '_' . bin2hex( random_bytes( 4 ) );
+            while ( $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$tenants_table} WHERE tenant_id = %s", $new_tenant_id ) ) > 0 ) {
+                $new_tenant_id = 'tenant_' . time() . '_' . bin2hex( random_bytes( 4 ) );
+            }
             $req_features = ! empty( $req['features'] ) ? json_decode( $req['features'], true ) : array('calculator', 'public_calc', 'customer_payment', 'po_recap', 'tagihan_recap', 'warehouse');
 
-            $wpdb->insert( $tenants_table, array(
+            // CEK HASIL INSERT — dulu kegagalan insert (mis. PK bentrok,
+            // koneksi putus) diabaikan dan tetap nampil "berhasil disetujui"
+            // padahal tenant gak jadi dibuat (#14).
+            $inserted_tenant = $wpdb->insert( $tenants_table, array(
                 'tenant_id'    => $new_tenant_id,
                 'store_name'   => $req['store_name'],
                 'admin_name'   => $req['admin_name'],
@@ -83,6 +93,10 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' ) {
                 'status'       => 'Active',
                 'created_at'   => current_time('mysql'),
             ) );
+
+            if ( $inserted_tenant === false ) {
+                echo '<div style="background:#fef2f2; color:#991b1b; padding:12px 24px; text-align:center; font-weight:700; margin-bottom:20px;">GAGAL menyimpan tenant baru ke database. Pendaftaran MASIH di antrean — periksa error log lalu coba approve ulang.</div>';
+            } else {
 
             // Simpan riwayat pembayaran awal sewa
             $payments_table = $goweb_tables['payments'];
@@ -103,6 +117,7 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' ) {
             $wpdb->delete( $pending_table, array( 'request_id' => $req_id ) );
 
             echo '<div style="background:#ecfdf5; color:#059669; padding:12px 24px; text-align:center; font-weight:700; margin-bottom:20px;">Tenant ' . esc_html($req['store_name']) . ' berhasil disetujui dan diaktifkan!</div>';
+            } // akhir if insert tenant berhasil
             } // akhir else cek duplikat
         }
     }
@@ -110,6 +125,12 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' ) {
     // 2. Tolak / Hapus Pendaftaran Pending
     if ( isset($_POST['reject_registration']) ) {
         $req_id = sanitize_text_field($_POST['request_id']);
+        $req_reject = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$pending_table} WHERE request_id = %s", $req_id ), ARRAY_A );
+        // Bersihkan file bukti transfer dari disk — dulu dibiarkan jadi file
+        // yatim selamanya walau pendaftarannya ditolak (#14).
+        if ( $req_reject && ! empty( $req_reject['proof_url'] ) ) {
+            goweb_delete_uploaded_file_by_url( $req_reject['proof_url'] );
+        }
         $deleted = $wpdb->delete( $pending_table, array( 'request_id' => $req_id ) );
         if ( $deleted ) {
             echo '<div style="background:#fef2f2; color:#991b1b; padding:12px 24px; text-align:center; font-weight:700; margin-bottom:20px;">Pendaftaran tenant ditolak dan dihapus.</div>';

@@ -64,7 +64,8 @@
                 <span class="header-greeting-text" style="font-size: 0.85rem; font-weight: 700; color: var(--text-dark);">
                     Hi, <?php echo esc_html($header_logged_in_tenant['admin_name']); ?>
                 </span>
-                <a href="<?php echo esc_url( add_query_arg('goweb_logout', '1', home_url('/login')) ); ?>" style="display: inline-flex; align-items: center; gap: 6px; background: #fee2e2; color: #ef4444; border: 1px solid #fecaca; padding: 8px 16px; border-radius: 999px; font-size: 0.85rem; font-weight: 700; text-decoration: none; transition: all 0.2s;">
+                <!-- Logout kini ber-nonce: URL tanpa nonce valid akan ditolak handler (anti logout-CSRF #15) -->
+                <a href="<?php echo esc_url( wp_nonce_url( add_query_arg('goweb_logout', '1', home_url('/login')), 'goweb_logout' ) ); ?>" style="display: inline-flex; align-items: center; gap: 6px; background: #fee2e2; color: #ef4444; border: 1px solid #fecaca; padding: 8px 16px; border-radius: 999px; font-size: 0.85rem; font-weight: 700; text-decoration: none; transition: all 0.2s;">
                     <i class="fa-solid fa-power-off"></i> Keluar
                 </a>
             <?php elseif ( is_user_logged_in() && current_user_can('administrator') ): ?>

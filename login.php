@@ -28,20 +28,27 @@ if (!isset($_SESSION['math_num1']) || !isset($_SESSION['math_num2'])) {
 $num1 = $_SESSION['math_num1'];
 $num2 = $_SESSION['math_num2'];
 
-// Proteksi brute-force: kunci sementara SATU AKUN (bukan per-IP, biar
-// gak keblokir bareng2 kalau banyak tenant login dari jaringan yang sama)
-// setelah 5x gagal berturut-turut dalam 15 menit. Pakai transient WP —
-// otomatis expire sendiri, gak perlu tabel/cron pembersih tambahan.
+// Proteksi brute-force: kunci sementara per KOMBINASI IP + EMAIL (pola standar
+// keamanan web). Dulu kuncinya cuma per-email — padahal email tenant itu
+// publik (kelihatan di portal), jadi siapa pun bisa ngetik password salah 5x
+// dan MENJAIL akun tenant 15 menit (DoS akun, pemilik gak bisa login walau
+// password-nya benar). Dengan kombinasi IP+email: yang ngespam cuma mengunci
+// dirinya sendiri, sedangkan pemilik akun yang login dari perangkat/IP dia
+// sendiri tetap bisa masuk. Tenant satu kantor dengan IP sama tapi email
+// berbeda tetap punya kunci masing-masing.
+// Pakai transient WP — otomatis expire sendiri, gak perlu tabel/cron
+// pembersih tambahan.
 define( 'GOWEB_LOGIN_MAX_ATTEMPTS', 5 );
 define( 'GOWEB_LOGIN_LOCKOUT_MINUTES', 15 );
 $attempted_email = isset($_POST['log']) ? sanitize_text_field($_POST['log']) : '';
-$lockout_key = 'goweb_login_lock_' . md5( strtolower( $attempted_email ) );
+$lockout_ip = isset($_SERVER['REMOTE_ADDR']) ? sanitize_text_field($_SERVER['REMOTE_ADDR']) : 'unknown';
+$lockout_key = 'goweb_login_lock_' . md5( strtolower( $attempted_email ) . '|' . $lockout_ip );
 $is_locked_out = false;
 if ( $attempted_email !== '' ) {
     $attempt_count = (int) get_transient( $lockout_key );
     if ( $attempt_count >= GOWEB_LOGIN_MAX_ATTEMPTS ) {
         $is_locked_out = true;
-        $login_error = 'Terlalu banyak percobaan login gagal untuk akun ini. Coba lagi dalam ' . GOWEB_LOGIN_LOCKOUT_MINUTES . ' menit.';
+        $login_error = 'Terlalu banyak percobaan login gagal dari koneksi ini untuk akun ini. Coba lagi dalam ' . GOWEB_LOGIN_LOCKOUT_MINUTES . ' menit.';
     }
 }
 

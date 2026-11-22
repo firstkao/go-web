@@ -170,6 +170,10 @@ if ( $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['goweb_po_nonce']) ) 
             'buyer_name'     => sanitize_text_field( $_POST['po_buyer_name'] ?? '' ),
             'item_detail'    => sanitize_textarea_field( $_POST['po_item_detail'] ?? '' ),
             'qty'            => 1,
+            // Total nilai PO (opsional, Rp) — kolom sebelumnya tidak pernah
+            // diisi form apapun (selalu 0). qty memang 1 karena 1 baris =
+            // 1 item/PO; nilai totalnya dicatat di sini.
+            'total_value'    => isset($_POST['po_total_value']) && $_POST['po_total_value'] !== '' ? floatval($_POST['po_total_value']) : 0,
             'order_status'   => sanitize_text_field( $_POST['po_status'] ?? '' ),
             'created_at'     => ( $po_date !== '' ) ? $po_date . ' 00:00:00' : current_time('mysql'),
         ) );
@@ -337,6 +341,15 @@ if ( $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['goweb_wh_nonce']) ) 
             array( 'status' => sanitize_text_field( $_POST['new_status'] ?? '' ) ),
             array( 'id' => intval($_POST['wh_id']), 'store_id' => $store_id )
         );
+    } elseif ( isset($_POST['action_update_wh_outgoing']) ) {
+        // Isi resi keluar + tanggal keluar (kolom yang sebelumnya tidak pernah
+        // diisi form manapun — tracking keluar gudang tidak berfungsi).
+        $wh_resi_keluar = sanitize_text_field( $_POST['wh_resi_keluar'] ?? '' );
+        $wh_tanggal_keluar = sanitize_text_field( $_POST['wh_tanggal_keluar'] ?? current_time('Y-m-d') );
+        $wpdb->update( $warehouse_table, array(
+            'resi_keluar'    => $wh_resi_keluar,
+            'tanggal_keluar' => ( $wh_resi_keluar !== '' ) ? $wh_tanggal_keluar : null,
+        ), array( 'id' => intval($_POST['wh_id']), 'store_id' => $store_id ) );
     } elseif ( isset($_POST['action_delete_warehouse']) ) {
         $wpdb->delete( $warehouse_table, array( 'id' => intval($_POST['wh_id']), 'store_id' => $store_id ) );
 
@@ -603,9 +616,9 @@ foreach ( $tenant_orders_rows as $o ) {
 // Buang status yang jumlahnya 0 biar pie chart gak penuh label kosong
 $chart_status_data = array_filter( $chart_status_data, function($v) { return $v > 0; } );
 
-
-// ditulis oleh halaman Pengaturan sama sekali, jadi kalkulator ini selalu
-// nampilin kurs default apapun yang diubah admin di Pengaturan.
+// Kurs & tarif buat kalkulator internal — dibaca dari setting tenant yang
+// dikelola lewat halaman Pengaturan (satu sumber, bug kurs ganda sudah
+// dibereskan di functions.php).
 $active_rates = goweb_get_tenant_setting( $store_id, 'rates', array('CNY' => 2450, 'JPY' => 110, 'THB' => 460, 'KRW' => 12, 'USD' => 16200) );
 $active_currency_cargo = goweb_get_tenant_setting( $store_id, 'currency_cargo', goweb_get_default_currency_cargo() );
 $active_packing_fee = goweb_get_tenant_setting( $store_id, 'packing_fee', 5000 );

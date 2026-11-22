@@ -19,7 +19,7 @@ if (!$has_calc) {
             <div id="currency-pills" style="display: flex; gap: 10px; flex-wrap: wrap;">
                 <button type="button" class="curr-pill active" data-rate="<?php echo esc_attr($active_rates['CNY']); ?>" data-symbol="¥" style="padding: 10px 18px; border-radius: 12px; border: 1.5px solid var(--border-soft); background: #fff; font-weight: 700; font-size: 0.85rem; cursor: pointer; color: var(--text-muted);">🇨🇳 Yuan (CNY)</button>
                 <button type="button" class="curr-pill" data-rate="<?php echo esc_attr($active_rates['JPY']); ?>" data-symbol="¥" style="padding: 10px 18px; border-radius: 12px; border: 1.5px solid var(--border-soft); background: #fff; font-weight: 700; font-size: 0.85rem; cursor: pointer; color: var(--text-muted);">🇯🇵 Yen (JPY)</button>
-                <button type="button" class="curr-pill" data-rate="460" data-symbol="฿" style="padding: 10px 18px; border-radius: 12px; border: 1.5px solid var(--border-soft); background: #fff; font-weight: 700; font-size: 0.85rem; cursor: pointer; color: var(--text-muted);">🇹🇭 Baht (THB)</button>
+                <button type="button" class="curr-pill" data-rate="<?php echo esc_attr( isset($active_rates['THB']) ? $active_rates['THB'] : 460 ); ?>" data-symbol="฿" style="padding: 10px 18px; border-radius: 12px; border: 1.5px solid var(--border-soft); background: #fff; font-weight: 700; font-size: 0.85rem; cursor: pointer; color: var(--text-muted);">🇹🇭 Baht (THB)</button>
                 <button type="button" class="curr-pill" data-rate="<?php echo esc_attr($active_rates['KRW']); ?>" data-symbol="₩" style="padding: 10px 18px; border-radius: 12px; border: 1.5px solid var(--border-soft); background: #fff; font-weight: 700; font-size: 0.85rem; cursor: pointer; color: var(--text-muted);">🇰🇷 Won (KRW)</button>
                 <button type="button" class="curr-pill" data-rate="<?php echo esc_attr($active_rates['USD']); ?>" data-symbol="$" style="padding: 10px 18px; border-radius: 12px; border: 1.5px solid var(--border-soft); background: #fff; font-weight: 700; font-size: 0.85rem; cursor: pointer; color: var(--text-muted);">🇺🇸 USD ($)</button>
             </div>
@@ -131,7 +131,7 @@ if (!$has_calc) {
             <div style="display: flex; justify-content: space-between;"><span style="color:#94a3b8;">Ongkir Lokal (WH)</span><strong id="res-local-ship" style="color:#fff;">Rp 0</strong></div>
             <div style="display: flex; justify-content: space-between;"><span style="color:#94a3b8;">Beban Kargo Int'l</span><strong id="res-cargo" style="color:#fff;">Rp 0</strong></div>
             <div style="display: flex; justify-content: space-between;"><span style="color:#94a3b8;">Pajak / Tax Bea</span><strong id="res-tax" style="color:#fff;">Rp 0</strong></div>
-            <div style="display: flex; justify-content: space-between;"><span style="color:#94a3b8;">Packing / Handling</span><strong style="color:#fff;">Rp 5.000</strong></div>
+            <div style="display: flex; justify-content: space-between;"><span style="color:#94a3b8;">Packing / Handling</span><strong id="res-packing" style="color:#fff;">Rp 0</strong></div>
             
             <div style="display: flex; justify-content: space-between; border-top: 1px dashed #334155; padding-top: 12px; margin-top: 4px;">
                 <span style="color: #fbbf24; font-weight: 800;">Total HPP / Modal Bersih</span>
@@ -212,6 +212,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const resTax = document.getElementById('res-tax');
     const resHpp = document.getElementById('res-hpp');
     const resProfit = document.getElementById('res-profit');
+    const resPacking = document.getElementById('res-packing');
     const resFinalPrice = document.getElementById('res-final-price');
 
     if(!inputPrice) return;
@@ -297,6 +298,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if(resTax) resTax.innerText = 'Rp ' + Math.round(taxIDR).toLocaleString('id-ID');
         if(resHpp) resHpp.innerText = 'Rp ' + Math.round(hpp).toLocaleString('id-ID');
         if(resProfit) resProfit.innerText = '+Rp ' + Math.round(profitIDR).toLocaleString('id-ID');
+        if(resPacking) resPacking.innerText = 'Rp ' + Math.round(packingFee).toLocaleString('id-ID');
         if(resFinalPrice) resFinalPrice.innerText = 'Rp ' + finalPrice.toLocaleString('id-ID');
     }
 

@@ -106,11 +106,12 @@ $storage_used_mb = round( $current_storage_used_display / 1048576, 1 );
                         }
                     }
 
-                    // LOGIKA BIAYA QRIS DITAMBAHKAN KE NOMINAL DATABASE
+                    // LOGIKA BIAYA QRIS DITAMBAHKAN KE NOMINAL DATABASE —
+                    // dari kamus terpusat (goweb_calculate_qris_fee), bukan
+                    // hardcode duplikat lagi.
                     if ( ! $submission_blocked && $payment_nominal > 0 ) {
-                        $qris_fee_pct = ($payment_nominal < 500000) ? 0.003 : 0.007; // 0.3% atau 0.7%
-                        $qris_fee = ceil($payment_nominal * $qris_fee_pct);
-                        $payment_nominal = $payment_nominal + $qris_fee;
+                        $qris = goweb_calculate_qris_fee( $payment_nominal );
+                        $payment_nominal = $qris['total'];
                     }
 
                     if ( ! $submission_blocked && ! empty($_FILES['confirm_proof']['name']) ) {
@@ -318,7 +319,7 @@ $storage_used_mb = round( $current_storage_used_display / 1048576, 1 );
 
                 <span style="font-size: 0.75rem; font-weight: 800; color: #7c3aed; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 12px;">SCAN QRIS DIBAWAH INI</span>
                 <div style="background: #fff; display: inline-block; padding: 10px; border-radius: 12px; border: 1px solid var(--border-soft);">
-                    <img src="https://mercatoria.id/wp-content/uploads/2026/02/qris-barcode.jpg" alt="QRIS Pembayaran" style="width: 150px; height: 150px; display: block; margin: 0 auto;">
+                    <img src="<?php echo esc_url( goweb_get_qris_image_url() ); ?>" alt="QRIS Pembayaran" style="width: 150px; height: 150px; display: block; margin: 0 auto;">
                 </div>
             </div>
 
@@ -346,7 +347,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalOverlay = document.getElementById('confirm-modal-overlay');
     const packagePrices = <?php echo wp_json_encode( array_combine( array_keys($all_packages), array_column($all_packages, 'price') ) ); ?>;
     const packageNames = <?php echo wp_json_encode( array_combine( array_keys($all_packages), array_column($all_packages, 'name') ) ); ?>;
-    const DURATIONS = <?php echo wp_json_encode( $subscription_durations ); ?>; 
+    const DURATIONS = <?php echo wp_json_encode( $subscription_durations ); ?>;
+    // Fee QRIS dari kamus terpusat — bukan hardcode duplikat lagi (#11)
+    const QRIS_FEE = <?php echo wp_json_encode( goweb_qris_fee_config() ); ?>;
     const CURRENT_PACKAGE_KEY = <?php echo wp_json_encode( $current_package['key'] ); ?>;
     const CYCLE_DAILY_RATE = <?php echo wp_json_encode( round($tenant_cycle_daily_rate, 2) ); ?>;
     const REMAINING_DAYS_NOW = <?php echo wp_json_encode( $remaining_days_now ); ?>;
@@ -473,17 +476,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (chosenSummaryLabel) chosenSummaryLabel.textContent = `Upgrade ke Paket ${pkgName} (prorata sisa ${REMAINING_DAYS_NOW} hari)`;
             }
             
-            // Hitung Biaya Tambahan QRIS
-            let feePct = 0;
-            let feeLabelText = "";
-            if (basePrice < 500000) {
-                feePct = 0.003;
-                feeLabelText = "0,3%";
-            } else {
-                feePct = 0.007;
-                feeLabelText = "0,7%";
-            }
-            
+            // Hitung Biaya Tambahan QRIS — dari kamus terpusat QRIS_FEE (#11)
+            const isLow = basePrice < QRIS_FEE.threshold;
+            const feePct = isLow ? QRIS_FEE.low_pct : QRIS_FEE.high_pct;
+            const feeLabelText = isLow ? QRIS_FEE.low_label : QRIS_FEE.high_label;
             const feeAmount = Math.ceil(basePrice * feePct);
             const totalPrice = basePrice + feeAmount;
             

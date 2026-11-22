@@ -72,6 +72,29 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_public_confirm
     $nominal    = sanitize_text_field($_POST['nominal']);
     $proof_url  = '';
 
+    // Validasi SERVER-SIDE — dulu validasi `required` cuma ada di HTML form
+    // (mudah dilewati langsung POST), jadi row "nominal 0 / nama kosong" bisa
+    // masuk database pembayaran (#15).
+    $payment_categories = goweb_get_tenant_setting( $store_id, 'payment_categories', goweb_get_default_payment_categories() );
+    $validation_errors = array();
+    if ( $buyer_name === '' ) $validation_errors[] = 'Nama pembeli wajib diisi.';
+    if ( $social_id === '' ) $validation_errors[] = 'ID sosial media wajib diisi.';
+    if ( $po_name === '' ) $validation_errors[] = 'Nama PO / referensi wajib diisi.';
+    if ( $payment_type === '' || ! in_array( $payment_type, (array) $payment_categories, true ) ) {
+        $validation_errors[] = 'Jenis pembayaran tidak valid.';
+    }
+    $nominal_normalized = str_replace( array('.', ','), '', $nominal ); // buang pemisah ribuan ("1.500.000" -> 1500000)
+    if ( ! preg_match( '/^[0-9]{1,15}$/', $nominal_normalized ) || intval( $nominal_normalized ) <= 0 ) {
+        $validation_errors[] = 'Nominal harus berupa angka lebih dari 0.';
+    }
+    if ( empty( $_FILES['payment_proof']['name'] ) ) {
+        $validation_errors[] = 'Bukti transfer wajib dilampirkan.';
+    }
+    if ( ! empty( $validation_errors ) ) {
+        wp_die( 'Konfirmasi pembayaran ditolak: ' . esc_html( implode( ' ', $validation_errors ) ) );
+    }
+    $nominal = $nominal_normalized; // dipakai intval() saat insert — dulu "1.500.000" jadi 1 di database
+
     $storage_limit_b = (isset($current_tenant['storage_limit']) ? floatval($current_tenant['storage_limit']) : 250) * 1048576;
     // Dihitung LIVE dari semua data tenant di database (bukan cuma file
     // upload) — lihat goweb_calculate_tenant_storage_bytes() di

@@ -15,6 +15,18 @@ $saved_warehouse = $wpdb->get_results( $wpdb->prepare(
      WHERE w.store_id = %s ORDER BY w.created_at DESC, w.id DESC", $store_id
 ), ARRAY_A );
 
+// Filter RESI via SERVER-SIDE (#9): sebelumnya resi lengkap ikut ke atribut
+// data-search di HTML (masking jadi kosmetik doang — tinggal view-source).
+// Sekarang resi tidak lagi dimasukkan ke HTML; customer yang mau cari pakai
+// nomor resi penuh memakai form di bawah, difilter di sini (server-side).
+$resi_search = isset($_GET['resi']) ? trim( sanitize_text_field( wp_unslash( $_GET['resi'] ) ) ) : '';
+if ( $resi_search !== '' ) {
+    $saved_warehouse = array_values( array_filter( $saved_warehouse, function( $w ) use ( $resi_search ) {
+        return ( stripos( (string) $w['resi_masuk'], $resi_search ) !== false )
+            || ( stripos( (string) $w['resi_keluar'], $resi_search ) !== false );
+    } ) );
+}
+
 // Box yang punya minimal 1 item nempel — biar customer bisa lihat progress
 // konsolidasi & status pengiriman gabungannya
 $active_boxes = $wpdb->get_results( $wpdb->prepare(
@@ -42,13 +54,29 @@ function goweb_mask_resi( $resi ) {
     <p>Daftar paket tiba di warehouse. Klik foto untuk memperbesar bukti kondisi paket.</p>
 </div>
 
-<!-- KOTAK PENCARIAN LIVE -->
-<div style="display: flex; gap: 10px; margin-bottom: 24px;">
+<!-- KOTAK PENCARIAN LIVE (nama/PO — client-side; resi pakai form server-side di bawah) -->
+<div style="display: flex; gap: 10px; margin-bottom: 16px;">
     <div style="position: relative; flex: 1;">
-        <input type="text" id="public-wh-search" placeholder="Cari Nama, Resi Masuk/Keluar, atau Nama PO..." style="width: 100%; padding: 11px 16px 11px 40px; border: 1.5px solid var(--border-soft); border-radius: var(--radius-md); font-size: 0.9rem; font-weight: 600; outline: none; background: #fff;" oninput="filterPublicWarehouse(this.value)">
+        <input type="text" id="public-wh-search" placeholder="Cari Nama atau Nama PO..." style="width: 100%; padding: 11px 16px 11px 40px; border: 1.5px solid var(--border-soft); border-radius: var(--radius-md); font-size: 0.9rem; font-weight: 600; outline: none; background: #fff;" oninput="filterPublicWarehouse(this.value)">
         <span style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted);"><i class="fa-solid fa-search"></i></span>
     </div>
 </div>
+
+<!-- CARI BY RESI — server-side (#9): nomor resi penuh tidak lagi dibawa ke
+     HTML (dulu cuma di-mask tampilannya tapi tetap kebaca di view-source).
+     Customer cari pakai resi ASLI di sini, hasilnya difilter di server. -->
+<form method="GET" style="display: flex; gap: 10px; margin-bottom: 24px;">
+    <input type="text" name="resi" value="<?php echo esc_attr($resi_search); ?>" placeholder="Cari pakai nomor resi (masuk/keluar)..." style="flex: 1; padding: 11px 16px; border: 1.5px solid var(--border-soft); border-radius: var(--radius-md); font-size: 0.9rem; font-weight: 600; outline: none; background: #fff;">
+    <button type="submit" class="btn-submit" style="width: auto; padding: 11px 22px;"><i class="fa-solid fa-magnifying-glass"></i> Cari Resi</button>
+    <?php if ( $resi_search !== '' ): ?>
+        <a href="<?php echo esc_url( remove_query_arg('resi') ); ?>" style="align-self: center; color: var(--text-muted); font-weight: 700; font-size: 0.85rem;">Reset</a>
+    <?php endif; ?>
+</form>
+<?php if ( $resi_search !== '' ): ?>
+    <div style="background: #e0f2fe; border: 1.5px solid #bae6fd; color: #0369a1; padding: 10px 16px; border-radius: var(--radius-md); font-weight: 700; font-size: 0.85rem; margin-bottom: 20px;">
+        <i class="fa-solid fa-filter"></i> Menampilkan hasil untuk resi "<?php echo esc_html($resi_search); ?>" — <?php echo count($saved_warehouse); ?> paket ketemu.
+    </div>
+<?php endif; ?>
 
 <!-- TABEL DAFTAR WAREHOUSE -->
 <div style="background: #fff; border: 1px solid var(--border-soft); border-radius: var(--radius-md); overflow: hidden; box-shadow: 0 4px 15px rgba(139,92,246,0.02); margin-bottom: 28px;">
@@ -76,7 +104,7 @@ function goweb_mask_resi( $resi ) {
                     </tr>
                 <?php else: ?>
                     <?php foreach ($saved_warehouse as $wh): ?>
-                        <tr class="wh-row-item" data-search="<?php echo esc_attr(strtolower(($wh['batch'] ?? '') . ' ' . $wh['buyer_name'] . ' ' . $wh['resi_masuk'])); ?>" style="border-bottom: 1px solid var(--border-soft); transition: background 0.15s;">
+                        <tr class="wh-row-item" data-search="<?php echo esc_attr(strtolower(($wh['batch'] ?? '') . ' ' . $wh['buyer_name'])); ?>" style="border-bottom: 1px solid var(--border-soft); transition: background 0.15s;">
                             <td style="padding: 14px 16px;">
                                 <?php if ( ! empty($wh['foto_bukti']) ): ?>
                                     <a href="<?php echo esc_url($wh['foto_bukti']); ?>" target="_blank"><img src="<?php echo esc_url($wh['foto_bukti']); ?>" style="width:44px; height:44px; object-fit:cover; border-radius:8px; border:1px solid var(--border-soft);"></a>
@@ -86,6 +114,9 @@ function goweb_mask_resi( $resi ) {
                             </td>
                             <td style="padding: 14px 16px; color: var(--text-dark); font-weight: 600;">
                                 <?php echo esc_html( goweb_mask_resi($wh['resi_masuk']) ); ?>
+                                <?php if ( ! empty($wh['resi_keluar']) ): ?>
+                                    <br><small style="color: var(--text-muted); font-weight: 600;">&rarr; <?php echo esc_html( goweb_mask_resi($wh['resi_keluar']) ); ?> <?php echo ! empty($wh['tanggal_keluar']) ? '(' . esc_html( date('d/m/Y', strtotime($wh['tanggal_keluar'])) ) . ')' : ''; ?></small>
+                                <?php endif; ?>
                             </td>
                             <td style="padding: 14px 16px; font-weight: 700; color: var(--pastel-purple);">
                                 <?php echo esc_html($wh['buyer_name']); ?>
