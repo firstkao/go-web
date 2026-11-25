@@ -15,27 +15,102 @@ $tenant_cycle_daily_rate = isset($current_tenant['cycle_daily_rate']) && floatva
 $current_storage_used_display = isset($tenant_storage_bytes) ? $tenant_storage_bytes : goweb_calculate_tenant_storage_bytes( $store_id );
 $storage_used_mb = round( $current_storage_used_display / 1048576, 1 );
 ?>
-<h2>Status Langganan</h2>
-<p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 20px;">Informasi paket sewa platform bulanan dan riwayat pembayaran toko ke pusat.</p>
+<div class="subscription-page">
+<style>
+    .subscription-page { --sub-ink:#302b46; --sub-muted:#625d70; --sub-line:#e5e0f2; color:var(--sub-ink); }
+    .subscription-heading { display:flex; align-items:center; gap:14px; margin:0 0 22px; }
+    .subscription-heading-icon { display:grid; flex:0 0 48px; width:48px; height:48px; place-items:center; border:1px solid #ded7e9; border-radius:14px; background:linear-gradient(145deg,#f8f5fb,#f0ebf7); color:var(--primary); font-size:1.08rem; }
+    .subscription-heading h2 { margin:0 0 5px; color:var(--sub-ink); font-size:1.3rem; font-weight:800; line-height:1.3; letter-spacing:-.03em; }
+    .subscription-heading p { max-width:68ch; margin:0; color:var(--sub-muted); font-size:.875rem; line-height:1.55; }
+    .subscription-panel { margin-bottom:20px; padding:22px 24px; border:1px solid var(--sub-line); border-radius:16px; background:#fff; box-shadow:0 5px 18px rgba(59,48,95,.045); }
+    .subscription-info .info-row { align-items:center; gap:14px; color:#514b63; }
+    .subscription-info .info-row > span:first-child { color:#625d70; }
+    .subscription-info .info-row strong { font-variant-numeric:tabular-nums; }
+    .subscription-info .info-row { border-bottom:0; }
+    .subscription-action { display:flex; justify-content:flex-start; padding-top:16px; border-top:1px solid var(--sub-line); }
+    .subscription-action .btn-submit { min-height:42px; padding-inline:17px; }
+    .subscription-history-title { display:flex; align-items:center; gap:9px; margin:0 0 15px; color:var(--sub-ink); font-size:1.05rem; font-weight:800; }
+    .subscription-history-title i { color:var(--primary); }
+    .subscription-page .data-table { min-width:950px; }
+    .subscription-page .data-table td { font-variant-numeric:tabular-nums; }
+    .subscription-page .sub-status-note { display:inline-flex; align-items:center; gap:6px; line-height:1.45; }
+    .subscription-page .table-responsive { max-width:100%; overflow-x:auto; border-radius:10px; }
+    .subscription-page .btn-submit:focus-visible,
+    .subscription-page .sub-back-btn:focus-visible,
+    .subscription-page .duration-pick-card:focus-within,
+    .subscription-page #close-confirm-modal:focus-visible,
+    .subscription-page #cancel-confirm-modal:focus-visible { outline:3px solid rgba(109,90,145,.32); outline-offset:3px; }
+    .subscription-page .sub-pkg-card { transition:border-color .16s ease,background .16s ease,opacity .16s ease; }
+    .subscription-page .sub-pkg-card:not(.is-disabled):hover { border-color:#9c8ab8 !important; background:#faf9fc; }
+    .subscription-page .sub-pkg-card:has(input:checked:not(:disabled)) { border-color:#6d5a91 !important; background:#faf9fc; }
+    .subscription-page input[type="radio"] { accent-color:#6d5a91; }
+    .subscription-page input[type="radio"]:focus-visible { outline:3px solid rgba(109,90,145,.32); outline-offset:3px; }
+    .subscription-page .duration-pick-card { min-height:58px; transition:border-color .16s ease,background .16s ease; }
+    .subscription-page .duration-pick-card:hover { background:#faf9fc; }
+    .subscription-page .form-control { min-height:42px; }
+    .subscription-modal-overlay { padding:18px !important; background:rgba(31,27,41,.58) !important; }
+    .subscription-modal { max-height:min(90vh,900px); overflow-y:auto; overscroll-behavior:contain; border:1px solid #e5e0f2; box-shadow:0 18px 54px rgba(36,29,52,.24) !important; }
+    .subscription-modal #close-confirm-modal { display:grid; width:40px; height:40px; place-items:center; border:1px solid var(--sub-line) !important; border-radius:10px; background:#fff !important; }
+    .subscription-modal #close-confirm-modal:hover { background:#f7f4fa !important; color:var(--primary) !important; }
+    .subscription-modal .sub-back-btn { min-height:40px; padding:7px 10px !important; border-radius:9px !important; }
+    .subscription-modal .sub-back-btn:hover { background:#f7f4fa !important; color:var(--primary) !important; }
+    .subscription-modal .btn-submit, .subscription-modal #cancel-confirm-modal { min-height:42px; }
+    .subscription-modal .subscription-total-row { font-variant-numeric:tabular-nums; }
+    @media (max-width:700px) {
+        .subscription-page .data-table { min-width:0; }
+        .subscription-page .data-table thead { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+        .subscription-page .data-table tbody { display:grid; gap:10px; }
+        .subscription-page .data-table tbody tr { display:grid; gap:0; padding:8px 12px; border:1px solid var(--sub-line); border-radius:12px; background:#fff; }
+        .subscription-page .data-table tbody tr:hover { background:#fff; }
+        .subscription-page .data-table tbody td { display:grid; grid-template-columns:minmax(90px,.7fr) minmax(0,1.3fr); gap:12px; padding:8px 0; border-bottom:1px solid #f0edf5; font-size:.78rem; overflow-wrap:anywhere; }
+        .subscription-page .data-table tbody td:last-child { border-bottom:0; }
+        .subscription-page .data-table tbody td::before { content:attr(data-label); color:#625d70; font-size:.69rem; font-weight:800; }
+        .subscription-page .data-table tbody td[colspan] { display:block; padding:14px 0; border:0; text-align:left !important; }
+        .subscription-page .data-table tbody td[colspan]::before { content:none; }
+        .subscription-page .subscription-info .info-row { align-items:flex-start; font-size:.8rem; }
+        .subscription-page .subscription-info .info-row strong { text-align:right; }
+        .subscription-page .subscription-panel { padding:17px 15px; border-radius:14px; }
+        .subscription-heading { align-items:flex-start; gap:11px; margin-bottom:18px; }
+        .subscription-heading-icon { flex-basis:42px; width:42px; height:42px; border-radius:13px; font-size:.98rem; }
+        .subscription-heading h2 { font-size:1.15rem; }
+        .subscription-heading p { font-size:.79rem; }
+        .subscription-action .btn-submit { width:100%; justify-content:center; }
+        .subscription-modal-overlay { align-items:flex-start !important; padding:10px !important; }
+        .subscription-modal { max-height:calc(100dvh - 20px); padding:25px 17px !important; border-radius:16px !important; }
+        .subscription-modal #close-confirm-modal { top:12px !important; right:12px !important; }
+        .subscription-modal .sub-pkg-grid { grid-template-columns:1fr !important; max-height:36vh !important; }
+        .subscription-modal .qris-panel { padding:15px !important; }
+        .subscription-modal .qris-breakdown > div { gap:10px; }
+        .subscription-modal #sub-payment-form > div:last-child { flex-direction:column; }
+        .subscription-modal #cancel-confirm-modal { width:100%; }
+    }
+    @media (max-width:360px) {
+        .subscription-page .data-table tbody td { grid-template-columns:minmax(76px,.65fr) minmax(0,1.35fr); gap:8px; }
+    }
+</style>
+<div class="subscription-heading">
+    <span class="subscription-heading-icon" aria-hidden="true"><i class="fa-solid fa-arrows-rotate"></i></span>
+    <div><h2>Status Langganan</h2><p>Informasi paket sewa platform bulanan dan riwayat pembayaran toko ke pusat.</p></div>
+</div>
 
-<div style="background: #fff; border: 1px solid var(--border-soft); padding: 24px; border-radius: var(--radius-md); margin-bottom: 24px;">
+<div class="subscription-panel subscription-info">
     <div class="info-row"><span>Paket Aktif</span><strong><?php echo esc_html($current_package['name']); ?></strong></div>
     <div class="info-row"><span>Biaya Sewa Platform</span><strong>Rp<?php echo number_format($current_package['price'], 0, ',', '.'); ?> / bulan</strong></div>
-    <div class="info-row"><span>Pemakaian Storage</span><strong><?php echo $storage_used_mb; ?> MB / <?php echo esc_html($current_package['storage_limit']); ?> MB</strong></div>
+    <div class="info-row"><span>Pemakaian Storage</span><strong><?php echo esc_html( goweb_format_storage_size( $storage_used_mb ) ); ?> / <?php echo esc_html( goweb_format_storage_size( $current_package['storage_limit'] ) ); ?></strong></div>
     <div class="info-row"><span>Status Akun</span><span class="status-badge <?php echo $is_store_online ? 'badge-mint' : 'badge-peach'; ?>"><?php echo $is_store_online ? 'Aktif & Terverifikasi' : 'Menunggu Perpanjangan / Offline'; ?></span></div>
     <div class="info-row"><span>Sisa Masa Aktif</span><strong style="color: <?php echo esc_attr($active_urgency_color); ?>;"><?php echo $remaining_days; ?> Hari Lagi</strong></div>
     
-    <div style="margin-top: 20px;">
-        <button type="button" id="open-confirm-modal" class="btn-submit"><i class="fa-solid fa-receipt"></i> Konfirmasi Perpanjangan / Ganti Paket</button>
+    <div class="subscription-action">
+        <button type="button" id="open-confirm-modal" class="btn-submit" aria-haspopup="dialog" aria-controls="confirm-modal-overlay"><i class="fa-solid fa-receipt" aria-hidden="true"></i> Konfirmasi Perpanjangan / Ganti Paket</button>
     </div>
 </div>
 
-<div style="background: #fff; border: 1px solid var(--border-soft); padding: 24px; border-radius: var(--radius-md);">
-    <h3 style="font-size: 1.1rem; margin-bottom: 16px;"><i class="fa-solid fa-clock-rotate-left" style="color: var(--pastel-purple);"></i> Riwayat Pembayaran Sewa</h3>
+<div class="subscription-panel">
+    <h3 class="subscription-history-title"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i> Riwayat Pembayaran Sewa</h3>
     <div class="table-responsive">
         <table class="data-table">
             <thead>
-                <tr><th>Tanggal Bayar</th><th>Periode Sewa</th><th>Nominal</th><th>Pengirim</th><th>Bukti</th><th>Status</th><th style="text-align:center;">Keterangan</th></tr>
+                <tr><th scope="col">Tanggal Bayar</th><th scope="col">Periode Sewa</th><th scope="col">Nominal</th><th scope="col">Pengirim</th><th scope="col">Bukti</th><th scope="col">Status</th><th scope="col" style="text-align:center;">Keterangan</th></tr>
             </thead>
             <tbody>
                 <?php 
@@ -194,23 +269,23 @@ $storage_used_mb = round( $current_storage_used_display / 1048576, 1 );
                     foreach ( $sub_history as $row ):
                 ?>
                     <tr>
-                        <td><?php echo esc_html( date('d/m/Y H:i', strtotime($row['created_at'])) ); ?></td>
-                        <td><?php echo esc_html($row['period']); ?></td>
-                        <td>Rp <?php echo number_format(intval($row['nominal']), 0, ',', '.'); ?></td>
-                        <td><?php echo esc_html($row['sender']); ?></td>
-                        <td><?php if (!empty($row['proof_url'])): ?><a href="<?php echo esc_url($row['proof_url']); ?>" target="_blank" style="color: var(--pastel-purple); font-weight: 700; text-decoration: underline;">Lihat</a><?php else: ?>-<?php endif; ?></td>
-                        <td><?php if ($row['status'] == 'Verified'): ?><span class="status-badge badge-mint">Verified</span><?php else: ?><span class="status-badge badge-peach">Pending</span><?php endif; ?></td>
-                        <td style="text-align: center;">
+                        <td data-label="Tanggal Bayar"><?php echo esc_html( date('d/m/Y H:i', strtotime($row['created_at'])) ); ?></td>
+                        <td data-label="Periode Sewa"><?php echo esc_html($row['period']); ?></td>
+                        <td data-label="Nominal">Rp <?php echo number_format(intval($row['nominal']), 0, ',', '.'); ?></td>
+                        <td data-label="Pengirim"><?php echo esc_html($row['sender']); ?></td>
+                        <td data-label="Bukti"><?php if (!empty($row['proof_url'])): ?><a href="<?php echo esc_url($row['proof_url']); ?>" target="_blank" rel="noopener noreferrer" style="color: var(--pastel-purple); font-weight: 700; text-decoration: underline; text-underline-offset:3px;">Lihat</a><?php else: ?>-<?php endif; ?></td>
+                        <td data-label="Status"><?php if ($row['status'] == 'Verified'): ?><span class="status-badge badge-mint">Verified</span><?php else: ?><span class="status-badge badge-peach">Pending</span><?php endif; ?></td>
+                        <td data-label="Keterangan" style="text-align: center;">
                             <?php if ($row['status'] != 'Verified'): ?>
-                                <span style="font-size: 0.78rem; color: var(--pastel-peach); font-weight: 700;"><i class="fa-solid fa-clock"></i> Menunggu verifikasi Super Admin</span>
+                                <span class="sub-status-note" style="font-size: 0.78rem; color: #9a5b00; font-weight: 700;"><i class="fa-solid fa-clock" aria-hidden="true"></i> Menunggu verifikasi Super Admin</span>
                             <?php elseif ( strpos($row['period'], 'Sewa Awal') !== false ): ?>
-                                <span style="font-size: 0.78rem; color: #0ea5e9; font-weight: 700;"><i class="fa-solid fa-flag-checkered"></i> Pendaftaran Awal</span>
+                                <span class="sub-status-note" style="font-size: 0.78rem; color: #08749a; font-weight: 700;"><i class="fa-solid fa-flag-checkered" aria-hidden="true"></i> Pendaftaran Awal</span>
                             <?php elseif ( ! empty($row['requested_package']) ): $hist_pkg = goweb_get_package($row['requested_package']); ?>
-                                <span style="font-size: 0.78rem; color: var(--pastel-purple); font-weight: 700;"><i class="fa-solid fa-arrow-up"></i> Upgrade ke <?php echo esc_html($hist_pkg['name']); ?></span>
+                                <span class="sub-status-note" style="font-size: 0.78rem; color: var(--primary); font-weight: 700;"><i class="fa-solid fa-arrow-up" aria-hidden="true"></i> Upgrade ke <?php echo esc_html($hist_pkg['name']); ?></span>
                             <?php elseif ( ! empty($row['requested_duration_months']) && $row['requested_duration_months'] > 1 ): ?>
-                                <span style="font-size: 0.78rem; color: #15803d; font-weight: 700;"><i class="fa-solid fa-rotate"></i> Perpanjangan <?php echo esc_html($row['requested_duration_months']); ?> Bulan</span>
+                                <span class="sub-status-note" style="font-size: 0.78rem; color: #28643a; font-weight: 700;"><i class="fa-solid fa-rotate" aria-hidden="true"></i> Perpanjangan <?php echo esc_html($row['requested_duration_months']); ?> Bulan</span>
                             <?php else: ?>
-                                <span style="font-size: 0.78rem; color: #15803d; font-weight: 700;"><i class="fa-solid fa-rotate"></i> Perpanjangan</span>
+                                <span class="sub-status-note" style="font-size: 0.78rem; color: #28643a; font-weight: 700;"><i class="fa-solid fa-rotate" aria-hidden="true"></i> Perpanjangan</span>
                             <?php endif; ?>
                         </td>
                     </tr>
@@ -223,9 +298,9 @@ $storage_used_mb = round( $current_storage_used_display / 1048576, 1 );
 </div>
 
 <!-- MODAL KONFIRMASI PERPANJANGAN DENGAN QRIS — 3 STEP -->
-<div id="confirm-modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center; overflow-y: auto; padding: 20px;">
-    <div style="background: #fff; width: 100%; max-width: 560px; padding: 32px; border-radius: var(--radius-lg); box-shadow: 0 10px 30px rgba(0,0,0,0.15); position: relative; margin: auto;">
-        <button type="button" id="close-confirm-modal" style="position: absolute; top: 20px; right: 20px; background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-muted);"><i class="fa-solid fa-xmark"></i></button>
+<div id="confirm-modal-overlay" class="subscription-modal-overlay" role="presentation" aria-hidden="true" style="display: none; position: fixed; inset: 0; width: 100%; height: 100%; z-index: 9999; justify-content: center; align-items: center; overflow-y: auto;">
+    <div class="subscription-panel subscription-modal" role="dialog" aria-modal="true" aria-labelledby="subscription-modal-title" tabindex="-1" style="width: 100%; max-width: 560px; padding: 32px; position: relative; margin: auto;">
+        <button type="button" id="close-confirm-modal" aria-label="Tutup konfirmasi langganan" style="position: absolute; top: 20px; right: 20px; font-size: 1.2rem; cursor: pointer; color: var(--text-muted);"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
 
         <?php
         // Tentuin paket mana yang jadi default terpilih: paket sekarang KALAU
@@ -248,12 +323,12 @@ $storage_used_mb = round( $current_storage_used_display / 1048576, 1 );
 
         <!-- STEP 1: PILIH PAKET -->
         <div id="sub-step-1">
-            <h3 style="font-size: 1.15rem; font-weight: 800; color: var(--primary); margin-bottom: 6px; display: flex; align-items: center; gap: 8px;">
-                <i class="fa-solid fa-file-invoice"></i> Pilih Paket
+            <h3 id="subscription-modal-title" style="font-size: 1.15rem; font-weight: 800; color: var(--primary); margin-bottom: 6px; display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-file-invoice" aria-hidden="true"></i> Pilih Paket
             </h3>
             <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 16px;">Tetap di paket sekarang buat perpanjang durasi, atau upgrade ke paket lebih besar.</p>
 
-            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 20px; max-height: 340px; overflow-y: auto; padding-right: 4px;">
+            <div class="sub-pkg-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 20px; max-height: 340px; overflow-y: auto; padding-right: 4px;">
                 <?php foreach ( $all_packages as $pkg ):
                     $is_current = ( $pkg['key'] === $current_package['key'] );
                     if ( $pkg['storage_limit'] < $current_package['storage_limit'] ) continue;
@@ -265,7 +340,7 @@ $storage_used_mb = round( $current_storage_used_display / 1048576, 1 );
                     <label class="sub-pkg-card <?php echo $is_current ? 'is-current' : ''; ?> <?php echo $is_disabled ? 'is-disabled' : ''; ?>" style="border: 1.5px solid <?php echo $is_checked ? '#a78bfa' : 'var(--border-soft)'; ?>; border-radius: var(--radius-md); padding: 12px; text-align: center; cursor: <?php echo $is_disabled ? 'not-allowed' : 'pointer'; ?>; opacity: <?php echo $is_disabled ? '0.45' : '1'; ?>; position: relative;">
                         <input type="radio" name="chosen_package" value="<?php echo esc_attr($pkg['key']); ?>" data-is-current="<?php echo $is_current ? '1' : '0'; ?>" <?php echo $is_checked ? 'checked' : ''; ?> <?php echo $is_disabled ? 'disabled' : ''; ?> style="position:absolute; top:8px; left:8px;">
                         <div style="font-weight:800; font-size:0.85rem; margin-top:12px;"><?php echo esc_html($pkg['name']); ?></div>
-                        <div style="font-size:0.75rem; color:var(--text-muted); margin:2px 0;"><?php echo esc_html($pkg['storage_limit']); ?> MB</div>
+                        <div style="font-size:0.75rem; color:var(--text-muted); margin:2px 0;"><?php echo esc_html( goweb_format_storage_size( $pkg['storage_limit'] ) ); ?></div>
                         <div style="font-weight:700; font-size:0.8rem; color:var(--primary);">Rp<?php echo number_format($pkg['price'],0,',','.'); ?> <span style="font-weight:400; color:var(--text-muted);">/bln</span></div>
                         <?php if ($is_current): ?><div style="font-size:0.65rem; color:#a78bfa; font-weight:700; margin-top:2px;">PAKET SEKARANG</div><?php endif; ?>
                         <?php if ($too_small): ?><div style="font-size:0.65rem; color:#ef4444; font-weight:700; margin-top:2px;">Storage gak cukup</div><?php endif; ?>
@@ -286,8 +361,8 @@ $storage_used_mb = round( $current_storage_used_display / 1048576, 1 );
             <button type="button" class="sub-back-btn" data-back-to="1" style="background:none; border:none; color:var(--text-muted); font-size:0.8rem; font-weight:700; cursor:pointer; margin-bottom:10px; padding:0;"><i class="fa-solid fa-arrow-left"></i> Kembali pilih paket</button>
 
             <div id="duration-picker-section" style="display: none;">
-                <h3 style="font-size: 1.15rem; font-weight: 800; color: var(--primary); margin-bottom: 6px; display: flex; align-items: center; gap: 8px;">
-                    <i class="fa-solid fa-calendar-days"></i> Pilih Durasi
+                <h3 id="subscription-duration-title" tabindex="-1" style="font-size: 1.15rem; font-weight: 800; color: var(--primary); margin-bottom: 6px; display: flex; align-items: center; gap: 8px;">
+                    <i class="fa-solid fa-calendar-days" aria-hidden="true"></i> Pilih Durasi
                 </h3>
                 <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 16px;">Makin lama komitmen, makin gede diskonnya.</p>
                 <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px;">
@@ -307,8 +382,8 @@ $storage_used_mb = round( $current_storage_used_display / 1048576, 1 );
             </div>
 
             <div id="upgrade-summary-section" style="display: none;">
-                <h3 style="font-size: 1.15rem; font-weight: 800; color: var(--primary); margin-bottom: 6px; display: flex; align-items: center; gap: 8px;">
-                    <i class="fa-solid fa-arrow-up-right-dots"></i> Ringkasan Upgrade
+                <h3 id="subscription-upgrade-title" tabindex="-1" style="font-size: 1.15rem; font-weight: 800; color: var(--primary); margin-bottom: 6px; display: flex; align-items: center; gap: 8px;">
+                    <i class="fa-solid fa-arrow-up-right-dots" aria-hidden="true"></i> Ringkasan Upgrade
                 </h3>
                 <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 16px;">Sisa masa aktif kamu (<strong><?php echo $remaining_days_now; ?> hari</strong>) otomatis dikonversi ke paket baru — cuma bayar selisihnya, tanggal jatuh tempo <strong>gak berubah</strong>.</p>
                 <div style="background: var(--bg-page); border: 1px solid var(--pastel-purple-border); border-radius: var(--radius-md); padding: 16px; margin-bottom: 20px;">
@@ -327,15 +402,15 @@ $storage_used_mb = round( $current_storage_used_display / 1048576, 1 );
         <div id="sub-step-2" style="display: none;">
             <button type="button" class="sub-back-btn" data-back-to="1b" style="background:none; border:none; color:var(--text-muted); font-size:0.8rem; font-weight:700; cursor:pointer; margin-bottom:10px; padding:0;"><i class="fa-solid fa-arrow-left"></i> Kembali</button>
 
-            <h3 style="font-size: 1.15rem; font-weight: 800; color: var(--primary); margin-bottom: 6px; display: flex; align-items: center; gap: 8px;">
-                <i class="fa-solid fa-qrcode"></i> Konfirmasi Pembayaran
+            <h3 id="subscription-payment-title" tabindex="-1" style="font-size: 1.15rem; font-weight: 800; color: var(--primary); margin-bottom: 6px; display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-qrcode" aria-hidden="true"></i> Konfirmasi Pembayaran
             </h3>
             <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 16px;"><strong id="chosen-summary-label"></strong></p>
 
             <!-- KOTAK QRIS (Rincian Biaya) -->
-            <div style="background: var(--bg-page); border: 1.5px dashed #c4b5fd; padding: 20px; border-radius: var(--radius-lg); text-align: center; margin-bottom: 20px;">
+            <div class="qris-panel" style="background: var(--bg-page); border: 1.5px dashed #c4b5fd; padding: 20px; border-radius: var(--radius-lg); text-align: center; margin-bottom: 20px;">
                 
-                <div style="background: #fff; padding: 12px; margin-bottom: 16px; border-radius: 8px; border: 1px solid var(--border-soft); text-align: left;">
+                <div class="qris-breakdown" style="background: #fff; padding: 12px; margin-bottom: 16px; border-radius: 8px; border: 1px solid var(--border-soft); text-align: left;">
                     <div style="display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 0.85rem;">
                         <span>Harga Dasar:</span>
                         <strong id="display-base-price">Rp 0</strong>
@@ -345,7 +420,7 @@ $storage_used_mb = round( $current_storage_used_display / 1048576, 1 );
                         <strong id="display-fee-price">Rp 0</strong>
                     </div>
                     <hr style="border: 0; border-top: 1px solid var(--border-soft); margin: 8px 0;">
-                    <div style="display: flex; justify-content: space-between; font-size: 1.05rem;">
+                    <div class="subscription-total-row" style="display: flex; justify-content: space-between; gap:10px; font-size: 1.05rem;">
                         <strong>Total Transfer:</strong>
                         <strong id="modal-price-display" style="color: var(--primary);">Rp 0</strong>
                     </div>
@@ -361,8 +436,8 @@ $storage_used_mb = round( $current_storage_used_display / 1048576, 1 );
                 <?php wp_nonce_field('goweb_subscription_action_' . $store_id, 'goweb_subscription_nonce'); ?>
                 <input type="hidden" name="chosen_package" id="chosen-package-hidden" value="<?php echo esc_attr($default_package_key); ?>">
                 <input type="hidden" name="duration_months" id="duration-months-hidden" value="1">
-                <div class="form-group"><label>Nama Pengirim / Akun</label><input type="text" name="confirm_name" class="form-control" placeholder="cth: Devina Maharani" required></div>
-                <div class="form-group" style="margin-bottom: 24px;"><label>Unggah Bukti Pembayaran</label><input type="file" name="confirm_proof" class="form-control" accept="image/*" required></div>
+                <div class="form-group"><label for="subscription-sender-name">Nama Pengirim / Akun</label><input type="text" id="subscription-sender-name" name="confirm_name" class="form-control" placeholder="cth: Devina Maharani" autocomplete="name" required></div>
+                <div class="form-group" style="margin-bottom: 24px;"><label for="subscription-proof">Unggah Bukti Pembayaran</label><input type="file" id="subscription-proof" name="confirm_proof" class="form-control" accept="image/*" required></div>
 
                 <div style="display: flex; gap: 12px;">
                     <button type="submit" name="submit_extension_proof" class="btn-submit" style="flex: 1; justify-content: center; background: var(--accent-gradient);">Kirim Konfirmasi</button>
@@ -413,16 +488,58 @@ document.addEventListener('DOMContentLoaded', () => {
         if (step1) step1.style.display = (step === 1) ? 'block' : 'none';
         if (step1b) step1b.style.display = (step === '1b') ? 'block' : 'none';
         if (step2) step2.style.display = (step === 2) ? 'block' : 'none';
+        const dialog = modalOverlay ? modalOverlay.querySelector('[role="dialog"]') : null;
+        const headingId = step === 1 ? 'subscription-modal-title'
+            : step === 2 ? 'subscription-payment-title'
+            : currentFlow === 'upgrade' ? 'subscription-upgrade-title' : 'subscription-duration-title';
+        const activeHeading = document.getElementById(headingId);
+        if (dialog && activeHeading) dialog.setAttribute('aria-labelledby', headingId);
+        if (modalOverlay && modalOverlay.getAttribute('aria-hidden') === 'false' && activeHeading) {
+            requestAnimationFrame(() => activeHeading.focus({ preventScroll: true }));
+        }
     }
 
     function resetToStep1() { goToStep(1); }
 
     if(openBtn && modalOverlay) {
-        openBtn.addEventListener('click', () => { resetToStep1(); modalOverlay.style.display = 'flex'; });
-        if(closeBtn) closeBtn.addEventListener('click', () => { modalOverlay.style.display = 'none'; });
-        if(cancelBtn) cancelBtn.addEventListener('click', () => { modalOverlay.style.display = 'none'; });
+        const dialog = modalOverlay.querySelector('[role="dialog"]');
+        let lastFocusedElement = null;
+        function openSubscriptionModal() {
+            lastFocusedElement = document.activeElement;
+            resetToStep1();
+            modalOverlay.style.display = 'flex';
+            modalOverlay.setAttribute('aria-hidden', 'false');
+            document.body.style.overflow = 'hidden';
+            requestAnimationFrame(() => {
+                (closeBtn || dialog)?.focus();
+            });
+        }
+        function closeSubscriptionModal() {
+            modalOverlay.style.display = 'none';
+            modalOverlay.setAttribute('aria-hidden', 'true');
+            document.body.style.overflow = '';
+            if (lastFocusedElement) lastFocusedElement.focus();
+        }
+        openBtn.addEventListener('click', openSubscriptionModal);
+        if(closeBtn) closeBtn.addEventListener('click', closeSubscriptionModal);
+        if(cancelBtn) cancelBtn.addEventListener('click', closeSubscriptionModal);
         modalOverlay.addEventListener('click', (e) => {
-            if(e.target === modalOverlay) modalOverlay.style.display = 'none';
+            if(e.target === modalOverlay) closeSubscriptionModal();
+        });
+        document.addEventListener('keydown', (e) => {
+            if (modalOverlay.getAttribute('aria-hidden') === 'true') return;
+            if (e.key === 'Escape') { e.preventDefault(); closeSubscriptionModal(); return; }
+            if (e.key !== 'Tab' || !dialog) return;
+            const focusable = Array.from(dialog.querySelectorAll('button:not(:disabled), input:not(:disabled), a[href], [tabindex="0"]'))
+                .filter(el => el.offsetParent !== null);
+            if (!focusable.length) { e.preventDefault(); dialog.focus(); return; }
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            if (e.shiftKey && (document.activeElement === first || document.activeElement === dialog)) {
+                e.preventDefault(); last.focus();
+            } else if (!e.shiftKey && document.activeElement === last) {
+                e.preventDefault(); first.focus();
+            }
         });
     }
 
@@ -535,3 +652,4 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 </script>
+</div>

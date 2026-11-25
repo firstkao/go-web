@@ -347,14 +347,20 @@ if ( $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['goweb_testi_nonce'])
     } elseif ( isset($_POST['action_testi_reject']) ) {
         $wpdb->update( $testimonials_table, array( 'status' => 'Rejected' ), array( 'id' => $testi_id, 'store_id' => $store_id ) );
     } elseif ( isset($_POST['action_testi_delete']) ) {
-        $wpdb->delete( $testimonials_table, array( 'id' => $testi_id, 'store_id' => $store_id ) );
+        $testi_to_delete = $wpdb->get_row( $wpdb->prepare(
+            "SELECT photo_url FROM {$testimonials_table} WHERE id = %d AND store_id = %s", $testi_id, $store_id
+        ), ARRAY_A );
+        $testi_deleted = $wpdb->delete( $testimonials_table, array( 'id' => $testi_id, 'store_id' => $store_id ) );
+        if ( $testi_deleted && ! empty( $testi_to_delete['photo_url'] ) ) {
+            goweb_delete_uploaded_file_by_url( $testi_to_delete['photo_url'] );
+        }
     }
     wp_redirect( home_url('/dashboard/testimonials/') . $store_query_suffix );
     exit;
 }
 
 // ----------------------------------------------------
-// HANDLER DATABASE WAREHOUSE (tambah / ubah status / isi resi keluar / hapus)
+// HANDLER DATABASE WAREHOUSE (tambah / ubah status / hapus)
 // Tracking fisik barang di gudang — beda dari order_status di Rekapan PO
 // yang cuma garis besar. Tenant bisa pilih mode "wajib link ke PO" atau
 // "bebas berdiri sendiri" lewat Pengaturan (wh_link_mode).
@@ -471,18 +477,7 @@ if ( $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['goweb_wh_nonce']) ) 
             array( 'id' => intval($_POST['wh_id']), 'store_id' => $store_id )
         );
     } elseif ( isset($_POST['action_update_wh_outgoing']) ) {
-        // Isi resi keluar + tanggal keluar (kolom yang sebelumnya tidak pernah
-        // diisi form manapun — tracking keluar gudang tidak berfungsi).
-        $wh_resi_keluar = sanitize_text_field( $_POST['wh_resi_keluar'] ?? '' );
-        $wh_tanggal_keluar = sanitize_text_field( $_POST['wh_tanggal_keluar'] ?? current_time('Y-m-d') );
-        // Validasi format tanggal keluar (#35)
-        if ( $wh_tanggal_keluar !== '' && ! preg_match('/^\d{4}-\d{2}-\d{2}$/', $wh_tanggal_keluar) ) {
-            $wh_tanggal_keluar = current_time('Y-m-d');
-        }
-        $wpdb->update( $warehouse_table, array(
-            'resi_keluar'    => $wh_resi_keluar,
-            'tanggal_keluar' => ( $wh_resi_keluar !== '' ) ? $wh_tanggal_keluar : null,
-        ), array( 'id' => intval($_POST['wh_id']), 'store_id' => $store_id ) );
+        wp_die('Fitur resi keluar sudah tidak tersedia di Database Warehouse.');
     } elseif ( isset($_POST['action_delete_warehouse']) ) {
         // Bersihkan file foto dari disk SEBELUM baris dihapus (#25) — dulu
         // baris hilang tapi file foto tetap yatim di disk selamanya.
@@ -499,12 +494,18 @@ if ( $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['goweb_wh_nonce']) ) 
     } elseif ( isset($_POST['action_create_box']) ) {
         // array_values (#27) — alasan sama dengan status warehouse di atas.
         $box_statuses_list = array_values( (array) $box_statuses );
+        $box_capacity = isset($_POST['box_kapasitas']) ? floatval($_POST['box_kapasitas']) : 20;
+        if ( ! is_finite( $box_capacity ) || $box_capacity <= 0 ) {
+            wp_die('Kapasitas box harus berupa angka lebih dari 0 kg.');
+        }
         $wpdb->insert( $box_table, array(
             'store_id'     => $store_id,
             'box_name'     => sanitize_text_field( $_POST['box_name'] ?? '' ),
             'lokasi'       => sanitize_text_field( $_POST['box_lokasi'] ?? '' ),
-            'kapasitas_kg' => isset($_POST['box_kapasitas']) ? floatval($_POST['box_kapasitas']) : 20,
+            'kapasitas_kg' => $box_capacity,
             'status'       => ! empty($box_statuses_list) ? $box_statuses_list[0] : 'Packing In Progress',
+            // status_changed_at dipakai auto-arsip box "sampai Indo" (2 minggu)
+            'status_changed_at' => current_time('mysql'),
             'created_at'   => current_time('mysql'),
         ) );
     } elseif ( isset($_POST['action_update_box_status']) ) {
@@ -514,10 +515,20 @@ if ( $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['goweb_wh_nonce']) ) 
         if ( ! in_array( $box_status_new, (array) $box_statuses_valid, true ) ) {
             wp_die('Gagal ubah status: status "' . esc_html($box_status_new) . '" tidak ada dalam daftar status box toko.');
         }
-        $wpdb->update( $box_table,
-            array( 'status' => $box_status_new ),
-            array( 'id' => intval($_POST['box_id']), 'store_id' => $store_id )
-        );
+        // Timer auto-arsip: clock-nya direset SETIAP status berubah, bukan
+        // hanya saat masuk status arrived — jadi box yang balik ke process
+        // (mis. salah set status) dapat jendela 2 minggu baru saat sampai lagi.
+        $box_id_upd      = intval( $_POST['box_id'] );
+        $box_status_prev = $wpdb->get_var( $wpdb->prepare(
+            "SELECT status FROM {$box_table} WHERE id = %d AND store_id = %s", $box_id_upd, $store_id
+        ) );
+        $box_update_data = array( 'status' => $box_status_new );
+        if ( $box_status_prev !== $box_status_new ) {
+            $box_update_data['status_changed_at'] = current_time('mysql');
+            // Keluar dari arsip: box yang diubah statusnya dianggap aktif lagi.
+            $box_update_data['archived_at'] = null;
+        }
+        $wpdb->update( $box_table, $box_update_data, array( 'id' => $box_id_upd, 'store_id' => $store_id ) );
     } elseif ( isset($_POST['action_delete_box']) ) {
         $box_id_del = intval($_POST['box_id']);
         // Lepasin dulu semua item yg nempel ke Box ini (jangan ikut kehapus)
@@ -525,15 +536,35 @@ if ( $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['goweb_wh_nonce']) ) 
         $wpdb->delete( $box_table, array( 'id' => $box_id_del, 'store_id' => $store_id ) );
     } elseif ( isset($_POST['action_assign_to_box']) ) {
         $assign_box_id = intval($_POST['assign_box_id'] ?? 0);
-        // Ownership check box (kalau bukan "lepas dari box", assign_box_id = 0)
-        $box_owned = $assign_box_id === 0 || $wpdb->get_var( $wpdb->prepare(
-            "SELECT COUNT(*) FROM {$box_table} WHERE id = %d AND store_id = %s", $assign_box_id, $store_id
-        ) );
-        if ( $box_owned ) {
-            $wpdb->update( $warehouse_table,
-                array( 'box_id' => $assign_box_id > 0 ? $assign_box_id : null ),
-                array( 'id' => intval($_POST['wh_id']), 'store_id' => $store_id )
+        $wh_id_to_assign = intval($_POST['wh_id'] ?? 0);
+        // Pastikan item warehouse milik tenant ini sebelum memindahkannya.
+        $wh_item_to_assign = $wpdb->get_row( $wpdb->prepare(
+            "SELECT * FROM {$warehouse_table} WHERE id = %d AND store_id = %s", $wh_id_to_assign, $store_id
+        ), ARRAY_A );
+        if ( ! $wh_item_to_assign ) {
+            wp_die('Paket tidak ditemukan atau bukan milik toko ini.');
+        }
+
+        if ( $assign_box_id === 0 ) {
+            $wpdb->update( $warehouse_table, array( 'box_id' => null ), array( 'id' => $wh_id_to_assign, 'store_id' => $store_id ) );
+        } else {
+            // Ownership check box + enforce kapasitas sebelum menyimpan assignment.
+            $box_to_assign = $wpdb->get_row( $wpdb->prepare(
+                "SELECT * FROM {$box_table} WHERE id = %d AND store_id = %s AND archived_at IS NULL", $assign_box_id, $store_id
+            ), ARRAY_A );
+            if ( ! $box_to_assign ) {
+                wp_die('Box tidak ditemukan atau sudah tidak aktif.');
+            }
+            $box_to_assign['filled_kg'] = goweb_calculate_box_filled_weight( $assign_box_id );
+            $capacity_error = goweb_get_box_assignment_capacity_error(
+                $box_to_assign,
+                isset( $wh_item_to_assign['berat'] ) ? (float) $wh_item_to_assign['berat'] : 0,
+                isset( $wh_item_to_assign['box_id'] ) ? (int) $wh_item_to_assign['box_id'] : 0
             );
+            if ( $capacity_error !== '' ) {
+                wp_die( esc_html( $capacity_error ) );
+            }
+            $wpdb->update( $warehouse_table, array( 'box_id' => $assign_box_id ), array( 'id' => $wh_id_to_assign, 'store_id' => $store_id ) );
         }
     }
 
@@ -548,7 +579,9 @@ $tenant_warehouse_rows = $wpdb->get_results( $wpdb->prepare(
 ), ARRAY_A );
 
 $tenant_boxes_rows = $wpdb->get_results( $wpdb->prepare(
-    "SELECT * FROM {$box_table} WHERE store_id = %s ORDER BY created_at DESC", $store_id
+    // archived_at IS NULL: box "sampai Indo" yang lewat 2 minggu menghilang
+    // otomatis dari daftar (auto-arsip di cron goweb_archive_stale_arrived_boxes).
+    "SELECT * FROM {$box_table} WHERE store_id = %s AND archived_at IS NULL ORDER BY created_at DESC", $store_id
 ), ARRAY_A );
 foreach ( $tenant_boxes_rows as &$box_row ) {
     $box_row['filled_kg'] = goweb_calculate_box_filled_weight( $box_row['id'] );
@@ -611,8 +644,14 @@ if ( $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['goweb_payment_action
             wp_die('Akses ditolak. Verifikasi pembayaran perpanjangan sewa hanya bisa dilakukan oleh Super Admin.');
         }
 
-        if ( $_POST['goweb_payment_action'] === 'verify' ) {
-            $wpdb->update( $payments_table, array( 'status' => 'Verified' ), array( 'id' => $payment_id, 'store_id' => $store_id ) );
+        if ( $_POST['goweb_payment_action'] === 'update_payment_date' ) {
+            wp_die('Tanggal pembayaran dicatat otomatis oleh sistem dan tidak dapat diedit manual.');
+        } elseif ( $_POST['goweb_payment_action'] === 'verify' ) {
+            $verification_data = array('status' => 'Verified');
+            if ( $row['status'] !== 'Verified' ) {
+                $verification_data['verified_at'] = current_time('mysql');
+            }
+            $wpdb->update( $payments_table, $verification_data, array( 'id' => $payment_id, 'store_id' => $store_id ) );
 
             // Kalau entri ini perpanjangan sewa (bukan pembayaran PO — sekarang
             // dibedakan lewat kolom payment_category, bukan tebak string 'PO:'
@@ -646,11 +685,10 @@ if ( $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['goweb_payment_action
                         $old_rate = isset($tenant_row_renew['cycle_daily_rate']) && floatval($tenant_row_renew['cycle_daily_rate']) > 0
                             ? floatval($tenant_row_renew['cycle_daily_rate'])
                             : ( $current_tenant_package_local['price'] / 30 );
-                        $value_remaining_before = $old_rate * $remaining_days_before;
-                        $total_days_after = $remaining_days_before + $duration_days;
-                        $update_data['cycle_daily_rate'] = $total_days_after > 0
-                            ? round( ( $value_remaining_before + floatval($row['nominal']) ) / $total_days_after, 2 )
-                            : round( floatval($row['nominal']) / max(1, $duration_days), 2 );
+                        $net_paid = goweb_subscription_net_value( $row, $current_tenant_package_local );
+                        $update_data['cycle_daily_rate'] = goweb_subscription_renewal_daily_rate(
+                            $old_rate, $remaining_days_before, $net_paid, $duration_days
+                        );
                     }
 
                     $wpdb->update( $tenants_table, $update_data, array( 'tenant_id' => $store_id ) );
@@ -753,13 +791,13 @@ foreach ( $tenant_orders_rows as $o ) {
 }
 
 // 2. TREN OMSET DARI CUSTOMER (12 bulan terakhir) — total nominal
-// Konfirmasi Pembayaran kategori PO yang UDAH Verified. Ini duit yang
-// bener2 masuk dari customer — BEDA dari Laporan Keuangan internal
-// (yang nyatet modal/belanja supplier kamu sendiri, bukan pemasukan ini).
+// Konfirmasi Pembayaran kategori PO yang UDAH Verified. Sistem mencatat
+// waktu uang masuk saat konfirmasi diterima dan waktu verifikasi saat admin
+// menyetujui; Omset dikelompokkan berdasarkan waktu verifikasi.
 $chart_omset_data = array_fill_keys( array_keys($chart_months), 0 );
 foreach ( $subscription_history as $h ) {
-    if ( isset($h['payment_category']) && $h['payment_category'] === 'po' && $h['status'] === 'Verified' ) {
-        $ym = date( 'Y-m', strtotime( $h['created_at'] ) );
+    if ( isset($h['payment_category']) && $h['payment_category'] === 'po' && $h['status'] === 'Verified' && ! empty($h['verified_at']) ) {
+        $ym = substr( (string) $h['verified_at'], 0, 7 );
         if ( isset( $chart_omset_data[$ym] ) ) { $chart_omset_data[$ym] += floatval($h['nominal']); }
     }
 }
@@ -819,21 +857,30 @@ if ( $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_save_finance'
     $valid_types = array('wallet_topup', 'supplier_purchase', 'cargo_1', 'cargo_2', 'operational');
     if ( in_array($fin_type, $valid_types, true) && $fin_date !== '' ) {
 
-        // Belanja Supplier: "Total Rupiah (IDR)" GAK diketik manual lagi —
-        // dihitung otomatis dari rata-rata rate top-up dompet yang sama
-        // (weighted average dari histori Top-Up Saldo dompet ini), biar
-        // konsisten sama cost basis-nya sendiri, bukan angka bebas.
+        // Belanja Supplier memakai moving weighted average dari modal yang
+        // masih melekat pada saldo. Replay ledger dipakai sama oleh preview
+        // dan handler supaya nominal final tidak bergantung pada rate lama.
         if ( $fin_type === 'supplier_purchase' ) {
-            $topup_sums = $wpdb->get_row( $wpdb->prepare(
-                "SELECT SUM(idr_value) AS total_idr, SUM(amount) AS total_amount
-                 FROM {$ledger_table} WHERE store_id = %s AND wallet_name = %s AND tx_type = 'wallet_topup'",
+            $wallet_ledger_rows = $wpdb->get_results( $wpdb->prepare(
+                "SELECT * FROM {$ledger_table} WHERE store_id = %s AND wallet_name = %s",
                 $store_id, $fin_wallet
             ), ARRAY_A );
-            $topup_total_amount = $topup_sums ? floatval($topup_sums['total_amount']) : 0;
-            if ( $topup_total_amount <= 0 ) {
-                wp_die('Gagal simpan: dompet "' . esc_html($fin_wallet) . '" belum pernah di-Top Up, jadi rate-nya belum bisa dihitung. Lakukan Top-Up Saldo dulu buat dompet ini sebelum mencatat Belanja Supplier.');
+            $wallet_cost = goweb_calculate_wallet_moving_average( $wallet_ledger_rows, $fin_wallet );
+            $wallet_balance_row = $wpdb->get_row( $wpdb->prepare(
+                "SELECT * FROM {$wallets_table} WHERE store_id = %s AND wallet_name = %s",
+                $store_id, $fin_wallet
+            ), ARRAY_A );
+            $actual_wallet_balance = $wallet_balance_row ? floatval($wallet_balance_row['balance']) : 0.0;
+            if ( ! $wallet_cost['is_valid'] || abs($wallet_cost['balance'] - $actual_wallet_balance) > 0.01 ) {
+                wp_die('Gagal simpan: riwayat modal dan saldo dompet "' . esc_html($fin_wallet) . '" belum cocok. Periksa ulang transaksi Top-Up/Belanja sebelum mencatat biaya baru.');
             }
-            $fin_rate = floatval($topup_sums['total_idr']) / $topup_total_amount;
+            if ( ! $wallet_cost['has_topup'] || $wallet_cost['balance'] <= 0 || $wallet_cost['average_rate'] <= 0 ) {
+                wp_die('Gagal simpan: dompet "' . esc_html($fin_wallet) . '" belum memiliki saldo Top-Up bermodal positif. Lakukan Top-Up dulu sebelum mencatat Belanja Supplier.');
+            }
+            if ( $fin_amount > $wallet_cost['balance'] + 0.005 ) {
+                wp_die('Gagal simpan: saldo dompet "' . esc_html($fin_wallet) . '" tidak cukup untuk belanja ini.');
+            }
+            $fin_rate = $wallet_cost['average_rate'];
             $fin_idr  = round( $fin_amount * $fin_rate );
         } elseif ( $fin_amount > 0 ) {
             // Tipe lain (wallet_topup, cargo, operational) — IDR-nya emang
@@ -842,20 +889,7 @@ if ( $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_save_finance'
             $fin_rate = $fin_idr / $fin_amount;
         }
 
-        // Update saldo dompet digital untuk top-up / belanja supplier.
-        // Pakai INSERT ... ON DUPLICATE KEY UPDATE (dompet ini punya
-        // UNIQUE KEY store_id+wallet_name) biar nambah/kurangin saldo
-        // dalam 1 query atomik, gak perlu SELECT dulu baru UPDATE.
-        if ( $fin_wallet !== '-' && in_array( $fin_type, array('wallet_topup', 'supplier_purchase'), true ) ) {
-            $delta = ( $fin_type === 'wallet_topup' ) ? $fin_amount : -$fin_amount;
-            $wpdb->query( $wpdb->prepare(
-                "INSERT INTO {$wallets_table} (store_id, wallet_name, balance) VALUES (%s, %s, %f)
-                 ON DUPLICATE KEY UPDATE balance = balance + VALUES(balance)",
-                $store_id, $fin_wallet, $delta
-            ) );
-        }
-
-        $wpdb->insert( $ledger_table, array(
+        $ledger_inserted = $wpdb->insert( $ledger_table, array(
             'store_id'   => $store_id,
             'tx_date'    => $fin_date,
             'tx_type'    => $fin_type,
@@ -866,6 +900,24 @@ if ( $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_save_finance'
             'idr_value'  => $fin_idr,
             'created_at' => current_time('mysql'),
         ) );
+        if ( $ledger_inserted === false ) {
+            wp_die('Gagal simpan: mutasi tidak berhasil dicatat ke ledger. Silakan coba lagi.');
+        }
+
+        // Ledger dulu, saldo sesudahnya. Kalau update saldo gagal, buang
+        // baris yang baru dibuat agar modal dan saldo tidak terpisah.
+        if ( $fin_wallet !== '-' && in_array( $fin_type, array('wallet_topup', 'supplier_purchase'), true ) ) {
+            $delta = ( $fin_type === 'wallet_topup' ) ? $fin_amount : -$fin_amount;
+            $wallet_updated = $wpdb->query( $wpdb->prepare(
+                "INSERT INTO {$wallets_table} (store_id, wallet_name, balance) VALUES (%s, %s, %f)
+                 ON DUPLICATE KEY UPDATE balance = balance + VALUES(balance)",
+                $store_id, $fin_wallet, $delta
+            ) );
+            if ( $wallet_updated === false ) {
+                $wpdb->delete( $ledger_table, array('id' => $wpdb->insert_id, 'store_id' => $store_id) );
+                wp_die('Gagal simpan: saldo dompet tidak berhasil diperbarui. Mutasi dibatalkan; silakan coba lagi.');
+            }
+        }
 
         wp_redirect( home_url('/dashboard/finance/') . $store_query_suffix );
         exit;
@@ -887,16 +939,40 @@ if ( isset($_GET['del_fin']) && isset($_GET['goweb_tenant_id']) && $_GET['goweb_
     ), ARRAY_A );
 
     if ( $tx_to_delete ) {
-        // Balikin efek mutasi ini ke saldo dompet sebelum baris ledgernya dihapus
-        if ( $tx_to_delete['wallet_name'] !== '-' && in_array( $tx_to_delete['tx_type'], array('wallet_topup', 'supplier_purchase'), true ) ) {
+        $is_wallet_tx = $tx_to_delete['wallet_name'] !== '-' && in_array( $tx_to_delete['tx_type'], array('wallet_topup', 'supplier_purchase'), true );
+        $reverse_delta = 0.0;
+        if ( $is_wallet_tx ) {
             $reverse_delta = ( $tx_to_delete['tx_type'] === 'wallet_topup' ) ? -floatval($tx_to_delete['amount']) : floatval($tx_to_delete['amount']);
-            $wpdb->query( $wpdb->prepare(
+            $wallet_rows = $wpdb->get_results( $wpdb->prepare(
+                "SELECT * FROM {$ledger_table} WHERE store_id = %s AND wallet_name = %s",
+                $store_id, $tx_to_delete['wallet_name']
+            ), ARRAY_A );
+            $remaining_rows = array_values( array_filter( (array) $wallet_rows, function($row) use ($del_id) { return intval($row['id'] ?? 0) !== $del_id; } ) );
+            $remaining_cost = goweb_calculate_wallet_moving_average( $remaining_rows, $tx_to_delete['wallet_name'] );
+            $wallet_row = $wpdb->get_row( $wpdb->prepare(
+                "SELECT * FROM {$wallets_table} WHERE store_id = %s AND wallet_name = %s",
+                $store_id, $tx_to_delete['wallet_name']
+            ), ARRAY_A );
+            $expected_balance = floatval($wallet_row['balance'] ?? 0) + $reverse_delta;
+            if ( ! $remaining_cost['is_valid'] || abs($remaining_cost['balance'] - $expected_balance) > 0.01 ) {
+                wp_die('Gagal hapus: penghapusan ini membuat saldo atau modal dompet tidak cocok dengan riwayat. Periksa transaksi terkait terlebih dahulu.');
+            }
+        }
+
+        $deleted = $wpdb->delete( $ledger_table, array( 'id' => $del_id, 'store_id' => $store_id ) );
+        if ( $deleted === false ) {
+            wp_die('Gagal hapus: mutasi tidak berhasil dihapus.');
+        }
+        if ( $is_wallet_tx ) {
+            $wallet_updated = $wpdb->query( $wpdb->prepare(
                 "INSERT INTO {$wallets_table} (store_id, wallet_name, balance) VALUES (%s, %s, %f)
                  ON DUPLICATE KEY UPDATE balance = balance + VALUES(balance)",
                 $store_id, $tx_to_delete['wallet_name'], $reverse_delta
             ) );
+            if ( $wallet_updated === false ) {
+                wp_die('Mutasi sudah terhapus, tetapi saldo dompet gagal diperbarui. Segera periksa saldo dompet.');
+            }
         }
-        $wpdb->delete( $ledger_table, array( 'id' => $del_id, 'store_id' => $store_id ) );
     }
     wp_redirect( home_url('/dashboard/finance/') . $store_query_suffix );
     exit;
@@ -957,25 +1033,12 @@ foreach ( $active_wallets_rows as $w ) {
     $active_wallets[ $w['wallet_name'] ] = floatval( $w['balance'] );
 }
 
-// Rata-rata rate top-up per dompet (weighted average) — dipakai buat
-// nampilin preview "Total Rupiah (IDR)" estimasi di form Belanja Supplier.
-// Perhitungan RESMI/final tetap dilakukan ulang di dalam handler POST
-// (lihat action_save_finance), soalnya kode di sini jalan SETELAH handler
-// POST redirect+exit, jadi gak bisa dipakai buat validasi submit itu sendiri.
-$wallet_avg_rates = array();
-$wallet_topup_sums = array();
-foreach ( $finance_ledger_rows as $tx ) {
-    if ( $tx['tx_type'] === 'wallet_topup' && floatval($tx['amount']) > 0 ) {
-        $wn = $tx['wallet_name'];
-        if ( ! isset($wallet_topup_sums[$wn]) ) $wallet_topup_sums[$wn] = array('idr' => 0, 'amount' => 0);
-        $wallet_topup_sums[$wn]['idr']    += floatval($tx['idr_value']);
-        $wallet_topup_sums[$wn]['amount'] += floatval($tx['amount']);
-    }
-}
-foreach ( $wallet_topup_sums as $wn => $sums ) {
-    if ( $sums['amount'] > 0 ) {
-        $wallet_avg_rates[$wn] = $sums['idr'] / $sums['amount'];
-    }
+// Moving weighted average per dompet. Replay Top-Up + Belanja agar preview
+// memakai saldo/modal yang sama dengan nilai final di handler POST.
+$wallet_moving_costs = array();
+foreach ( $active_wallets as $wn => $bal ) {
+    $wallet_moving_costs[$wn] = goweb_calculate_wallet_moving_average( $finance_ledger_rows, $wn );
+    $wallet_moving_costs[$wn]['balance_matches'] = abs($wallet_moving_costs[$wn]['balance'] - floatval($bal)) <= 0.01;
 }
 
 $current_real_year = date('Y');
@@ -1062,6 +1125,7 @@ get_header();
         .metric-label { font-size: 11.5px; font-weight: 700; color: var(--slate-400); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 4px; }
         .metric-val { font-size: 24px; font-weight: 800; color: var(--slate-900); letter-spacing: -0.5px; }
         .metric-card.highlight .metric-val { color: #ffffff; }
+        .metric-card.highlight .metric-label { color: #ffffff; }
         .metric-sub { font-size: 12px; color: var(--slate-500); margin-top: 4px; font-weight: 600; }
         .metric-card.highlight .metric-sub { color: rgba(255, 255, 255, 0.85); }
 
@@ -1107,6 +1171,208 @@ get_header();
         .type-ops { background: #f3e8ff; color: #7e22ce; border: 1px solid #e9d5ff; }
         .btn-del-fin { background: transparent; border: none; color: var(--slate-400); cursor: pointer; font-size: 14px; padding: 4px 6px; border-radius: 6px; }
         .btn-del-fin:hover { color: var(--rose); background: #fee2e2; }
+
+        /* Dashboard tenant — palet & komponen diselaraskan dengan beranda/auth. */
+        .dashboard-wrapper {
+            --pastel-purple: #6d5a91;
+            --pastel-purple-bg: #f0ebf7;
+            --pastel-purple-border: #ded7e9;
+            --pastel-mint: #6f9278;
+            --pastel-mint-bg: #edf4ee;
+            --pastel-mint-border: #d6e5d8;
+            --text-dark: #302b46;
+            --text-muted: #625d70;
+            --border-soft: #e5e0f2;
+            --border: #e5e0f2;
+            --bg-page: #faf9fc;
+            --card-bg: #ffffff;
+            --primary: #6d5a91;
+            --primary-dark: #594a75;
+            --accent-gradient: linear-gradient(135deg, #6d5a91, #51416f);
+            --emerald: #6f9278;
+            --slate-900: #302b46;
+            --slate-800: #403a53;
+            --slate-700: #514b63;
+            --slate-600: #625d70;
+            --slate-500: #625d70;
+            --slate-400: #6b6579;
+            --slate-100: #f0ebf7;
+            --slate-50: #faf9fc;
+            background: #faf9fc;
+            color: var(--text-dark);
+            min-height: calc(100vh - 140px);
+        }
+        body.admin-bar .dashboard-wrapper { min-height: calc(100vh - 172px); }
+        .dash-sidebar {
+            gap: 18px;
+            padding: 22px 18px;
+            border-right-color: #e5e0f2;
+            background: #fff;
+        }
+        .dash-user-card {
+            padding: 18px;
+            border-color: #e2d9ec;
+            border-radius: 16px;
+            background: linear-gradient(145deg, #f8f5fb, #f0ebf7);
+        }
+        .dash-user-card h4 { color: #302b46; font-size: .98rem; line-height: 1.4; overflow-wrap: anywhere; }
+        .dash-user-card p { color: #6d5a91; }
+        .dash-user-card > a {
+            min-height: 38px;
+            border: 1px solid rgba(89, 74, 117, .14);
+            border-radius: 10px !important;
+            box-shadow: 0 4px 12px rgba(79, 70, 149, .16) !important;
+        }
+        .dash-storage-card {
+            border-color: #e5e0f2 !important;
+            border-radius: 14px !important;
+            box-shadow: 0 4px 14px rgba(59, 48, 95, .035);
+        }
+        .dash-menu { gap: 5px; }
+        .dash-menu-item {
+            min-height: 42px;
+            padding: 10px 12px;
+            border: 1px solid transparent;
+            border-radius: 10px;
+            color: #696478;
+            font-size: .82rem;
+            transition: background .16s ease, border-color .16s ease, color .16s ease;
+        }
+        .dash-menu-item > i { width: 18px; flex: 0 0 18px; color: #82788f; text-align: center; }
+        .dash-menu-item:hover { border-color: #e6deef; background: #f7f4fa; color: #51416f; }
+        .dash-menu-item:hover > i { color: #6d5a91; }
+        .dash-menu-item.active {
+            border-color: #e2d9ec;
+            background: #f0ebf7;
+            color: #51416f;
+            box-shadow: inset 3px 0 #6d5a91;
+        }
+        .dash-menu-item.active > i { color: #6d5a91; }
+        .dash-menu-item.disabled-menu { opacity: .48; }
+        .dash-main-content {
+            min-width: 0;
+            padding: clamp(20px, 3vw, 34px);
+            overflow-x: hidden;
+        }
+        .dash-main-content .card-table-wrap,
+        .dash-main-content .ledger-card,
+        .dash-main-content .table-responsive { max-width: 100%; overflow-x: auto; }
+        .dash-overview-heading { margin-bottom: 22px; }
+        .dash-overview-heading-row { display: flex; align-items: center; gap: 14px; }
+        .dash-overview-module-icon {
+            display: grid;
+            flex: 0 0 48px;
+            width: 48px;
+            height: 48px;
+            place-items: center;
+            border: 1px solid #ded7e9;
+            border-radius: 14px;
+            background: linear-gradient(145deg, #f8f5fb, #f0ebf7);
+            color: #6d5a91;
+            font-size: 1.08rem;
+        }
+        .dash-overview-heading h2 {
+            margin: 0 0 4px;
+            color: #302b46;
+            font-size: clamp(1.3rem, 2.2vw, 1.6rem);
+            font-weight: 800;
+            line-height: 1.25;
+            letter-spacing: -.035em;
+            overflow-wrap: anywhere;
+        }
+        .dash-overview-heading p { max-width: 720px; color: #625d70; font-size: .9rem; line-height: 1.65; }
+        @media (max-width: 600px) {
+            .dash-overview-heading-row { align-items: flex-start; gap: 11px; }
+            .dash-overview-module-icon { flex-basis: 42px; width: 42px; height: 42px; border-radius: 13px; font-size: .98rem; }
+            .dash-overview-heading p { font-size: .79rem; }
+        }
+        .stat-card,
+        .metric-card,
+        .overview-status-box,
+        .card-table-wrap,
+        .form-box,
+        .ledger-card,
+        .roadmap-card {
+            border-color: #e5e0f2;
+            border-radius: 16px;
+            box-shadow: 0 5px 18px rgba(59, 48, 95, .045);
+        }
+        .stat-card { padding: 18px 19px; }
+        .stat-card span { color: #625d70; letter-spacing: .035em; }
+        .stat-card h3 { color: #302b46; font-size: clamp(1.1rem, 1.7vw, 1.35rem); line-height: 1.35; overflow-wrap: anywhere; }
+        .overview-status-box { padding: clamp(18px, 2.4vw, 26px); }
+        .panel-title { color: #302b46; }
+        .panel-desc { color: #625d70; line-height: 1.65; }
+        .info-row { gap: 14px; color: #514b63; }
+        .info-row > span { color: #625d70; }
+        .data-table th { background: #f2eef8; color: #62517f; }
+        .data-table tr:hover { background: #faf9fc; }
+        .form-control:focus,
+        .form-input-fin:focus,
+        .form-select-fin:focus,
+        .cycle-select:focus,
+        .year-select:focus {
+            border-color: #9c8ab8;
+            box-shadow: 0 0 0 3px rgba(109, 90, 145, .13);
+        }
+        .btn-submit,
+        .btn-submit-action { border-radius: 10px; font-family: inherit; }
+        .metric-card.highlight {
+            border-color: #786592;
+            border-left-color: #d6cae4;
+            background: linear-gradient(135deg, #6d5a91, #51416f);
+            box-shadow: 0 10px 24px rgba(81, 65, 111, .18);
+        }
+        .metric-card.highlight .metric-label { color: rgba(255,255,255,.78); }
+        .wallet-pill { background: #f0ebf7; border-color: #ded7e9; color: #594a75; }
+        .cycle-info-pill { color: #594a75; }
+        .analytics-grid-3 canvas { max-width: 100%; }
+        @media (max-width: 900px) {
+            .dashboard-wrapper { grid-template-columns: minmax(0, 1fr); }
+            body.admin-bar .dashboard-wrapper { min-height: auto; }
+            .dash-sidebar {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) minmax(220px, .72fr);
+                align-items: start;
+                gap: 14px;
+                padding: 16px 20px;
+                border-right: 0;
+                border-bottom: 1px solid #e5e0f2;
+            }
+            .dash-menu {
+                grid-column: 1 / -1;
+                display: flex;
+                flex-wrap: nowrap;
+                gap: 7px;
+                overflow-x: auto;
+                padding: 2px 2px 7px;
+                scrollbar-width: thin;
+                scrollbar-color: #d9d0e6 transparent;
+            }
+            .dash-menu-item { width: auto; flex: 0 0 auto; white-space: nowrap; }
+            .dash-main-content { padding: 24px 20px; }
+        }
+        @media (max-width: 600px) {
+            .dashboard-wrapper { min-height: calc(100vh - 138px); }
+            .dash-sidebar { grid-template-columns: minmax(0, 1fr); gap: 12px; padding: 14px 16px; }
+            .dash-menu { grid-column: 1; margin-inline: -2px; }
+            .dash-main-content { padding: 20px 16px 32px; }
+            .dash-overview-heading { margin-bottom: 18px; }
+            .stats-grid-6 { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+            .stat-card { padding: 14px 13px; border-radius: 13px; }
+            .stat-card span { font-size: .65rem; }
+            .stat-card h3 { font-size: 1rem; }
+            .overview-status-box,
+            .card-table-wrap,
+            .form-box,
+            .ledger-card { padding: 17px 14px; border-radius: 14px; }
+            .info-row { align-items: flex-start; font-size: .8rem; }
+            .info-row strong { text-align: right; }
+            .analytics-grid-3 { gap: 16px; }
+        }
+        @media (max-width: 380px) {
+            .stats-grid-6 { grid-template-columns: 1fr; }
+        }
     </style>
 
 <div class="dashboard-wrapper">
@@ -1121,14 +1387,14 @@ get_header();
         </div>
         
         <!-- PROGRESS BAR STORAGE -->
-        <div style="background: #fff; border: 1px solid var(--border-soft); padding: 16px; border-radius: var(--radius-md);">
+        <div class="dash-storage-card" style="background: #fff; border: 1px solid var(--border-soft); padding: 16px; border-radius: var(--radius-md);">
             <h4 style="font-size: 0.8rem; font-weight: 800; color: var(--text-dark); margin-bottom: 8px;">Kapasitas Storage</h4>
             <div style="background: var(--border-soft); border-radius: 999px; height: 8px; width: 100%; overflow: hidden; margin-bottom: 6px;">
                 <div style="background: <?php echo ($storage_pct > 85) ? '#ef4444' : 'var(--pastel-purple)'; ?>; height: 100%; width: <?php echo $storage_pct; ?>%;"></div>
             </div>
             <div style="display: flex; justify-content: space-between; font-size: 0.72rem; font-weight: 700; color: var(--text-muted);">
-                <span><?php echo $used_mb; ?> MB</span>
-                <span><?php echo $limit_mb; ?> MB</span>
+                <span><?php echo esc_html( goweb_format_storage_size( $used_mb ) ); ?></span>
+                <span><?php echo esc_html( goweb_format_storage_size( $limit_mb ) ); ?></span>
             </div>
         </div>
 
@@ -1199,9 +1465,14 @@ get_header();
         if ($current_subpage == 'overview' || empty($current_subpage)) {
             // Tampilkan Ringkasan Toko langsung di sini
             ?>
-            <div style="margin-bottom: 24px;">
-                <h2>Dashboard Proxy/Jastip: <?php echo esc_html($store_name); ?></h2>
-                <p style="color: var(--text-muted); font-size: 0.9rem;">Berikut ringkasan aktivitas operasional dan status modul fitur akun kamu.</p>
+            <div class="dash-overview-heading">
+                <div class="dash-overview-heading-row">
+                    <span class="dash-overview-module-icon" aria-hidden="true"><i class="fa-solid fa-chart-pie"></i></span>
+                    <div>
+                        <h2>Dashboard Proxy/Jastip: <?php echo esc_html($store_name); ?></h2>
+                        <p style="color: var(--text-muted); font-size: 0.9rem;">Berikut ringkasan aktivitas operasional dan status modul fitur akun kamu.</p>
+                    </div>
+                </div>
             </div>
 
             <div class="stats-grid-6">
@@ -1244,17 +1515,17 @@ get_header();
                 const omsetData   = <?php echo wp_json_encode( array_values($chart_omset_data) ); ?>;
                 const statusLabels = <?php echo wp_json_encode( array_keys($chart_status_data) ); ?>;
                 const statusData   = <?php echo wp_json_encode( array_values($chart_status_data) ); ?>;
-                const PALETTE = ['#8b5cf6','#0ea5e9','#f59e0b','#10b981','#ef4444','#ec4899','#64748b','#0d9488'];
+                const PALETTE = ['#6d5a91','#7890a3','#b89462','#6f9278','#b56e69','#9b7899','#777188','#6f9994'];
 
                 if (window.Chart) {
                     new Chart(document.getElementById('chartVolumeOrder'), {
                         type: 'bar',
-                        data: { labels: monthLabels, datasets: [{ label: 'Order', data: volumeData, backgroundColor: '#8b5cf6', borderRadius: 4 }] },
+                        data: { labels: monthLabels, datasets: [{ label: 'Order', data: volumeData, backgroundColor: '#8b79a7', borderRadius: 4 }] },
                         options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
                     });
                     new Chart(document.getElementById('chartOmsetCustomer'), {
                         type: 'line',
-                        data: { labels: monthLabels, datasets: [{ label: 'Omset (Rp)', data: omsetData, borderColor: '#0ea5e9', backgroundColor: 'rgba(14,165,233,0.1)', fill: true, tension: 0.3 }] },
+                        data: { labels: monthLabels, datasets: [{ label: 'Omset (Rp)', data: omsetData, borderColor: '#7890a3', backgroundColor: 'rgba(120,144,163,0.14)', fill: true, tension: 0.3 }] },
                         options: { responsive: true, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => 'Rp ' + ctx.parsed.y.toLocaleString('id-ID') } } }, scales: { y: { beginAtZero: true, ticks: { callback: (v) => 'Rp' + (v/1000) + 'rb' } } } }
                     });
                     if (statusLabels.length > 0) {
@@ -1298,6 +1569,231 @@ get_header();
             }
         }
         ?>
+        <style id="goweb-admin-ui-system">
+            .dash-main-content {
+                --admin-surface: #ffffff;
+                --admin-canvas: #faf9fc;
+                --admin-line: #e5e0f2;
+                --admin-ink: #302b46;
+                --admin-muted: #514b63;
+                --admin-brand: #6d5a91;
+                --admin-brand-dark: #51416f;
+                --admin-brand-tint: #f0ebf7;
+                --admin-radius-card: 16px;
+                --admin-radius-control: 10px;
+                --admin-shadow-card: 0 5px 18px rgba(59, 48, 95, .045);
+            }
+            .dash-main-content .mc-page-heading,
+            .dash-main-content .payments-heading,
+            .dash-main-content .testi-heading,
+            .dash-main-content .finance-heading,
+            .dash-main-content .subscription-heading,
+            .dash-main-content .ms-setting-page-heading,
+            .dash-main-content .dash-overview-heading-row {
+                align-items: center;
+                gap: 14px;
+                margin-bottom: 22px;
+            }
+            .dash-main-content .menu-po-heading-row,
+            .dash-main-content .menu-tagihan-heading-row,
+            .dash-main-content .menu-warehouse-heading-row {
+                align-items: center;
+                gap: 14px;
+            }
+            .dash-main-content .mc-heading-icon,
+            .dash-main-content .payments-heading-icon,
+            .dash-main-content .menu-po-module-icon,
+            .dash-main-content .menu-tagihan-module-icon,
+            .dash-main-content .menu-warehouse-module-icon,
+            .dash-main-content .testi-heading-icon,
+            .dash-main-content .finance-heading-icon,
+            .dash-main-content .subscription-heading-icon,
+            .dash-main-content .dash-overview-module-icon,
+            .dash-main-content .ms-setting-page-heading .ms-setting-icon {
+                flex-basis: 48px;
+                width: 48px;
+                height: 48px;
+                border: 1px solid #ded7e9;
+                border-radius: 14px;
+                background: linear-gradient(145deg, #f8f5fb, #f0ebf7);
+                color: var(--admin-brand);
+                font-size: 1.08rem;
+            }
+            .dash-main-content .mc-page-heading h2,
+            .dash-main-content .payments-heading h2,
+            .dash-main-content .menu-po-heading h2,
+            .dash-main-content .menu-tagihan-heading h2,
+            .dash-main-content .menu-warehouse-heading h2,
+            .dash-main-content .testi-heading h2,
+            .dash-main-content .finance-heading h2,
+            .dash-main-content .subscription-heading h2,
+            .dash-main-content .ms-setting-page-heading h2,
+            .dash-main-content .dash-overview-heading h2 {
+                color: var(--admin-ink) !important;
+                font-size: clamp(1.25rem, 2vw, 1.5rem) !important;
+                font-weight: 800;
+                line-height: 1.3;
+                letter-spacing: -.03em;
+            }
+            .dash-main-content .mc-page-heading p,
+            .dash-main-content .payments-heading p,
+            .dash-main-content .menu-po-heading p,
+            .dash-main-content .menu-tagihan-heading p,
+            .dash-main-content .menu-warehouse-heading p,
+            .dash-main-content .testi-heading p,
+            .dash-main-content .finance-heading p,
+            .dash-main-content .subscription-heading p,
+            .dash-main-content .ms-setting-page-heading p,
+            .dash-main-content .dash-overview-heading p {
+                color: var(--admin-muted) !important;
+                font-size: .84rem !important;
+                line-height: 1.6;
+            }
+            .dash-main-content .stat-card,
+            .dash-main-content .metric-card,
+            .dash-main-content .overview-status-box,
+            .dash-main-content .card-table-wrap,
+            .dash-main-content .form-box,
+            .dash-main-content .ledger-card,
+            .dash-main-content .roadmap-card,
+            .dash-main-content .mc-input-card,
+            .dash-main-content .payments-summary-card,
+            .dash-main-content .payments-table-card,
+            .dash-main-content .testi-entry,
+            .dash-main-content .testi-empty,
+            .dash-main-content .subscription-panel,
+            .dash-main-content .settings-page .ms-setting-card {
+                border-color: var(--admin-line) !important;
+                border-radius: var(--admin-radius-card) !important;
+                box-shadow: var(--admin-shadow-card) !important;
+            }
+            .dash-main-content .form-control,
+            .dash-main-content .form-input-fin,
+            .dash-main-content .form-select-fin,
+            .dash-main-content .cycle-select,
+            .dash-main-content .year-select {
+                min-height: 42px;
+                border-color: var(--admin-line);
+                border-radius: var(--admin-radius-control);
+                color: var(--admin-ink);
+                font-family: inherit;
+            }
+            .dash-main-content button,
+            .dash-main-content [role="button"] {
+                font-family: inherit;
+            }
+            .dash-main-content .filter-btn,
+            .dash-main-content .curr-pill,
+            .dash-main-content .ship-pill,
+            .dash-main-content .tax-mode-pill,
+            .dash-main-content .testi-tab,
+            .dash-main-content .btn-submit,
+            .dash-main-content .btn-submit-action,
+            .dash-main-content .btn-export-csv,
+            .dash-main-content .btn-reset-data,
+            .dash-main-content .testi-action,
+            .dash-main-content .payments-page-button,
+            .dash-main-content .finance-page-control,
+            .dash-main-content .finance-page-number,
+            .dash-main-content .wh-page-button,
+            .dash-main-content .ms-settings-tab {
+                min-height: 40px;
+                border-radius: var(--admin-radius-control);
+                font-family: inherit;
+            }
+            .dash-main-content .data-table th {
+                background: #f2eef8 !important;
+                color: #51416f !important;
+                font-size: .72rem !important;
+                font-weight: 800;
+                letter-spacing: .035em;
+            }
+            .dash-main-content .data-table td { border-bottom-color: #f0edf5; }
+            .dash-main-content .testi-metric-label { color: #514b63; }
+            .dash-main-content .menu-finance .metric-label { font-size: .69rem; }
+            .dash-main-content .payment-delete-button,
+            .dash-main-content .btn-del-fin { min-width: 40px; min-height: 40px; }
+            .dash-main-content :is(a, button, input, select, textarea, [tabindex]):focus-visible {
+                outline: 3px solid rgba(109, 90, 145, .48);
+                outline-offset: 2px;
+            }
+            .dash-main-content .modal-overlay,
+            .dash-main-content .subscription-modal-overlay {
+                background: rgba(31, 27, 41, .58) !important;
+                backdrop-filter: blur(4px);
+            }
+            .dash-main-content .modal-overlay > .modal-box,
+            .dash-main-content .modal-overlay > div {
+                border: 1px solid var(--admin-line);
+                border-radius: 18px !important;
+                box-shadow: 0 18px 54px rgba(36, 29, 52, .24) !important;
+            }
+            @media (max-width: 600px) {
+                .dash-main-content .mc-page-heading,
+                .dash-main-content .payments-heading,
+                .dash-main-content .testi-heading,
+                .dash-main-content .finance-heading,
+                .dash-main-content .subscription-heading,
+                .dash-main-content .ms-setting-page-heading,
+                .dash-main-content .dash-overview-heading-row {
+                    align-items: flex-start;
+                    gap: 11px;
+                    margin-bottom: 18px;
+                }
+                .dash-main-content .menu-po-heading-row,
+                .dash-main-content .menu-tagihan-heading-row,
+                .dash-main-content .menu-warehouse-heading-row {
+                    align-items: flex-start;
+                    gap: 11px;
+                }
+                .dash-main-content .mc-heading-icon,
+                .dash-main-content .payments-heading-icon,
+                .dash-main-content .menu-po-module-icon,
+                .dash-main-content .menu-tagihan-module-icon,
+                .dash-main-content .menu-warehouse-module-icon,
+                .dash-main-content .testi-heading-icon,
+                .dash-main-content .finance-heading-icon,
+                .dash-main-content .subscription-heading-icon,
+                .dash-main-content .dash-overview-module-icon,
+                .dash-main-content .ms-setting-page-heading .ms-setting-icon {
+                    flex-basis: 42px;
+                    width: 42px;
+                    height: 42px;
+                    border-radius: 13px;
+                    font-size: .98rem;
+                }
+                .dash-main-content .mc-page-heading h2,
+                .dash-main-content .payments-heading h2,
+                .dash-main-content .menu-po-heading h2,
+                .dash-main-content .menu-tagihan-heading h2,
+                .dash-main-content .menu-warehouse-heading h2,
+                .dash-main-content .testi-heading h2,
+                .dash-main-content .finance-heading h2,
+                .dash-main-content .subscription-heading h2,
+                .dash-main-content .ms-setting-page-heading h2,
+                .dash-main-content .dash-overview-heading h2 { font-size: 1.15rem !important; }
+                .dash-main-content .mc-page-heading p,
+                .dash-main-content .payments-heading p,
+                .dash-main-content .menu-po-heading p,
+                .dash-main-content .menu-tagihan-heading p,
+                .dash-main-content .menu-warehouse-heading p,
+                .dash-main-content .testi-heading p,
+                .dash-main-content .finance-heading p,
+                .dash-main-content .subscription-heading p,
+                .dash-main-content .ms-setting-page-heading p,
+                .dash-main-content .dash-overview-heading p { font-size: .79rem !important; }
+                .dash-main-content .ms-setting-card .ms-setting-card-heading h3 { font-size: .94rem; }
+                .dash-main-content .ms-setting-card .ms-setting-card-heading p { font-size: .76rem !important; }
+            }
+            @media (prefers-reduced-motion: reduce) {
+                .dash-main-content .dash-menu-item,
+                .dash-main-content button,
+                .dash-main-content a,
+                .dash-main-content .stat-card,
+                .dash-main-content .metric-card,
+                .dash-main-content .testi-entry { transition: none !important; }
+            }
+        </style>
     </main>
 </div>
 

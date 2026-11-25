@@ -22,21 +22,21 @@ class GoWebUserFacingError extends \Exception {}
 $submitted_success = false;
 $submission_error = '';
 
-// Graceful fallback bila functions.php yang terpasang belum memiliki helper QRIS.
-// Ini mencegah template berhenti di tengah HTML sebelum JavaScript wizard termuat.
-$reg_qris_fee_config = function_exists('goweb_qris_fee_config')
-    ? goweb_qris_fee_config()
-    : array( 'threshold' => 500000, 'low_pct' => 0.003, 'high_pct' => 0.007, 'low_label' => '0,3%', 'high_label' => '0,7%' );
-$reg_starter_price = goweb_get_package('starter')['price'];
-$reg_starter_fee = function_exists('goweb_calculate_qris_fee')
+// Graceful fallback bila functions.php yang terpasang belum memiliki helper
+// QRIS — tujuannya cuma supaya template tetap selesai dirender (JS wizard
+// tetap termuat), bukan mengulang kebijakan.
+// PENTING: JANGAN menyalin angka threshold/persentase atau URL gambar QRIS di
+// sini. Duplikasi seperti itu persis bug #11 (sumber harga/fee terpecah): kalau
+// policy di functions.php berubah, halaman ini diam-diam memakai angka lama.
+// Kalau helper tidak tersedia, halaman dirender TANPA baris biaya layanan &
+// tanpa gambar QRIS, jadi tidak pernah menampilkan angka yang salah.
+$reg_qris_ready      = function_exists('goweb_qris_fee_config') && function_exists('goweb_calculate_qris_fee');
+$reg_qris_fee_config = $reg_qris_ready ? goweb_qris_fee_config() : null;
+$reg_starter_price   = goweb_get_package('starter')['price'];
+$reg_starter_fee     = $reg_qris_ready
     ? goweb_calculate_qris_fee( $reg_starter_price )
-    : array(
-        'fee' => ceil( $reg_starter_price * ( $reg_starter_price < $reg_qris_fee_config['threshold'] ? $reg_qris_fee_config['low_pct'] : $reg_qris_fee_config['high_pct'] ) ),
-        'total' => $reg_starter_price + ceil( $reg_starter_price * ( $reg_starter_price < $reg_qris_fee_config['threshold'] ? $reg_qris_fee_config['low_pct'] : $reg_qris_fee_config['high_pct'] ) ),
-    );
-$reg_qris_image_url = function_exists('goweb_get_qris_image_url')
-    ? goweb_get_qris_image_url()
-    : 'https://mercatoria.id/wp-content/uploads/2026/02/qris-barcode.jpg';
+    : array( 'base' => $reg_starter_price, 'fee' => 0, 'total' => $reg_starter_price );
+$reg_qris_image_url  = function_exists('goweb_get_qris_image_url') ? goweb_get_qris_image_url() : '';
 
 if ( $_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_tenant_registration']) ) {
     if ( ! isset($_POST['goweb_register_nonce']) || ! wp_verify_nonce($_POST['goweb_register_nonce'], 'goweb_register_action') ) {
@@ -53,7 +53,9 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_tenant_registr
         wp_die( 'Spam terdeteksi!' );
     }
     //   (b) throttle sederhana per IP: maks 5 percobaan pendaftaran / jam
-    $reg_ip = isset($_SERVER['REMOTE_ADDR']) ? sanitize_text_field($_SERVER['REMOTE_ADDR']) : 'unknown';
+    // IP untuk throttle lewat helper (#40) — default REMOTE_ADDR, dan bisa
+    // memakai IP asli pengunjung kalau CIDR CDN didaftarkan (lihat functions.php).
+    $reg_ip = function_exists('goweb_get_client_ip') ? goweb_get_client_ip() : ( isset($_SERVER['REMOTE_ADDR']) ? sanitize_text_field($_SERVER['REMOTE_ADDR']) : 'unknown' );
     $reg_throttle_key = 'goweb_reg_throttle_' . md5( $reg_ip );
     $reg_attempts = (int) get_transient( $reg_throttle_key );
     if ( $reg_attempts >= 5 ) {
@@ -81,7 +83,7 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_tenant_registr
         if ( $admin_name === '' ) $validation_errors[] = 'Nama admin wajib diisi.';
         if ( $admin_email === '' || ! is_email( $admin_email ) ) $validation_errors[] = 'Format email tidak valid.';
         if ( $store_slug === '' ) $validation_errors[] = 'URL toko (slug) wajib diisi.';
-        if ( strlen( $raw_pass ) < 8 ) $validation_errors[] = 'Password minimal 8 karakter.';
+        if ( mb_strlen( $raw_pass ) < 8 ) $validation_errors[] = 'Password minimal 8 karakter.';
 
         // Fitur harus dari daftar yang dikenal (whitelist) — string ngawur
         // dari client gak boleh masuk DB. Kalau field-nya gak ada / bukan
@@ -231,22 +233,23 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_tenant_registr
            jadi halaman register & portal publik tampil dengan identitas sama. */
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
-        .reg-container { --pastel-purple: #665587; --pastel-purple-bg: #f2eef7; --pastel-purple-border: #ded7e9; --pastel-mint: #6f9278; --pastel-mint-bg: #edf4ee; --bg-page: #faf9fc; --text-dark: #302b46; --text-muted: #777188; --border-soft: #e5dfef; --accent-gradient: linear-gradient(135deg, #6d28d9, #4338ca); width: 100%; max-width: 780px; margin: 42px auto; padding: 0 20px 64px; flex: 1 0 auto; }
+        .reg-container { --pastel-purple: #6d5a91; --pastel-purple-bg: #f0ebf7; --pastel-purple-border: #ded7e9; --pastel-mint: #6f9278; --pastel-mint-bg: #edf4ee; --bg-page: #faf9fc; --text-dark: #302b46; --text-muted: #625d70; --border-soft: #e5e0f2; --accent-gradient: linear-gradient(135deg, #6d5a91, #51416f); width: 100%; max-width: 780px; margin: 42px auto; padding: 0 20px 64px; flex: 1 0 auto; }
         .reg-intro { max-width: 640px; margin: 0 auto 30px; text-align: center; }
         .reg-intro-kicker { display: inline-flex; padding: 5px 12px; border: 1px solid #e0d7ed; border-radius: 999px; background: #f0ebf7; color: #594a75; font-size: .74rem; font-weight: 800; letter-spacing: .04em; }
         .reg-intro h1 { margin: 12px 0 7px; color: #302b46; font-size: clamp(1.55rem, 3vw, 1.9rem); font-weight: 800; line-height: 1.2; letter-spacing: -.04em; }
-        .reg-intro p { color: #777188; font-size: .9rem; line-height: 1.65; }
-        .reg-card { padding: 32px; border: 1px solid #e5dfef; border-radius: 20px; background: #fff; box-shadow: 0 18px 48px rgba(59,48,95,.08); }
-        .reg-login-link { margin: 18px 0 0; color: #777188; font-size: .84rem; text-align: center; }
+        .reg-intro p { color: var(--text-muted); font-size: .9rem; line-height: 1.65; }
+        .reg-card { padding: 32px; border: 1px solid #e5e0f2; border-radius: 20px; background: #fff; box-shadow: 0 18px 48px rgba(59,48,95,.08); }
+        .reg-login-link { margin: 18px 0 0; color: var(--text-muted); font-size: .84rem; text-align: center; }
         .reg-login-link a { color: #594a75; font-weight: 800; text-decoration: none; }
         .reg-login-link a:hover { color: #43345f; text-decoration: underline; }
+        .reg-login-link a:focus-visible { outline: 3px solid #8069a3; outline-offset: 3px; border-radius: 3px; }
         
         /* Step Indicator Header */
         .step-indicators { display: flex; justify-content: space-between; margin-bottom: 32px; position: relative; }
         .step-indicators::before { content: ''; position: absolute; top: 18px; left: 10%; right: 10%; height: 2px; background: var(--border-soft); z-index: 1; }
         .step-item { position: relative; z-index: 2; text-align: center; background: #fff; padding: 0 10px; }
         .step-circle { width: 36px; height: 36px; border-radius: 50%; background: #fff; border: 2px solid var(--border-soft); color: var(--text-muted); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.9rem; margin: 0 auto 6px; transition: all 0.3s; }
-        .step-item.active .step-circle { background: var(--pastel-purple); border-color: var(--pastel-purple); color: #fff; box-shadow: 0 4px 12px rgba(139,92,246,0.3); }
+        .step-item.active .step-circle { background: var(--pastel-purple); border-color: var(--pastel-purple); color: #fff; box-shadow: 0 4px 12px rgba(89,74,117,.2); }
         .step-item.completed .step-circle { background: var(--pastel-mint); border-color: var(--pastel-mint); color: #fff; }
         .step-label { font-size: 0.78rem; font-weight: 700; color: var(--text-muted); }
         .step-item.active .step-label { color: var(--pastel-purple); }
@@ -257,15 +260,15 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_tenant_registr
 
         .form-group { margin-bottom: 20px; }
         .form-group label { display: block; font-size: 0.83rem; font-weight: 750; color: #403a53; margin-bottom: 7px; }
-        .form-control { width: 100%; min-height: 46px; padding: 11px 14px; border: 1px solid #ded8e8; border-radius: 11px; color: #302b46; font: inherit; font-size: 0.9rem; background: #fff; outline: none; transition: border-color .18s ease, box-shadow .18s ease; }
-        .form-control:focus { border-color: #8a76ae; box-shadow: 0 0 0 3px rgba(109,90,145,.13); }
-        .form-control::placeholder { color: #a09aac; }
+        .form-control { width: 100%; min-height: 46px; padding: 11px 14px; border: 1px solid #e5e0f2; border-radius: 11px; color: #302b46; font: inherit; font-size: 0.9rem; background: #fff; outline: none; transition: border-color .18s ease, box-shadow .18s ease; }
+        .form-control:focus { border-color: #9c8ab8; box-shadow: 0 0 0 3px rgba(109,90,145,.12); }
+        .form-control::placeholder { color: #716b80; }
         
         /* Grid Paket Langganan */
         .pkg-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 24px; }
         .pkg-card { border: 1px solid #e3ddec; border-radius: 13px; padding: 17px 14px; cursor: pointer; transition: border-color .18s ease, background .18s ease, box-shadow .18s ease, transform .18s ease; text-align: center; background: #fbfaff; }
         .pkg-card:hover { border-color: #b7a8cf; transform: translateY(-1px); }
-        .pkg-card.selected { border-color: #8b79a8; background: #f2eef7; box-shadow: 0 5px 15px rgba(91,70,132,.11); }
+        .pkg-card.selected { border-color: #9c8ab8; background: #f0ebf7; box-shadow: 0 5px 15px rgba(89,74,117,.11); }
         .pkg-title { font-size: 0.9rem; font-weight: 800; color: var(--text-dark); margin-bottom: 4px; }
         .pkg-price { font-size: 1.1rem; font-weight: 800; color: var(--pastel-purple); margin-bottom: 8px; }
         .pkg-storage { font-size: 0.75rem; font-weight: 700; color: #fff; background: var(--text-muted); padding: 2px 8px; border-radius: 999px; display: inline-block; }
@@ -273,9 +276,11 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_tenant_registr
         .pkg-card input[type="radio"] { display: none; }
 
         .btn-action-group { display: flex; gap: 12px; margin-top: 28px; }
-        .btn-next, .btn-submit { flex: 1; min-height: 48px; padding: 12px 16px; border-radius: 11px; background: var(--accent-gradient); color: #fff; border: none; font-weight: 800; font-size: 0.9rem; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; transition: transform .18s ease, box-shadow .18s ease; box-shadow: 0 7px 17px rgba(79,70,149,.15); }
-        .btn-next:hover, .btn-submit:hover { transform: translateY(-1px); color: #fff; box-shadow: 0 10px 21px rgba(79,70,149,.22); }
-        .btn-prev { min-height: 48px; padding: 12px 20px; border-radius: 11px; background: #fff; color: #625a72; border: 1px solid #ded8e8; font-weight: 750; font-size: 0.9rem; cursor: pointer; }
+        .btn-next, .btn-submit { flex: 1; min-height: 48px; padding: 12px 16px; border-radius: 12px; background: linear-gradient(135deg, #6d5a91, #51416f); color: #fff; border: none; font-weight: 800; font-size: .92rem; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; transition: transform .18s ease, box-shadow .18s ease; box-shadow: 0 8px 20px rgba(81,65,111,.18); }
+        .btn-next:hover, .btn-submit:hover { transform: translateY(-1px); color: #fff; box-shadow: 0 11px 24px rgba(81,65,111,.25); }
+        .btn-next:focus-visible, .btn-prev:focus-visible, .btn-submit:focus-visible { outline: 3px solid #8069a3; outline-offset: 3px; }
+        .btn-prev { min-height: 48px; padding: 11px 20px; border-radius: 12px; background: #fff; color: #594781; border: 1px solid #dcd4ed; font-weight: 750; font-size: .92rem; cursor: pointer; transition: background .18s ease, border-color .18s ease, color .18s ease; }
+        .btn-prev:hover { background: #faf8ff; border-color: #c9bddb; color: #433267; }
         
         .tnc-box { background: var(--bg-page); border: 1.5px solid var(--border-soft); padding: 20px; border-radius: var(--radius-md); font-size: 0.85rem; color: var(--text-muted); line-height: 1.6; max-height: 220px; overflow-y: auto; margin-bottom: 16px; }
         .tnc-box ul { padding-left: 20px; margin-top: 6px; }
@@ -302,8 +307,11 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_tenant_registr
         @media (max-width: 380px) {
             .reg-card { padding: 20px 15px; }
             .btn-action-group { gap: 8px; }
-            .btn-prev { padding: 12px 13px; }
-            .btn-next, .btn-submit { padding: 12px 10px; }
+            .btn-prev { min-height: 48px; padding: 11px 13px; }
+            .btn-next, .btn-submit { padding: 11px 10px; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .form-step-pane.active, .step-circle, .btn-next, .btn-prev, .btn-submit, .form-control { animation: none; transition: none; }
         }
 </style>
 <?php
@@ -367,15 +375,15 @@ get_header();
                     <h4 style="font-size: 1.05rem; font-weight: 800; color: var(--pastel-purple); margin-bottom: 14px;"><i class="fa-solid fa-file-contract"></i> Langkah 1: Syarat & Ketentuan Web Sharing</h4>
                     
                     <div class="tnc-box">
-                        <p>Harap baca dan pahami ketentuan layanan platform GO-WEB sebelum melanjutkan:</p>
+                        <p>Baca dan pahami semua ketentuan berikut. Centang persetujuan di bawah untuk melanjutkan.</p>
                         <ul>
-                            <li><strong>Sistem Web Sharing:</strong> Platform ini menggunakan infrastruktur bersama. Tenant <strong>tidak dapat mengunggah logo sendiri</strong>, <strong>tidak memiliki custom domain</strong>, dan <strong>tidak dapat merequest custom fitur</strong> di luar modul standar.</li>
-                            <li><strong>Perpanjangan & Risiko Data:</strong> Masa sewa bersifat bulanan. Tenant akan melihat <strong>peringatan otomatis di dashboard</strong> ketika masa aktif tersisa 7 hari atau kurang — sebagai kemudahan, bukan kewajiban platform, sehingga tenant tetap bertanggung jawab memantau masa aktifnya sendiri. Apabila melewati tanggal jatuh tempo (H) dan <strong>tidak diperpanjang dalam 1 (satu) hari</strong> (H+1), toko akan <strong>otomatis dinonaktifkan (offline)</strong> — halaman publik dan dashboard tidak bisa diakses sampai perpanjangan diverifikasi. Apabila dalam <strong>2 (dua) hari</strong> sejak jatuh tempo (H+2) tenant <strong>tetap tidak melakukan perpanjangan</strong> (pembayaran terverifikasi), maka seluruh data toko — termasuk rekapan PO, rekapan tagihan, data warehouse (termasuk foto bukti paket), data keuangan, dan file bukti transfer — <strong>akan terhapus otomatis dan hilang permanen</strong> di luar tanggung jawab pemberi sewa.</li>
-                            <li><strong>Verifikasi Perpanjangan Sewa Bersifat Manual:</strong> Konfirmasi pembayaran sewa/upgrade paket <strong>tidak langsung aktif otomatis</strong> — perlu diverifikasi manual oleh Super Admin platform setelah bukti transfer dikirim. Masa aktif baru diperpanjang setelah verifikasi disetujui.</li>
-                            <li><strong>Retensi Data Maksimal (1 Tahun):</strong> Terlepas dari status sewa aktif atau rutin diperpanjang, <strong>seluruh data akun akan tetap terhapus otomatis dan permanen setelah genap 1 (satu) tahun</strong> sejak tanggal pendaftaran. Mohon unduh/backup data penting secara berkala sebelum periode ini berakhir.</li>
-                            <li><strong>Kebijakan Kapasitas (Storage):</strong> Biaya sewa platform bervariasi mengikuti paket kapasitas <em>storage</em> (Starter/Lite/Standard/Advanced/Pro/Ultimate) yang Anda pilih. Kapasitas yang dihitung mencakup <strong>seluruh data toko Anda di sistem kami</strong> — riwayat pembayaran, rekapan order, data keuangan, pengaturan, dan file bukti transfer — bukan cuma foto yang diunggah. Kapasitas yang penuh mengharuskan Anda melakukan <em>upgrade</em> paket. Seluruh gambar bukti transfer otomatis dikompres saat diunggah untuk efisiensi ruang.</li>
-                            <li><strong>Upgrade Paket (Tidak Ada Downgrade):</strong> Anda dapat <em>upgrade</em> ke paket dengan kapasitas lebih besar kapan saja lewat menu Status Langganan. <strong>Downgrade ke paket lebih kecil tidak didukung</strong> — sekali naik paket, biaya sewa bulanan mengikuti paket baru tersebut seterusnya.</li>
-                            <li><strong>Perhitungan Masa Aktif saat Upgrade Mendadak:</strong> Kalau Anda upgrade paket di tengah masa sewa yang masih berjalan (bukan pas mau habis), sisa hari yang masih ada <strong>akan tetap dihitung dan ditambah 30 hari penuh dari paket baru</strong> — bukan menggantikan sisa masa aktif yang sudah ada.</li>
+                            <li><strong>Sistem Web Sharing:</strong> GO-WEB menggunakan infrastruktur bersama. Tenant <strong>tidak dapat mengunggah logo sendiri, memakai domain khusus, atau meminta fitur di luar modul standar.</strong></li>
+                            <li><strong>Perpanjangan & Risiko Data:</strong> Masa sewa berlaku bulanan. Dashboard mengingatkan saat sisa masa aktif <strong>7 hari atau kurang</strong>; tenant tetap bertanggung jawab memantau masa sewanya. Jika pembayaran belum diverifikasi dalam <strong>1 hari setelah jatuh tempo (H+1)</strong>, toko offline sampai verifikasi selesai. Jika belum diverifikasi dalam <strong>2 hari setelah jatuh tempo (H+2)</strong>, seluruh data toko akan <strong>dihapus permanen</strong>, termasuk PO, tagihan, data warehouse dan foto bukti paket, data keuangan, serta file bukti transfer. Penghapusan ini di luar tanggung jawab pemberi sewa.</li>
+                            <li><strong>Verifikasi Perpanjangan Sewa Bersifat Manual:</strong> Pembayaran sewa atau upgrade <strong>tidak langsung mengaktifkan paket</strong> — akan diperiksa manual oleh Super Admin setelah bukti transfer dikirim. Masa aktif bertambah setelah pembayaran disetujui.</li>
+                            <li><strong>Retensi Data Maksimal (1 Tahun):</strong> Terlepas dari status sewa aktif atau rutin diperpanjang, <strong>seluruh data akun tetap dihapus otomatis dan permanen 1 tahun setelah tanggal pendaftaran</strong>. Unduh atau cadangkan data penting sebelum masa tersebut berakhir.</li>
+                            <li><strong>Kebijakan Kapasitas (Storage):</strong> Biaya sewa mengikuti paket kapasitas <em>storage</em> yang dipilih (Starter/Lite/Standard/Advanced/Pro/Ultimate). Kuota menghitung <strong>semua data toko di sistem</strong> — riwayat pembayaran, rekapan order, data keuangan, pengaturan, dan file bukti transfer — bukan hanya foto. Jika kuota penuh, tenant perlu <em>upgrade</em> paket. Bukti transfer otomatis dikompres saat diunggah.</li>
+                            <li><strong>Upgrade Paket (Tidak Ada Downgrade):</strong> Tenant dapat <em>upgrade</em> ke paket berkapasitas lebih besar kapan saja melalui menu Status Langganan. <strong>Downgrade ke paket lebih kecil tidak tersedia</strong> — setelah upgrade, biaya bulanan mengikuti paket baru seterusnya.</li>
+                            <li><strong>Perhitungan Masa Aktif saat Upgrade Mendadak:</strong> Jika tenant upgrade sebelum masa sewa habis, sisa masa aktif <strong>tetap dihitung, lalu ditambah 30 hari penuh dari paket baru</strong> — bukan menggantikannya.</li>
                         </ul>
                     </div>
 
@@ -410,7 +418,7 @@ get_header();
                                 <input type="radio" name="reg_package" value="<?php echo esc_attr($reg_pkg['key']); ?>"<?php echo $reg_pkg['key'] === 'starter' ? ' checked' : ''; ?> onchange="updatePackageSelection(this)">
                                 <div class="pkg-title">Paket <?php echo esc_html($reg_pkg['name']); ?></div>
                                 <div class="pkg-price">Rp <?php echo number_format($reg_pkg['price'], 0, ',', '.'); ?></div>
-                                <div class="pkg-storage">Kapasitas <?php echo $reg_pkg['storage_limit'] >= 1024 ? round($reg_pkg['storage_limit'] / 1024, 1) . ' GB' : $reg_pkg['storage_limit'] . ' MB'; ?></div>
+                                <div class="pkg-storage">Kapasitas <?php echo esc_html( goweb_format_storage_size( $reg_pkg['storage_limit'] ) ); ?></div>
                             </label>
                             <?php endforeach; ?>
                         </div>
@@ -484,11 +492,13 @@ get_header();
                                 <span>Harga Paket:</span>
                                 <strong id="display-base-price">Rp <?php echo number_format( goweb_get_package('starter')['price'], 0, ',', '.'); ?></strong>
                             </div>
-                            <div style="display: flex; justify-content: space-between; margin-bottom: 4px; color: var(--text-muted); font-size: 0.8rem;">
-                                <span id="display-fee-label">Biaya Layanan QRIS (<?php echo esc_html( $reg_qris_fee_config['low_label'] ); ?>):</span>
-                                <strong id="display-fee-price">Rp <?php echo number_format( $reg_starter_fee['fee'], 0, ',', '.'); ?></strong>
-                            </div>
-                            <hr style="border: 0; border-top: 1px solid var(--border-soft); margin: 8px 0;">
+                            <?php if ( $reg_qris_ready ): ?>
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 4px; color: var(--text-muted); font-size: 0.8rem;">
+                                    <span id="display-fee-label">Biaya Layanan QRIS (<?php echo esc_html( $reg_qris_fee_config['low_label'] ); ?>):</span>
+                                    <strong id="display-fee-price">Rp <?php echo number_format( $reg_starter_fee['fee'], 0, ',', '.'); ?></strong>
+                                </div>
+                                <hr style="border: 0; border-top: 1px solid var(--border-soft); margin: 8px 0;">
+                            <?php endif; ?>
                             <div style="display: flex; justify-content: space-between; font-size: 1.1rem;">
                                 <strong>Total Transfer:</strong>
                                 <strong id="display-total-price" style="color: var(--pastel-purple);">Rp <?php echo number_format( $reg_starter_fee['total'], 0, ',', '.'); ?></strong>
@@ -496,10 +506,12 @@ get_header();
                         </div>
                     </div>
 
-                    <div style="text-align: center; margin-bottom: 20px; background: var(--bg-page); padding: 14px; border: 1.5px dashed var(--pastel-purple-border); border-radius: var(--radius-md);">
-                        <p style="font-size: 0.78rem; font-weight: 700; color: var(--pastel-purple); margin-bottom: 8px;">SCAN QRIS DIBAWAH INI</p>
-                        <img src="<?php echo esc_url( $reg_qris_image_url ); ?>" alt="QRIS Barcode" style="width: 150px; height: 150px; object-fit: contain; border-radius: 8px; border: 1px solid var(--border-soft);">
-                    </div>
+                    <?php if ( $reg_qris_image_url !== '' ): ?>
+                        <div style="text-align: center; margin-bottom: 20px; background: var(--bg-page); padding: 14px; border: 1.5px dashed var(--pastel-purple-border); border-radius: var(--radius-md);">
+                            <p style="font-size: 0.78rem; font-weight: 700; color: var(--pastel-purple); margin-bottom: 8px;">SCAN QRIS DIBAWAH INI</p>
+                            <img src="<?php echo esc_url( $reg_qris_image_url ); ?>" alt="QRIS Barcode" style="width: 150px; height: 150px; object-fit: contain; border-radius: 8px; border: 1px solid var(--border-soft);">
+                        </div>
+                    <?php endif; ?>
 
                     <div class="form-group" style="margin-bottom: 24px;">
                         <label>Unggah Bukti Transfer</label>
@@ -556,11 +568,13 @@ function updatePackageSelection(radio) {
         let feePercentage = 0;
         let feeLabel = "";
 
-        // Logika Biaya Tambahan QRIS — dari kamus terpusat QRIS_FEE
-        if (basePrice < QRIS_FEE.threshold) {
+        // Logika Biaya Tambahan QRIS — dari kamus terpusat QRIS_FEE.
+        // Kalau helper pusat belum tersedia, QRIS_FEE = null: hitung tanpa fee
+        // (baris biaya juga tidak dirender), jangan tebak angka sendiri.
+        if (QRIS_FEE && basePrice < QRIS_FEE.threshold) {
             feePercentage = QRIS_FEE.low_pct;
             feeLabel = QRIS_FEE.low_label;
-        } else {
+        } else if (QRIS_FEE) {
             feePercentage = QRIS_FEE.high_pct;
             feeLabel = QRIS_FEE.high_label;
         }

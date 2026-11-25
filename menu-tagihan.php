@@ -9,9 +9,14 @@ if (!$has_tagihan) {
 $payment_category_options = goweb_get_tenant_setting( $store_id, 'payment_categories', goweb_get_default_payment_categories() );
 ?>
 <div class="fin-wrap">
-    <div style="margin-bottom: 24px;">
-        <h2 style="font-size: 1.25rem; font-weight: 800; color: var(--text-dark); margin-bottom: 6px;">Rekapan Tagihan</h2>
-        <p style="color: var(--text-muted); font-size: 0.875rem;">Kelola tagihan per PO/order — DP, Ongkir, Pajak, Packing, Pelunasan, dll — beserta status pembayarannya (manual, gak ke-link otomatis ke Konfirmasi Pembayaran).</p>
+    <div class="menu-tagihan-heading" style="margin-bottom: 24px;">
+        <div class="menu-tagihan-heading-row">
+            <span class="menu-tagihan-module-icon" aria-hidden="true"><i class="fa-solid fa-file-invoice-dollar"></i></span>
+            <div>
+                <h2 style="font-size: 1.25rem; font-weight: 800; color: var(--text-dark); margin-bottom: 6px;">Rekapan Tagihan</h2>
+                <p style="color: var(--text-muted); font-size: 0.875rem;">Kelola tagihan untuk setiap PO atau pesanan, mulai dari uang muka hingga pelunasan. Status pembayaran dicatat secara manual dan tidak terhubung otomatis dengan Konfirmasi Pembayaran.</p>
+            </div>
+        </div>
     </div>
 
     <!-- DIAGNOSA KESEHATAN FINANSIAL — dipindah dari Rekapan PO, sekarang
@@ -20,7 +25,7 @@ $payment_category_options = goweb_get_tenant_setting( $store_id, 'payment_catego
     <div style="background: #ffffff; border: 1px solid var(--border-soft); border-radius: var(--radius-lg); padding: 24px 26px; margin-bottom: 20px; box-shadow: 0 4px 15px -2px rgba(15, 23, 42, 0.04);">
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--border-soft);">
             <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                <span style="font-size: 13px; font-weight: 800; color: var(--slate-700);">📅 Filter Siklus Diagnosa:</span>
+                <span style="font-size: 13px; font-weight: 800; color: var(--slate-700);"><i class="fa-solid fa-calendar-days" aria-hidden="true" style="color: var(--primary);"></i> Filter Siklus Diagnosa:</span>
                 <select id="diag-select-year" class="year-select" onchange="changeDiagCycle()" style="padding: 6px 12px; border: 1.5px solid var(--border-soft); border-radius: 8px; font-weight: 700; font-size: 12.5px; background: #fff; outline: none;">
                     <?php
                     // Tahun digenerate dinamis (2 tahun ke belakang s/d 2 tahun ke
@@ -55,18 +60,17 @@ $payment_category_options = goweb_get_tenant_setting( $store_id, 'payment_catego
         <div class="po-diag-grid">
             <div>
                 <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
-                    <div style="width: 40px; height: 40px; border-radius: var(--radius-md); background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%); display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0;">📊</div>
+                    <span class="tagihan-health-icon" aria-hidden="true"><i class="fa-solid fa-chart-line"></i></span>
                     <div>
                         <h3 style="font-size: 17px; font-weight: 800; color: var(--text-dark); margin: 0;">Diagnosa Kesehatan Finansial Tagihan</h3>
-                        <p id="health-advice" style="font-size: 13px; color: var(--text-muted); margin: 2px 0 0;">Menganalisa perputaran kas masuk &amp; piutang tagihan...</p>
                     </div>
                 </div>
                 <div style="margin-top: 14px;">
-                    <span id="health-badge" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 999px; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.4px; background: var(--slate-100); color: var(--text-muted); border: 1px solid var(--border-soft);">● Status: Belum Ada Transaksi</span>
+                    <span id="health-badge" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 999px; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.4px; background: var(--slate-100); color: var(--text-muted); border: 1px solid var(--border-soft);"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> Status: Belum Ada Transaksi</span>
                 </div>
             </div>
 
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; background: var(--slate-50); border: 1px solid var(--border-soft); border-radius: var(--radius-md); padding: 12px 16px;">
+            <div class="tagihan-health-metrics" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; background: var(--slate-50); border: 1px solid var(--border-soft); border-radius: var(--radius-md); padding: 12px 16px;">
                 <div>
                     <div style="font-size: 11px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px;">Cash In</div>
                     <div id="metric-cash-in" style="font-size: 15px; font-weight: 800; color: #15803d; margin-top: 2px;">Rp 0</div>
@@ -84,11 +88,44 @@ $payment_category_options = goweb_get_tenant_setting( $store_id, 'payment_catego
     </div>
 
     <style>
+        .menu-tagihan-heading-row { display: flex; align-items: center; gap: 14px; }
+        .menu-tagihan-module-icon {
+            display: grid;
+            flex: 0 0 48px;
+            width: 48px;
+            height: 48px;
+            place-items: center;
+            border: 1px solid #ded7e9;
+            border-radius: 14px;
+            background: linear-gradient(145deg, #f8f5fb, #f0ebf7);
+            color: var(--primary);
+            font-size: 1.08rem;
+        }
+        .tagihan-health-icon {
+            display: grid;
+            flex: 0 0 40px;
+            width: 40px;
+            height: 40px;
+            place-items: center;
+            border: 1px solid #ded7e9;
+            border-radius: 12px;
+            background: linear-gradient(145deg, #f8f5fb, #f0ebf7);
+            color: var(--primary);
+            font-size: 1rem;
+        }
+        .metrics-grid.tagihan-metrics-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        @media (max-width: 980px) { .metrics-grid.tagihan-metrics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+        @media (max-width: 600px) {
+            .menu-tagihan-heading-row { align-items: flex-start; gap: 11px; }
+            .menu-tagihan-module-icon { flex-basis: 42px; width: 42px; height: 42px; border-radius: 13px; font-size: .98rem; }
+            .metrics-grid.tagihan-metrics-grid { grid-template-columns: 1fr; }
+            .tagihan-health-metrics { grid-template-columns: 1fr !important; }
+        }
         .po-diag-grid { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 24px; align-items: center; }
         @media (max-width: 800px) { .po-diag-grid { grid-template-columns: 1fr; } }
     </style>
 
-    <div class="metrics-grid" style="margin-bottom: 24px;">
+    <div class="metrics-grid tagihan-metrics-grid" style="margin-bottom: 24px;">
         <div class="metric-card blue">
             <div class="metric-label">Total Baris Tagihan</div>
             <div class="metric-val" id="stat-total-items" style="font-size: 22px;">0</div>
@@ -108,7 +145,7 @@ $payment_category_options = goweb_get_tenant_setting( $store_id, 'payment_catego
 
     <!-- FORM TAMBAH TAGIHAN BARU -->
     <div class="form-box" style="margin-bottom: 24px;">
-        <div class="form-box-title">🧾 Tambah Tagihan Baru</div>
+        <div class="form-box-title"><i class="fa-solid fa-file-circle-plus" aria-hidden="true"></i> Tambah Tagihan Baru</div>
         <form method="POST" action="<?php echo esc_url( home_url('/dashboard/tagihan/') . $store_query_suffix ); ?>">
             <?php wp_nonce_field('goweb_invoice_action_' . $store_id, 'goweb_invoice_nonce'); ?>
             <input type="hidden" name="action_add_invoice" value="1">
@@ -137,7 +174,7 @@ $payment_category_options = goweb_get_tenant_setting( $store_id, 'payment_catego
                 <input type="number" name="inv_nominal" class="form-input-fin" placeholder="Misal: 150000" min="0" required>
             </div>
 
-            <button type="submit" class="btn-submit-action btn-blue">💾 Simpan Tagihan (Status: Belum Bayar)</button>
+            <button type="submit" class="btn-submit-action btn-blue"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> Simpan Tagihan (Status: Belum Bayar)</button>
         </form>
     </div>
 
@@ -221,7 +258,7 @@ $payment_category_options = goweb_get_tenant_setting( $store_id, 'payment_catego
     <div class="ledger-card">
         <div class="ledger-head" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
             <h3 style="font-size: 14.5px; font-weight: 800; color: var(--slate-900);">Daftar Tagihan</h3>
-            <button type="button" onclick="downloadTagihanCSV()" style="background: #15803d; color: #fff; border: none; padding: 8px 16px; border-radius: 10px; font-weight: 800; cursor: pointer; font-size: 12.5px;">📥 Download CSV</button>
+            <button type="button" onclick="downloadTagihanCSV()" style="background: #15803d; color: #fff; border: none; padding: 8px 16px; border-radius: 10px; font-weight: 800; cursor: pointer; font-size: 12.5px;"><i class="fa-solid fa-download" aria-hidden="true"></i> Download CSV</button>
         </div>
         <div class="table-responsive">
             <table class="data-table">
@@ -247,9 +284,9 @@ $payment_category_options = goweb_get_tenant_setting( $store_id, 'payment_catego
                             <td style="font-weight: 700;">Rp <?php echo number_format(intval($inv['nominal']), 0, ',', '.'); ?></td>
                             <td>
                                 <?php if ($inv['status'] === 'Lunas'): ?>
-                                    <span class="status-badge badge-mint">✓ Lunas</span>
+                                    <span class="status-badge badge-mint"><i class="fa-solid fa-circle-check" aria-hidden="true"></i> Lunas</span>
                                 <?php else: ?>
-                                    <span class="status-badge badge-peach">✕ Belum Bayar</span>
+                                    <span class="status-badge badge-peach"><i class="fa-solid fa-circle-xmark" aria-hidden="true"></i> Belum Bayar</span>
                                 <?php endif; ?>
                             </td>
                             <td style="text-align: center;">
@@ -261,7 +298,7 @@ $payment_category_options = goweb_get_tenant_setting( $store_id, 'payment_catego
                                             <?php echo $inv['status'] === 'Lunas' ? 'Tandai Belum Bayar' : 'Tandai Lunas'; ?>
                                         </button>
                                     </form>
-                                    <button type="button" onclick="goweb_confirmDeleteInvoice(<?php echo esc_attr($inv['id']); ?>)" style="background: #fee2e2; color: #ef4444; border: none; padding: 6px 10px; border-radius: 6px; cursor: pointer;">✕</button>
+                                    <button type="button" onclick="goweb_confirmDeleteInvoice(<?php echo esc_attr($inv['id']); ?>)" aria-label="Hapus tagihan" title="Hapus tagihan" style="background: #fee2e2; color: #ef4444; border: none; padding: 6px 10px; border-radius: 6px; cursor: pointer;"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
                                 </div>
                             </td>
                         </tr>
@@ -276,9 +313,9 @@ $payment_category_options = goweb_get_tenant_setting( $store_id, 'payment_catego
         <div id="tagihan-pagination" style="display: none; justify-content: space-between; align-items: center; padding: 14px 4px 2px; flex-wrap: wrap; gap: 10px;">
             <span id="tagihan-page-info" style="font-size: 12.5px; color: var(--slate-500); font-weight: 600;"></span>
             <div style="display: flex; gap: 6px; align-items: center;">
-                <button type="button" id="tagihan-prev" style="padding: 7px 14px; border-radius: 8px; border: 1.5px solid var(--border-soft); background: #fff; font-weight: 700; font-size: 12.5px; cursor: pointer;">‹ Sebelumnya</button>
+                <button type="button" id="tagihan-prev" style="padding: 8px 14px; min-height: 40px; border-radius: 10px; border: 1px solid var(--border-soft); background: #fff; font-weight: 700; font-size: 12.5px; cursor: pointer;">‹ Sebelumnya</button>
                 <span id="tagihan-page-numbers" style="display: flex; gap: 4px;"></span>
-                <button type="button" id="tagihan-next" style="padding: 7px 14px; border-radius: 8px; border: 1.5px solid var(--border-soft); background: #fff; font-weight: 700; font-size: 12.5px; cursor: pointer;">Berikutnya ›</button>
+                <button type="button" id="tagihan-next" style="padding: 8px 14px; min-height: 40px; border-radius: 10px; border: 1px solid var(--border-soft); background: #fff; font-weight: 700; font-size: 12.5px; cursor: pointer;">Berikutnya ›</button>
             </div>
         </div>
     </div>
@@ -355,24 +392,19 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('metric-col-rate').innerText = collectionRate + '%';
 
         const badgeEl = document.getElementById('health-badge');
-        const adviceEl = document.getElementById('health-advice');
 
         if (totalCount === 0) {
             badgeEl.style.background = 'var(--slate-100)'; badgeEl.style.color = 'var(--text-muted)'; badgeEl.style.borderColor = 'var(--border-soft)';
-            badgeEl.innerHTML = '● Status: Belum Ada Transaksi';
-            adviceEl.innerText = 'Belum ada tagihan tercatat pada siklus bulan ini.';
+            badgeEl.innerHTML = '<i class="fa-solid fa-circle-info" aria-hidden="true"></i> Status: Belum Ada Transaksi';
         } else if (totalNilai >= 3000000 && collectionRate >= 75) {
             badgeEl.style.background = 'var(--emerald-bg)'; badgeEl.style.color = '#15803d'; badgeEl.style.borderColor = '#bbf7d0';
-            badgeEl.innerHTML = '● Status: Sehat &amp; Collection Bagus';
-            adviceEl.innerText = 'Arus kas bulan ini lancar. Sebagian besar tagihan sudah lunas.';
+            badgeEl.innerHTML = '<i class="fa-solid fa-circle-check" aria-hidden="true"></i> Status: Sehat &amp; Collection Bagus';
         } else if (collectionRate < 70 && totalNilai > 1000000) {
             badgeEl.style.background = '#fef3c7'; badgeEl.style.color = '#b45309'; badgeEl.style.borderColor = '#fde68a';
-            badgeEl.innerHTML = '● Status: Waspada Piutang';
-            adviceEl.innerText = `Ada piutang Rp ${Math.round(piutang).toLocaleString('id-ID')} yang belum dibayar bulan ini. Segera follow-up ke customer.`;
+            badgeEl.innerHTML = '<i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Status: Waspada Piutang';
         } else {
             badgeEl.style.background = '#e0f2fe'; badgeEl.style.color = '#0369a1'; badgeEl.style.borderColor = '#bae6fd';
-            badgeEl.innerHTML = '● Status: Normal / Berjalan';
-            adviceEl.innerText = 'Pencatatan tagihan di bulan ini berjalan stabil.';
+            badgeEl.innerHTML = '<i class="fa-solid fa-circle-info" aria-hidden="true"></i> Status: Normal / Berjalan';
         }
     }
 
@@ -455,7 +487,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 btn.type = 'button';
                 btn.textContent = p;
                 const isActive = p === invCurrentPage;
-                btn.style.cssText = `padding: 7px 12px; border-radius: 8px; border: 1.5px solid ${isActive ? 'var(--pastel-purple)' : 'var(--border-soft)'}; background: ${isActive ? 'var(--pastel-purple)' : '#fff'}; color: ${isActive ? '#fff' : 'inherit'}; font-weight: 700; font-size: 12.5px; cursor: pointer;`;
+                btn.style.cssText = `padding: 7px 12px; min-height: 40px; border-radius: 10px; border: 1px solid ${isActive ? 'var(--primary)' : 'var(--border-soft)'}; background: ${isActive ? 'var(--primary)' : '#fff'}; color: ${isActive ? '#fff' : 'inherit'}; font-weight: 700; font-size: 12.5px; cursor: pointer;`;
                 btn.addEventListener('click', () => { invCurrentPage = p; renderInvPage(); });
                 invPageNumbers.appendChild(btn);
             }

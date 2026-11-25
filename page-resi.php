@@ -15,22 +15,16 @@ $saved_warehouse = $wpdb->get_results( $wpdb->prepare(
      WHERE w.store_id = %s ORDER BY w.created_at DESC, w.id DESC", $store_id
 ), ARRAY_A );
 
-// Filter RESI via SERVER-SIDE (#9): sebelumnya resi lengkap ikut ke atribut
-// data-search di HTML (masking jadi kosmetik doang — tinggal view-source).
-// Sekarang resi tidak lagi dimasukkan ke HTML; customer yang mau cari pakai
-// nomor resi penuh memakai form di bawah, difilter di sini (server-side).
-$resi_search = isset($_GET['resi']) ? trim( sanitize_text_field( wp_unslash( $_GET['resi'] ) ) ) : '';
-if ( $resi_search !== '' ) {
-    $saved_warehouse = array_values( array_filter( $saved_warehouse, function( $w ) use ( $resi_search ) {
-        return ( stripos( (string) $w['resi_masuk'], $resi_search ) !== false )
-            || ( stripos( (string) $w['resi_keluar'], $resi_search ) !== false );
-    } ) );
-}
+// Alur lacak resi DIHAPUS sepenuhnya atas keputusan pemilik: resi lokal
+// sifatnya rahasia, jadi tidak boleh ada jalur pencarian resi di sisi
+// publik. Customer yang butuh info resi menghubungi admin toko.
+// (Sebelumnya: form cari-by-resi server-side #9 + filter $_GET['resi'].)
 
 // Box yang punya minimal 1 item nempel — biar customer bisa lihat progress
 // konsolidasi & status pengiriman gabungannya
 $active_boxes = $wpdb->get_results( $wpdb->prepare(
     "SELECT b.* FROM {$box_table} b WHERE b.store_id = %s
+     AND b.archived_at IS NULL
      AND EXISTS (SELECT 1 FROM {$warehouse_table} w WHERE w.box_id = b.id)
      ORDER BY b.created_at DESC", $store_id
 ), ARRAY_A );
@@ -47,47 +41,41 @@ function goweb_mask_resi( $resi ) {
     $visible_len = min( 5, strlen( $resi ) );
     return substr( $resi, 0, $visible_len ) . 'XXX';
 }
+$po_like_default = array('#f4f2f8', '#514b63', '#e5e0f2');
+$wh_status_colors = array(
+    'menunggu'   => array('#fef3c7', '#b45309', '#fde68a'),
+    'di gudang'  => array('#ede9fe', '#6d28d9', '#ddd6fe'),
+    'siap kirim' => array('#dbeafe', '#1d4ed8', '#bfdbfe'),
+    'terkirim'   => array('#dcfce7', '#15803d', '#bbf7d0'),
+);
 ?>
 
-<div class="panel-heading">
-    <h3>Rekapan Kedatangan Warehouse</h3>
-    <p>Daftar paket tiba di warehouse. Klik foto untuk memperbesar bukti kondisi paket.</p>
-</div>
-
-<!-- KOTAK PENCARIAN LIVE (nama/PO — client-side; resi pakai form server-side di bawah) -->
-<div style="display: flex; gap: 10px; margin-bottom: 16px;">
-    <div style="position: relative; flex: 1;">
-        <input type="text" id="public-wh-search" placeholder="Cari Nama atau Nama PO..." style="width: 100%; padding: 11px 16px 11px 40px; border: 1.5px solid var(--border-soft); border-radius: var(--radius-md); font-size: 0.9rem; font-weight: 600; outline: none; background: #fff;" oninput="filterPublicWarehouse(this.value)">
-        <span style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted);"><i class="fa-solid fa-search"></i></span>
+<div class="public-wh">
+<div class="public-wh-heading">
+    <span class="public-wh-module-icon" aria-hidden="true"><i class="fa-solid fa-box-open"></i></span>
+    <div>
+        <span class="public-wh-eyebrow">PELACAKAN PAKET</span>
+        <h3>Paket Tiba di Warehouse</h3>
+        <p>Daftar paket yang tiba di gudang <strong><?php echo esc_html($store_name); ?></strong>. Klik foto untuk melihat kondisi barang yang datang.</p>
     </div>
 </div>
 
-<!-- CARI BY RESI — server-side (#9): nomor resi penuh tidak lagi dibawa ke
-     HTML (dulu cuma di-mask tampilannya tapi tetap kebaca di view-source).
-     Customer cari pakai resi ASLI di sini, hasilnya difilter di server. -->
-<form method="GET" style="display: flex; gap: 10px; margin-bottom: 24px;">
-    <input type="text" name="resi" value="<?php echo esc_attr($resi_search); ?>" placeholder="Cari pakai nomor resi (masuk/keluar)..." style="flex: 1; padding: 11px 16px; border: 1.5px solid var(--border-soft); border-radius: var(--radius-md); font-size: 0.9rem; font-weight: 600; outline: none; background: #fff;">
-    <button type="submit" class="btn-submit" style="width: auto; padding: 11px 22px;"><i class="fa-solid fa-magnifying-glass"></i> Cari Resi</button>
-    <?php if ( $resi_search !== '' ): ?>
-        <a href="<?php echo esc_url( remove_query_arg('resi') ); ?>" style="align-self: center; color: var(--text-muted); font-weight: 700; font-size: 0.85rem;">Reset</a>
-    <?php endif; ?>
-</form>
-<?php if ( $resi_search !== '' ): ?>
-    <div style="background: #e0f2fe; border: 1.5px solid #bae6fd; color: #0369a1; padding: 10px 16px; border-radius: var(--radius-md); font-weight: 700; font-size: 0.85rem; margin-bottom: 20px;">
-        <i class="fa-solid fa-filter"></i> Menampilkan hasil untuk resi "<?php echo esc_html($resi_search); ?>" — <?php echo count($saved_warehouse); ?> paket ketemu.
-    </div>
-<?php endif; ?>
+<!-- Pencarian nama/PO client-side; resi pribadi difilter secara server-side. -->
+<div class="public-search-row">
+    <label for="public-wh-search">Cari namamu, nomor invoice, nama PO atau batch</label>
+    <input type="search" id="public-wh-search" placeholder="Ketik kata kunci…" oninput="filterPublicWarehouse(this.value)" aria-controls="public-wh-tbody" aria-describedby="public-wh-result-count">
+</div>
 
 <!-- TABEL DAFTAR WAREHOUSE -->
-<div style="background: #fff; border: 1px solid var(--border-soft); border-radius: var(--radius-md); overflow: hidden; box-shadow: 0 4px 15px rgba(139,92,246,0.02); margin-bottom: 28px;">
-    <div style="overflow-x: auto;">
-        <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.88rem;">
+<div class="wh-table-card">
+    <div class="public-table-scroll" tabindex="0" role="region" aria-label="Daftar paket warehouse; geser mendatar untuk melihat semua kolom">
+        <table class="public-data-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.88rem;">
             <thead>
                 <tr style="background: var(--bg-page); border-bottom: 1.5px solid var(--border-soft); color: var(--text-muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.5px;">
                     <th style="padding: 14px 16px;">Foto Bukti</th>
                     <th style="padding: 14px 16px;">Resi Lokal</th>
                     <th style="padding: 14px 16px;">Nama / PO</th>
-                    <th style="padding: 14px 16px;">Lokasi WH</th>
+                    <th style="padding: 14px 16px;">Lokasi gudang</th>
                     <th style="padding: 14px 16px;">Tgl Tiba</th>
                     <th style="padding: 14px 16px;">Status</th>
                     <th style="padding: 14px 16px;">Box</th>
@@ -95,45 +83,43 @@ function goweb_mask_resi( $resi ) {
             </thead>
             <tbody id="public-wh-tbody">
                 <?php if (empty($saved_warehouse)): ?>
-                    <tr>
-                        <td colspan="7" style="text-align: center; padding: 40px; color: var(--text-muted);">
-                            <div style="font-size: 2rem; margin-bottom: 8px;">📦</div>
-                            <strong>Belum ada data warehouse yang tercatat.</strong>
-                            <p style="font-size: 0.8rem; margin-top: 4px;">Data akan tampil otomatis di sini setelah barang Anda diproses admin toko.</p>
-                        </td>
+                    <tr class="public-initial-empty" data-empty-row>
+                        <td colspan="7" class="public-no-results"><strong>Belum ada data warehouse yang tercatat.</strong><p>Data akan tampil otomatis di sini setelah barang Anda diproses admin toko.</p></td>
                     </tr>
                 <?php else: ?>
                     <?php foreach ($saved_warehouse as $wh): ?>
                         <tr class="wh-row-item" data-search="<?php echo esc_attr(strtolower(($wh['batch'] ?? '') . ' ' . $wh['buyer_name'])); ?>" style="border-bottom: 1px solid var(--border-soft); transition: background 0.15s;">
-                            <td style="padding: 14px 16px;">
+                            <td data-label="Foto bukti" style="padding: 14px 16px;">
                                 <?php if ( ! empty($wh['foto_bukti']) ): ?>
-                                    <a href="<?php echo esc_url($wh['foto_bukti']); ?>" target="_blank"><img src="<?php echo esc_url($wh['foto_bukti']); ?>" style="width:44px; height:44px; object-fit:cover; border-radius:8px; border:1px solid var(--border-soft);"></a>
+                                    <a href="<?php echo esc_url($wh['foto_bukti']); ?>" target="_blank" rel="noopener noreferrer" aria-label="Buka foto bukti paket di tab baru"><img src="<?php echo esc_url($wh['foto_bukti']); ?>" alt="Bukti kondisi paket yang tiba di warehouse" style="width:44px; height:44px; object-fit:cover; border-radius:8px; border:1px solid var(--border-soft);"></a>
                                 <?php else: ?>
                                     <span style="color: var(--text-muted);">-</span>
                                 <?php endif; ?>
                             </td>
-                            <td style="padding: 14px 16px; color: var(--text-dark); font-weight: 600;">
+                            <td data-label="Resi lokal" style="padding: 14px 16px; color: var(--text-dark); font-weight: 600;">
                                 <?php echo esc_html( goweb_mask_resi($wh['resi_masuk']) ); ?>
-                                <?php if ( ! empty($wh['resi_keluar']) ): ?>
-                                    <br><small style="color: var(--text-muted); font-weight: 600;">&rarr; <?php echo esc_html( goweb_mask_resi($wh['resi_keluar']) ); ?> <?php echo ! empty($wh['tanggal_keluar']) ? '(' . esc_html( date('d/m/Y', strtotime($wh['tanggal_keluar'])) ) . ')' : ''; ?></small>
-                                <?php endif; ?>
                             </td>
-                            <td style="padding: 14px 16px; font-weight: 700; color: var(--pastel-purple);">
+                            <td data-label="Pemesan / pesanan" style="padding: 14px 16px; font-weight: 700; color: var(--pastel-purple);">
                                 <?php echo esc_html($wh['buyer_name']); ?>
                                 <?php if ( ! empty($wh['batch']) ): ?><br><small style="color: var(--text-muted); font-weight: 600;"><?php echo esc_html($wh['batch']); ?></small><?php endif; ?>
                             </td>
-                            <td style="padding: 14px 16px; color: var(--text-muted);">
+                            <td data-label="Lokasi warehouse" style="padding: 14px 16px; color: var(--text-muted);">
                                 <?php echo esc_html($wh['lokasi_wh'] ?: '-'); ?>
                             </td>
-                            <td style="padding: 14px 16px; color: var(--text-muted);">
+                            <td data-label="Tanggal tiba" style="padding: 14px 16px; color: var(--text-muted);">
                                 <?php echo $wh['tanggal_masuk'] ? esc_html( date('d/m/Y', strtotime($wh['tanggal_masuk'])) ) : '-'; ?>
                             </td>
-                            <td style="padding: 14px 16px;">
-                                <span style="display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 700; background: #fef3c7; color: #b45309; border: 1px solid #fde68a;">
+                            <td data-label="Status" style="padding: 14px 16px;">
+                                <?php
+                                $wh_colors = isset( $wh_status_colors[ strtolower( trim( (string) $wh['status'] ) ) ] )
+                                    ? $wh_status_colors[ strtolower( trim( (string) $wh['status'] ) ) ]
+                                    : $po_like_default;
+                                ?>
+                                <span style="display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 700; background: <?php echo esc_attr( $wh_colors[0] ); ?>; color: <?php echo esc_attr( $wh_colors[1] ); ?>; border: 1px solid <?php echo esc_attr( $wh_colors[2] ); ?>;">
                                     <?php echo esc_html($wh['status']); ?>
                                 </span>
                             </td>
-                            <td style="padding: 14px 16px; color: var(--text-dark); font-weight: 600;">
+                            <td data-label="Box" style="padding: 14px 16px; color: var(--text-dark); font-weight: 600;">
                                 <?php echo esc_html($wh['box_name'] ?: '-'); ?>
                             </td>
                         </tr>
@@ -142,13 +128,14 @@ function goweb_mask_resi( $resi ) {
             </tbody>
         </table>
     </div>
-    <div id="public-wh-pagination" style="display: none; justify-content: space-between; align-items: center; padding: 14px 16px 4px; flex-wrap: wrap; gap: 10px;"></div>
+    <div id="public-wh-pagination" style="display: none; justify-content: space-between; align-items: center; padding: 14px 16px 6px; flex-wrap: wrap; gap: 10px;"></div>
+</div>
 </div>
 
 <!-- SECTION STATUS BOX / KONSOLIDASI -->
 <?php if ( ! empty($active_boxes) ): ?>
-    <div class="panel-heading" style="margin-bottom: 16px;">
-        <h3 style="display:flex; align-items:center; gap:8px;">📦 Status Slot Box &amp; Forwarding</h3>
+    <div class="panel-heading public-wh-subheading" style="margin-bottom: 16px;">
+        <h3 style="display:flex; align-items:center; gap:8px;"><i class="fa-solid fa-box" aria-hidden="true" style="color: var(--wh-accent);"></i> Status Slot Box &amp; Forwarding</h3>
         <p>Barang Anda mungkin digabung dengan customer lain dalam 1 paket besar sebelum dikirim ke Indonesia.</p>
     </div>
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
@@ -156,7 +143,7 @@ function goweb_mask_resi( $resi ) {
             $pct = $box['kapasitas_kg'] > 0 ? min(100, round(($box['filled_kg'] / $box['kapasitas_kg']) * 100)) : 0;
         ?>
             <div style="background: #fff; border: 1px solid var(--border-soft); border-radius: var(--radius-md); padding: 18px; box-shadow: 0 4px 15px rgba(139,92,246,0.02);">
-                <div style="font-weight: 800; color: var(--pastel-purple); font-size: 0.9rem; margin-bottom: 2px;">📦 Box: <?php echo esc_html($box['box_name']); ?><?php echo ! empty($box['lokasi']) ? ' (' . esc_html($box['lokasi']) . ')' : ''; ?></div>
+                <div style="font-weight: 800; color: var(--pastel-purple); font-size: 0.9rem; margin-bottom: 2px;"><i class="fa-solid fa-box" aria-hidden="true"></i> Box: <?php echo esc_html($box['box_name']); ?><?php echo ! empty($box['lokasi']) ? ' (' . esc_html($box['lokasi']) . ')' : ''; ?></div>
                 <div style="border-top: 1px dashed var(--border-soft); margin: 10px 0;"></div>
                 <div style="display: flex; justify-content: space-between; font-size: 0.82rem; padding: 4px 0;">
                     <span style="color: var(--text-muted);">Kapasitas Box</span>
@@ -194,6 +181,22 @@ function filterPublicWarehouse(query) {
 function applyPublicWarehousePagination() {
     const allRows = Array.from(document.querySelectorAll('.wh-row-item'));
     const matchedRows = allRows.filter(r => r.dataset.matchSearch !== 'false');
+    const resultCount = document.getElementById('public-wh-result-count');
+    if (resultCount) resultCount.textContent = matchedRows.length ? `${matchedRows.length} paket ditemukan.` : (allRows.length ? 'Tidak ada paket yang cocok. Periksa ejaan atau coba kata kunci lain.' : '');
+    let emptyState = document.getElementById('public-wh-no-results');
+    const initialEmpty = document.querySelector('[data-empty-row]');
+    if (initialEmpty) initialEmpty.style.display = allRows.length ? 'none' : '';
+    if (!matchedRows.length && allRows.length) {
+        if (!emptyState) {
+            emptyState = document.createElement('tr');
+            emptyState.id = 'public-wh-no-results';
+            emptyState.innerHTML = '<td colspan="7" class="public-no-results">Tidak ada paket yang cocok. Coba nama pemesan atau nama PO lain.</td>';
+            document.getElementById('public-wh-tbody').appendChild(emptyState);
+        }
+        emptyState.style.display = '';
+    } else if (emptyState) {
+        emptyState.style.display = 'none';
+    }
     allRows.forEach(r => { r.style.display = 'none'; });
 
     const totalPages = Math.ceil(matchedRows.length / WH_PUB_PER_PAGE) || 1;
@@ -211,19 +214,19 @@ function renderPublicPagination(containerId, totalItems, start, totalPages, perP
     container.style.display = 'flex';
 
     const currentPage = Math.floor(start / perPage) + 1;
-    let html = `<span style="font-size: 12.5px; color: var(--text-muted); font-weight: 600;">Menampilkan ${start + 1}–${Math.min(start + perPage, totalItems)} dari ${totalItems} ${noun}</span>`;
+    let html = `<span style="font-size: 12.5px; color: var(--text-muted); font-weight: 600;">Menampilkan ${totalItems ? start + 1 : 0}–${Math.min(start + perPage, totalItems)} dari ${totalItems} ${noun}</span>`;
     html += `<div style="display: flex; gap: 6px; align-items: center;">`;
-    html += `<button type="button" data-pg="${currentPage - 1}" ${currentPage === 1 ? 'disabled' : ''} style="padding: 7px 14px; border-radius: 8px; border: 1.5px solid var(--border-soft); background: #fff; font-weight: 700; font-size: 12.5px; cursor: ${currentPage === 1 ? 'not-allowed' : 'pointer'}; opacity: ${currentPage === 1 ? '0.4' : '1'};">‹ Sebelumnya</button>`;
+    html += `<button type="button" aria-label="Halaman sebelumnya" data-pg="${currentPage - 1}" ${currentPage === 1 ? 'disabled' : ''} style="padding: 8px 14px; border-radius: 10px; border: 1px solid var(--wh-line); background: #fff; font-weight: 700; font-size: 12.5px; cursor: ${currentPage === 1 ? 'not-allowed' : 'pointer'}; opacity: ${currentPage === 1 ? '0.4' : '1'};">‹ Sebelumnya</button>`;
     html += `<span style="display: flex; gap: 4px;">`;
     let startPage = Math.max(1, currentPage - 2);
     let endPage = Math.min(totalPages, startPage + 4);
     startPage = Math.max(1, endPage - 4);
     for (let p = startPage; p <= endPage; p++) {
         const isActive = p === currentPage;
-        html += `<button type="button" data-pg="${p}" style="padding: 7px 12px; border-radius: 8px; border: 1.5px solid ${isActive ? 'var(--pastel-purple)' : 'var(--border-soft)'}; background: ${isActive ? 'var(--pastel-purple)' : '#fff'}; color: ${isActive ? '#fff' : 'inherit'}; font-weight: 700; font-size: 12.5px; cursor: pointer;">${p}</button>`;
+        html += `<button type="button" aria-label="Halaman ${p}" ${isActive ? 'aria-current="page"' : ''} data-pg="${p}" style="padding: 8px 12px; border-radius: 10px; border: 1px solid ${isActive ? 'var(--wh-accent)' : 'var(--wh-line)'}; background: ${isActive ? 'var(--wh-accent)' : '#fff'}; color: ${isActive ? '#fff' : 'inherit'}; font-weight: 700; font-size: 12.5px; cursor: pointer;">${p}</button>`;
     }
     html += `</span>`;
-    html += `<button type="button" data-pg="${currentPage + 1}" ${currentPage === totalPages ? 'disabled' : ''} style="padding: 7px 14px; border-radius: 8px; border: 1.5px solid var(--border-soft); background: #fff; font-weight: 700; font-size: 12.5px; cursor: ${currentPage === totalPages ? 'not-allowed' : 'pointer'}; opacity: ${currentPage === totalPages ? '0.4' : '1'};">Berikutnya ›</button>`;
+    html += `<button type="button" aria-label="Halaman berikutnya" data-pg="${currentPage + 1}" ${currentPage === totalPages ? 'disabled' : ''} style="padding: 8px 14px; border-radius: 10px; border: 1px solid var(--wh-line); background: #fff; font-weight: 700; font-size: 12.5px; cursor: ${currentPage === totalPages ? 'not-allowed' : 'pointer'}; opacity: ${currentPage === totalPages ? '0.4' : '1'};">Berikutnya ›</button>`;
     html += `</div>`;
     container.innerHTML = html;
     container.querySelectorAll('button[data-pg]').forEach(btn => {
@@ -231,5 +234,56 @@ function renderPublicPagination(containerId, totalItems, start, totalPages, perP
     });
 }
 
-document.addEventListener('DOMContentLoaded', () => { applyPublicWarehousePagination(); });
+applyPublicWarehousePagination();
 </script>
+<style>
+.public-wh {
+    --wh-ink: #302b46;
+    --wh-muted: #777188;
+    --wh-line: #e5e0f2;
+    --wh-accent: #6d5a91;
+    color: var(--wh-ink);
+}
+.public-wh-heading { display: flex; align-items: center; gap: 14px; margin: 0 0 20px; }
+.public-wh-module-icon {
+    display: grid;
+    flex: 0 0 48px;
+    width: 48px;
+    height: 48px;
+    place-items: center;
+    border: 1px solid #ded7e9;
+    border-radius: 14px;
+    background: linear-gradient(145deg, #f8f5fb, #f0ebf7);
+    color: var(--wh-accent);
+    font-size: 1.08rem;
+}
+.public-wh-eyebrow { display: block; margin-bottom: 3px; color: var(--wh-accent); font-size: .65rem; font-weight: 800; letter-spacing: .09em; }
+.public-wh-heading h3 { margin: 0 0 4px; color: var(--wh-ink); font-size: clamp(1.25rem, 2vw, 1.5rem); font-weight: 800; line-height: 1.25; letter-spacing: -.03em; }
+.public-wh-heading p { margin: 0; color: var(--wh-muted); font-size: .84rem; line-height: 1.55; }
+.public-wh .panel-heading h3 { margin-bottom: 4px; color: var(--wh-ink); font-size: 1.05rem; font-weight: 800; letter-spacing: -.02em; }
+.public-wh .panel-heading p { color: var(--wh-muted); font-size: .84rem; line-height: 1.55; }
+.wh-table-card { border: 1px solid var(--wh-line); border-radius: 16px; overflow: hidden; background: #fff; box-shadow: 0 5px 18px rgba(59, 48, 95, .045); margin-bottom: 28px; }
+.public-wh .public-search-row { margin-bottom: 20px; }
+@media (max-width: 600px) {
+    .public-wh-heading { align-items: flex-start; gap: 11px; margin-bottom: 17px; }
+    .public-wh-module-icon { flex-basis: 42px; width: 42px; height: 42px; border-radius: 13px; font-size: .98rem; }
+    .public-wh-heading p { font-size: .79rem; }
+    .wh-table-card { border-radius: 14px; }
+}
+.public-search-row { display: grid; gap: 6px; margin-bottom: 16px; }
+.public-search-row label { color: var(--text-dark); font-size: .8rem; font-weight: 750; }
+.public-search-row input { width: 100%; min-width: 0; min-height: 46px; padding: 10px 14px; border: 1.5px solid var(--border-soft); border-radius: var(--radius-md); background: #fff; color: var(--text-dark); font: inherit; }
+.public-search-row input:focus-visible, .public-table-scroll:focus-visible { outline: 3px solid rgba(109,90,145,.3); outline-offset: 2px; }
+.public-search-status { min-height: 1.2em; color: var(--text-muted); font-size: .75rem; }
+.public-table-scroll { max-width: 100%; overflow-x: auto; }
+.public-no-results { padding: 24px 16px; color: var(--text-muted); text-align: center; }
+@media (max-width: 640px) {
+    .public-table-scroll { overflow: visible; }
+    .public-data-table, .public-data-table tbody, .public-data-table tr, .public-data-table td { display: block; width: 100%; }
+    .public-data-table thead { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; clip-path: inset(50%); }
+    .public-data-table tbody tr.order-row-item, .public-data-table tbody tr.invoice-row-item, .public-data-table tbody tr.wh-row-item, .public-data-table tbody tr.public-initial-empty, .public-data-table tbody tr[id$="no-results"] { display: block; margin: 10px 0; padding: 10px 12px; border: 1px solid var(--border-soft) !important; border-radius: 12px; background: #fff; box-shadow: 0 3px 12px rgba(59,48,95,.04); }
+    .public-data-table tbody td[data-label] { display: grid; grid-template-columns: minmax(90px, .65fr) minmax(0, 1.35fr); gap: 10px; max-width: none !important; padding: 9px 2px !important; border-bottom: 1px solid #f0edf4; text-align: left; overflow-wrap: anywhere; }
+    .public-data-table tbody td[data-label]:last-child { border-bottom: 0; }
+    .public-data-table tbody td[data-label]::before { content: attr(data-label); color: var(--text-muted); font-size: .68rem; font-weight: 700; }
+}
+</style>

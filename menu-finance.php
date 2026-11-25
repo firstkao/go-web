@@ -9,15 +9,134 @@ if (!defined('ABSPATH')) exit;
 // $finance_ledger_rows) sudah disiapkan admin.php dari tabel
 // wp_goweb_finance_ledger / wp_goweb_wallets, tinggal dipakai di sini.
 ?>
-<div class="fin-wrap">
-    <div style="margin-bottom: 24px;">
-        <h2 style="font-size: 1.25rem; font-weight: 800; color: var(--text-dark); margin-bottom: 6px;">Laporan Keuangan</h2>
-        <p style="color: var(--text-muted); font-size: 0.875rem;">Pencatatan mutasi kas riil per siklus bulanan, saldo digital, modal dan laba bersih.</p>
+<div class="fin-wrap menu-finance">
+    <div class="finance-heading">
+        <span class="finance-heading-icon" aria-hidden="true"><i class="fa-solid fa-chart-line"></i></span>
+        <div>
+            <h2>Laporan Keuangan</h2>
+            <p>Pencatatan mutasi kas riil per siklus bulanan, saldo digital, modal dan laba bersih.</p>
+        </div>
     </div>
+
+    <style>
+        .menu-finance { --finance-ink: #302b46; --finance-muted: #625d70; --finance-line: #e5e0f2; }
+        .finance-heading { display: flex; align-items: center; gap: 14px; margin-bottom: 22px; }
+        .finance-heading-icon { display: grid; flex: 0 0 48px; width: 48px; height: 48px; place-items: center; border: 1px solid #ded7e9; border-radius: 14px; background: linear-gradient(145deg, #f8f5fb, #f0ebf7); color: var(--primary); font-size: 1.08rem; }
+        .finance-heading h2 { margin: 0 0 5px; color: var(--finance-ink); font-size: 1.3rem; font-weight: 800; line-height: 1.3; letter-spacing: -.03em; }
+        .finance-heading p { max-width: 68ch; margin: 0; color: var(--finance-muted); font-size: .875rem; line-height: 1.55; }
+        .finance-cycle-actions { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+        .menu-finance .cycle-bar, .menu-finance .wallet-status-bar { border-color: var(--finance-line); border-radius: 16px; box-shadow: 0 5px 18px rgba(59, 48, 95, .045); }
+        .menu-finance .cycle-bar { padding: 16px 19px; }
+        .menu-finance .cycle-left { gap: 9px; }
+        .menu-finance .cycle-title-label, .wallet-status-title { color: #514b63; font-size: .8rem; font-weight: 800; }
+        .menu-finance .cycle-title-label i, .wallet-status-title i { margin-right: 5px; color: var(--primary); }
+        .menu-finance .cycle-select, .menu-finance .year-select { min-height: 40px; }
+        .menu-finance .cycle-info-pill { min-height: 38px; display: inline-flex; align-items: center; padding: 7px 12px; border-radius: 10px; font-size: .75rem; }
+        .wallet-status-title { display: flex; align-items: center; }
+        .wallet-pills-wrap { min-width: 0; }
+        .menu-finance .wallet-pill { padding: 7px 12px; border-radius: 10px; border-color: #ded7e9; background: #f5f1f9; color: #51416f; font-size: .74rem; }
+        .menu-finance .metrics-grid { gap: 14px; }
+        .menu-finance .metric-card { min-width: 0; border: 1px solid var(--finance-line); border-radius: 16px; }
+        .menu-finance .metric-card.green { border-bottom: 3px solid #6f9278; }
+        .menu-finance .metric-card.blue { border-bottom: 3px solid #5b7aa6; }
+        .menu-finance .metric-card.amber { border-bottom: 3px solid #a56a13; }
+        .menu-finance .metric-card.highlight { border: 1px solid #786592; border-bottom: 3px solid #c4b2db; }
+        .menu-finance .metric-label { display: flex; align-items: center; gap: 7px; min-height: 30px; color: #625d70; font-size: .69rem; line-height: 1.4; letter-spacing: .035em; }
+        .menu-finance .metric-label i { color: var(--primary); font-size: .85rem; }
+        .menu-finance .metric-card.highlight .metric-label { color: #f0ebf7; }
+        .menu-finance .metric-card.highlight .metric-label i { color: #e3d9ef; }
+        .menu-finance .metric-val { overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+        .menu-finance .metric-card.highlight .metric-val { white-space: nowrap; }
+        .menu-finance .metric-sub { color: #625d70; line-height: 1.45; }
+        .menu-finance .metric-card.highlight .metric-sub { color: #f0ebf7; }
+        .menu-finance .roadmap-card, .menu-finance .form-box, .menu-finance .ledger-card { border: 1px solid var(--finance-line); border-radius: 16px; box-shadow: 0 5px 18px rgba(59, 48, 95, .045); }
+        .menu-finance .roadmap-card { padding: 20px 22px; }
+        .menu-finance .roadmap-head { align-items: flex-start; }
+        .menu-finance .roadmap-title { color: var(--finance-ink); line-height: 1.45; }
+        .menu-finance .roadmap-title i { margin-right: 6px; color: var(--primary); }
+        .menu-finance .roadmap-legend { display: flex; gap: 8px 13px; flex-wrap: wrap; color: #514b63; line-height: 1.5; }
+        .menu-finance .roadmap-legend span { white-space: nowrap; }
+        .menu-finance .roadmap-legend i { margin-right: 4px; font-size: .55rem; }
+        .menu-finance .roadmap-item { min-width: 0; border-radius: 12px; }
+        .menu-finance .roadmap-item:focus-visible { outline: 3px solid rgba(109, 90, 145, .3); outline-offset: 2px; }
+        .menu-finance .roadmap-icon { min-height: 20px; display: grid; place-items: center; font-size: 12px; }
+        .menu-finance .roadmap-icon i { font-size: .9rem; }
+        .menu-finance .forms-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+        .menu-finance .form-box { min-width: 0; padding: 20px; }
+        .menu-finance .form-box-title { align-items: flex-start; gap: 9px; min-height: 44px; color: var(--finance-ink); line-height: 1.45; }
+        .menu-finance .form-box-title i { flex: 0 0 18px; margin-top: 2px; color: var(--primary); text-align: center; }
+        .menu-finance .form-group-fin { min-width: 0; }
+        .menu-finance .form-label-fin { color: #514b63; }
+        .menu-finance .form-input-fin, .menu-finance .form-select-fin { min-height: 40px; }
+        .menu-finance .btn-submit-action { min-height: 42px; display: inline-flex; justify-content: center; align-items: center; gap: 8px; }
+        #supplier-idr-preview { color: #302b46; font-variant-numeric: tabular-nums; }
+        .menu-finance .ledger-card { padding: 20px; }
+        .menu-finance .ledger-head { align-items: flex-start; }
+        .menu-finance .filter-pills { gap: 7px; }
+        .menu-finance .filter-btn { min-height: 40px; padding: 8px 13px; border-color: var(--finance-line); border-radius: 10px; background: #fff; color: #514b63; line-height: 1.35; }
+        .menu-finance .filter-btn:hover:not(.active) { border-color: #c9bddb; background: #f8f5fb; color: #51416f; }
+        .menu-finance .filter-btn.active { border-color: var(--primary); background: var(--primary); color: #fff; }
+        .menu-finance .filter-btn:focus-visible, .finance-page-control:focus-visible, .finance-page-number:focus-visible, .btn-del-fin:focus-visible { outline: 3px solid rgba(109, 90, 145, .32); outline-offset: 2px; }
+        .menu-finance .data-table { min-width: 850px; }
+        .menu-finance .data-table td { font-variant-numeric: tabular-nums; }
+        .finance-pagination-controls, .finance-page-numbers { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+        .finance-page-control, .finance-page-number { min-height: 40px; min-width: 40px; padding: 8px 11px; border: 1px solid var(--finance-line); border-radius: 10px; background: #fff; color: var(--finance-ink); font: inherit; font-size: .75rem; font-weight: 750; cursor: pointer; }
+        .finance-page-control:hover:not(:disabled), .finance-page-number:hover:not(.is-active) { border-color: #c9bddb; background: #f8f5fb; }
+        .finance-page-control:disabled { cursor: not-allowed; opacity: .5; }
+        .finance-page-number.is-active { border-color: var(--primary); background: var(--primary); color: #fff; }
+        .menu-finance .btn-export-csv, .menu-finance .btn-reset-data { min-height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
+        .menu-finance .btn-export-csv { background: #52775a; box-shadow: 0 4px 12px rgba(66, 98, 73, .16); }
+        .menu-finance .btn-export-csv:hover { background: #426249; }
+        .menu-finance .btn-reset-data { border-color: #e9c7c5; background: #fbf1ef; color: #8d3936; }
+        .menu-finance .btn-reset-data:hover { background: #f6e5e3; }
+        @media (max-width: 920px) {
+            .menu-finance .forms-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .menu-finance .forms-grid > .form-box:last-child { grid-column: 1 / -1; }
+        }
+        @media (max-width: 600px) {
+            .finance-heading { align-items: flex-start; gap: 11px; margin-bottom: 18px; }
+            .finance-heading-icon { flex-basis: 42px; width: 42px; height: 42px; border-radius: 13px; font-size: .98rem; }
+            .finance-heading h2 { font-size: 1.15rem; }
+            .finance-heading p { font-size: .79rem; }
+            .menu-finance .cycle-bar, .menu-finance .wallet-status-bar { align-items: stretch; padding: 15px; }
+            .menu-finance .cycle-left { width: 100%; gap: 8px; }
+            .menu-finance .cycle-title-label { flex: 1 0 100%; }
+            .menu-finance .year-select, .menu-finance .cycle-select { flex: 1 1 120px; min-width: 0; }
+            .menu-finance .cycle-info-pill { flex: 1 0 100%; justify-content: center; }
+            .finance-cycle-actions { display: grid; grid-template-columns: 1fr; width: 100%; }
+            .finance-cycle-actions button { width: 100%; }
+            .wallet-status-bar { align-items: flex-start; }
+            .wallet-pills-wrap { width: 100%; }
+            .menu-finance .metrics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+            .menu-finance .metric-card { padding: 14px 13px; border-left-width: 3px; }
+            .menu-finance .metric-label { min-height: 42px; align-items: flex-start; font-size: .61rem; }
+            .menu-finance .metric-val { font-size: .76rem !important; letter-spacing: -.035em; white-space: nowrap; }
+            .menu-finance .metric-sub { font-size: .66rem; }
+            .menu-finance .roadmap-card, .menu-finance .ledger-card { padding: 16px 14px; }
+            .menu-finance .roadmap-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+            .menu-finance .roadmap-head { display: grid; }
+            .menu-finance .roadmap-legend { gap: 6px 10px; }
+            .menu-finance .forms-grid { grid-template-columns: 1fr; gap: 12px; }
+            .menu-finance .forms-grid > .form-box:last-child { grid-column: auto; }
+            .menu-finance .form-box { padding: 17px 15px; }
+            .menu-finance .form-box-title { min-height: 0; }
+            .menu-finance .filter-pills { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
+            .menu-finance .filter-btn { padding-inline: 9px; font-size: .7rem; }
+            #fin-pagination { align-items: flex-start !important; }
+            .finance-pagination-controls { width: 100%; justify-content: space-between; gap: 4px; }
+            .finance-page-control { min-width: 40px; padding-inline: 8px; }
+            .finance-page-numbers { gap: 3px; }
+            .finance-page-number { min-width: 36px; min-height: 40px; padding-inline: 8px; }
+        }
+        @media (max-width: 360px) {
+            .menu-finance .metrics-grid { grid-template-columns: 1fr; }
+            .menu-finance .metric-label { min-height: 0; }
+        }
+    </style>
 
     <div class="cycle-bar">
         <div class="cycle-left">
-            <span class="cycle-title-label">📅 Siklus Aktif:</span>
+            <span class="cycle-title-label"><i class="fa-regular fa-calendar" aria-hidden="true"></i> Siklus Aktif:</span>
             <select id="select-year" class="year-select" onchange="changeYearCycle(this.value)">
                 <?php
                 // Tahun digenerate dinamis (2 tahun ke belakang s/d 2 tahun ke
@@ -47,14 +166,14 @@ if (!defined('ABSPATH')) exit;
             <div class="cycle-info-pill" id="cycle-range-text">Rentang: 01 ...</div>
         </div>
 
-        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-            <button type="button" class="btn-export-csv" onclick="downloadFinancialCSV()">📥 Download Laporan (CSV)</button>
-            <button type="button" class="btn-reset-data" onclick="resetFinanceData()">🗑️ Reset Data</button>
+        <div class="finance-cycle-actions">
+            <button type="button" class="btn-export-csv" onclick="downloadFinancialCSV()"><i class="fa-solid fa-download" aria-hidden="true"></i> Download Laporan (CSV)</button>
+            <button type="button" class="btn-reset-data" onclick="resetFinanceData()"><i class="fa-solid fa-trash-can" aria-hidden="true"></i> Reset Data</button>
         </div>
     </div>
 
     <div class="wallet-status-bar">
-        <div style="font-size: 13px; font-weight: 800; color: var(--slate-700);">🌐 Saldo Aktif (Dompet Digital):</div>
+        <div class="wallet-status-title"><i class="fa-solid fa-wallet" aria-hidden="true"></i> Saldo Aktif (Dompet Digital):</div>
         <div class="wallet-pills-wrap">
             <?php if (!empty($active_wallets)): foreach($active_wallets as $w_name => $w_val): ?>
                 <div class="wallet-pill"><?php echo esc_html($w_name); ?>: <strong><?php echo number_format($w_val, 2, ',', '.'); ?></strong></div>
@@ -65,69 +184,82 @@ if (!defined('ABSPATH')) exit;
     </div>
 
     <?php
-    $total_omset_db = 0; 
-    $total_supplier_db = 0; 
-    $total_cargo_db = 0; 
-    $total_ops_db = 0;
-    
+    // Rekap per bulan dipakai bersama oleh kartu metrik siklus aktif dan roadmap tahunan.
+    $monthly_financial_data = array();
+    $ensure_finance_month = function($key) use (&$monthly_financial_data) {
+        if (!isset($monthly_financial_data[$key])) {
+            $monthly_financial_data[$key] = array('income' => 0, 'outflow' => 0, 'supplier' => 0, 'cargo' => 0, 'ops' => 0);
+        }
+    };
+
     if (!empty($finance_ledger_rows)) {
-        foreach($finance_ledger_rows as $tx) {
+        foreach ($finance_ledger_rows as $tx) {
             $tx_type = isset($tx['tx_type']) ? $tx['tx_type'] : '';
-            $tx_idr  = isset($tx['idr_value']) ? floatval($tx['idr_value']) : 0;
-            
+            if (!in_array($tx_type, array('supplier_purchase', 'cargo_1', 'cargo_2', 'operational'), true)) continue;
+
+            $key = date('Y-n', strtotime($tx['tx_date']));
+            $ensure_finance_month($key);
+            $tx_idr = isset($tx['idr_value']) ? floatval($tx['idr_value']) : 0;
+            $monthly_financial_data[$key]['outflow'] += $tx_idr;
+
             if ($tx_type === 'supplier_purchase') {
-                $total_supplier_db += $tx_idr;
+                $monthly_financial_data[$key]['supplier'] += $tx_idr;
             } elseif ($tx_type === 'cargo_1' || $tx_type === 'cargo_2') {
-                $total_cargo_db += $tx_idr;
+                $monthly_financial_data[$key]['cargo'] += $tx_idr;
             } elseif ($tx_type === 'operational') {
-                $total_ops_db += $tx_idr;
+                $monthly_financial_data[$key]['ops'] += $tx_idr;
             }
         }
     }
 
     if (!empty($subscription_history) && is_array($subscription_history)) {
-        foreach($subscription_history as $h) {
-            $h_status = isset($h['status']) ? $h['status'] : '';
-            $h_category = isset($h['payment_category']) ? $h['payment_category'] : '';
-            $h_nominal = isset($h['nominal']) ? intval($h['nominal']) : 0;
-            
-            if ($h_status === 'Verified' && $h_category === 'po') {
-                $total_omset_db += $h_nominal;
-            }
+        foreach ($subscription_history as $h) {
+            if (($h['status'] ?? '') !== 'Verified' || ($h['payment_category'] ?? '') !== 'po' || empty($h['verified_at'])) continue;
+
+            // Timestamp DB sudah memakai zona waktu WordPress; ambil bulan langsung agar tidak bergeser zona.
+            $verified_at = (string) $h['verified_at'];
+            $key = intval(substr($verified_at, 0, 4)) . '-' . intval(substr($verified_at, 5, 2));
+            $ensure_finance_month($key);
+            $monthly_financial_data[$key]['income'] += isset($h['nominal']) ? floatval($h['nominal']) : 0;
         }
     }
 
-    $total_outflow_db = $total_supplier_db + $total_cargo_db + $total_ops_db;
+    $current_finance_key = intval($current_real_year) . '-' . intval($current_real_month);
+    $current_finance_data = $monthly_financial_data[$current_finance_key] ?? array('income' => 0, 'outflow' => 0, 'supplier' => 0, 'cargo' => 0, 'ops' => 0);
+    $total_omset_db = $current_finance_data['income'];
+    $total_supplier_db = $current_finance_data['supplier'];
+    $total_cargo_db = $current_finance_data['cargo'];
+    $total_outflow_db = $total_supplier_db + $total_cargo_db + $current_finance_data['ops'];
     $net_profit_db = $total_omset_db - $total_outflow_db;
     ?>
 
     <div class="metrics-grid">
         <div class="metric-card green">
-            <div class="metric-label">📥 Total Pemasukan (Omset)</div>
-            <div class="metric-val" style="color: #15803d;">Rp <?php echo number_format($total_omset_db, 0, ',', '.'); ?></div>
+            <div class="metric-label"><i class="fa-solid fa-arrow-down-to-line" aria-hidden="true"></i> Total Pemasukan (Omset)</div>
+            <div class="metric-val" id="finance-income-value" style="color: #15803d;">Rp <?php echo number_format($total_omset_db, 0, ',', '.'); ?></div>
             <div class="metric-sub">Dari konfirmasi pembayaran PO terverifikasi</div>
         </div>
         <div class="metric-card blue">
-            <div class="metric-label">🛒 Modal Belanja (HPP)</div>
-            <div class="metric-val">Rp <?php echo number_format($total_supplier_db, 0, ',', '.'); ?></div>
+            <div class="metric-label"><i class="fa-solid fa-bag-shopping" aria-hidden="true"></i> Modal Belanja (HPP)</div>
+            <div class="metric-val" id="finance-supplier-value">Rp <?php echo number_format($total_supplier_db, 0, ',', '.'); ?></div>
             <div class="metric-sub">Potong Saldo Dompet Digital</div>
         </div>
         <div class="metric-card amber">
-            <div class="metric-label">✈️ Ongkir Kargo (Tahap 1+2)</div>
-            <div class="metric-val" style="color: #d97706;">Rp <?php echo number_format($total_cargo_db, 0, ',', '.'); ?></div>
+            <div class="metric-label"><i class="fa-solid fa-truck-fast" aria-hidden="true"></i> Ongkir Kargo (Tahap 1+2)</div>
+            <div class="metric-val" id="finance-cargo-value" style="color: #d97706;">Rp <?php echo number_format($total_cargo_db, 0, ',', '.'); ?></div>
             <div class="metric-sub">Kargo Lokal WH + Forwarder Indo</div>
         </div>
         <div class="metric-card highlight">
-            <div class="metric-label">💎 Surplus Laba Bersih</div>
-            <div class="metric-val">Rp <?php echo number_format($net_profit_db, 0, ',', '.'); ?></div>
+            <div class="metric-label"><i class="fa-solid fa-chart-pie" aria-hidden="true"></i> Surplus Laba Bersih</div>
+            <div class="metric-val" id="finance-net-value">Rp <?php echo number_format($net_profit_db, 0, ',', '.'); ?></div>
             <div class="metric-sub">Pemasukan dikurangi pengeluaran riil</div>
         </div>
     </div>
 
     <div class="roadmap-card">
         <div class="roadmap-head">
-            <div class="roadmap-title" id="roadmap-title-text">🗓️ Rekap Kesehatan Finansial Tahunan (12 Siklus Bulanan)</div>
-            <div class="roadmap-legend">🟢 Prima (≥25%) | 🔵 Aman (15-24%) | 🟡 Tipis (1-14%) | 🔴 Defisit (&lt;0%)</div>
+            <div class="roadmap-title" id="roadmap-title-text"><i class="fa-solid fa-calendar-check" aria-hidden="true"></i> Rekap Kesehatan Finansial Tahunan (12 Siklus Bulanan)</div>
+            <div class="roadmap-legend"><span><i class="fa-solid fa-circle" style="color:#52775a" aria-hidden="true"></i> Prima (≥25%)</span><span><i class="fa-solid fa-circle" style="color:#2563eb" aria-hidden="true"></i> Aman (15-24%)</span><span><i class="fa-solid fa-circle" style="color:#9a6b00" aria-hidden="true"></i> Tipis (1-14%)</span><span><i class="fa-solid fa-circle" style="color:#b42318" aria-hidden="true"></i> Defisit (&lt;0%)</span></div>
         </div>
         <div class="roadmap-grid" id="roadmap-container"></div>
     </div>
@@ -135,7 +267,7 @@ if (!defined('ABSPATH')) exit;
     <div class="forms-grid">
         <div class="form-box">
             <div>
-                <div class="form-box-title">➕ 1. Top-Up Saldo Dompet Digital</div>
+                <div class="form-box-title"><i class="fa-solid fa-wallet" aria-hidden="true"></i> 1. Top-Up Saldo Dompet Digital</div>
                 <form method="POST" action="">
                     <?php wp_nonce_field('goweb_finance_action_' . $store_id, 'goweb_finance_nonce'); ?>
                     <input type="hidden" name="fin_type" value="wallet_topup">
@@ -144,14 +276,14 @@ if (!defined('ABSPATH')) exit;
                     <div class="form-group-fin"><label class="form-label-fin">Nominal Saldo Masuk:</label><input type="number" step="0.01" name="fin_amount" class="form-input-fin" placeholder="Misal: 1500" required></div>
                     <div class="form-group-fin"><label class="form-label-fin">Total Bayar (IDR):</label><input type="number" name="fin_idr" class="form-input-fin" placeholder="Misal: 3675000" required></div>
                     <input type="hidden" name="fin_title" value="Top-Up Saldo Dompet Digital">
-                    <button type="submit" name="action_save_finance" class="btn-submit-action btn-blue">💾 Simpan Top-Up Saldo</button>
+                    <button type="submit" name="action_save_finance" class="btn-submit-action btn-blue"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> Simpan Top-Up Saldo</button>
                 </form>
             </div>
         </div>
 
         <div class="form-box">
             <div>
-                <div class="form-box-title">🛍️ 2. Belanja Supplier (Potong Saldo)</div>
+                <div class="form-box-title"><i class="fa-solid fa-bag-shopping" aria-hidden="true"></i> 2. Belanja Supplier (Potong Saldo)</div>
                 <form method="POST" action="">
                     <?php wp_nonce_field('goweb_finance_action_' . $store_id, 'goweb_finance_nonce'); ?>
                     <input type="hidden" name="fin_type" value="supplier_purchase">
@@ -161,9 +293,10 @@ if (!defined('ABSPATH')) exit;
                         <select name="fin_wallet_name" id="supplier-wallet-select" class="form-input-fin" required>
                             <option value="">— Pilih dompet —</option>
                             <?php foreach ( $active_wallets as $wn => $bal ):
-                                $wn_rate = isset($wallet_avg_rates[$wn]) ? $wallet_avg_rates[$wn] : 0;
+                                $wallet_cost = $wallet_moving_costs[$wn] ?? array('average_rate' => 0, 'is_valid' => false, 'balance_matches' => false);
+                                $wn_rate = ($wallet_cost['is_valid'] && $wallet_cost['balance_matches']) ? $wallet_cost['average_rate'] : 0;
                             ?>
-                                <option value="<?php echo esc_attr($wn); ?>" data-rate="<?php echo esc_attr($wn_rate); ?>"><?php echo esc_html($wn); ?> (Saldo: <?php echo esc_html($bal); ?>)</option>
+                                <option value="<?php echo esc_attr($wn); ?>" data-rate="<?php echo esc_attr($wn_rate); ?>" data-balance="<?php echo esc_attr($bal); ?>"><?php echo esc_html($wn); ?> (Saldo: <?php echo esc_html($bal); ?>)</option>
                             <?php endforeach; ?>
                         </select>
                         <?php if ( empty($active_wallets) ): ?>
@@ -175,24 +308,25 @@ if (!defined('ABSPATH')) exit;
                     <div class="form-group-fin">
                         <label class="form-label-fin">Estimasi Total Rupiah (otomatis):</label>
                         <div id="supplier-idr-preview" style="padding: 10px 14px; border: 1.5px solid var(--border-soft); border-radius: 10px; background: var(--slate-50); font-weight: 700; color: var(--text-dark);">Rp 0</div>
-                        <small style="color: var(--text-muted); font-size: 11px;">Dihitung otomatis berdasarkan rata-rata rate Top-Up dompet ini, sehingga nilainya tetap konsisten dengan cost basis yang sebenarnya.</small>
+                        <small style="color: var(--text-muted); font-size: 11px;">Pakai moving average dari modal Top-Up yang masih tersisa. Top-Up menambah modal; belanja mengurangi saldo dan modal pada rate rata-rata saat itu.</small>
+                        <small id="supplier-cost-warning" role="status" style="display:none; color:#9a3412; font-size:11px;">Riwayat modal dan saldo dompet belum cocok. Periksa transaksi sebelum mencatat belanja.</small>
                     </div>
-                    <button type="submit" name="action_save_finance" class="btn-submit-action btn-green">💾 Catat Belanja Supplier</button>
+                    <button type="submit" name="action_save_finance" class="btn-submit-action btn-green"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> Catat Belanja Supplier</button>
                 </form>
             </div>
         </div>
 
         <div class="form-box">
             <div>
-                <div class="form-box-title">📦 3. Biaya Kargo &amp; Operasional</div>
+                <div class="form-box-title"><i class="fa-solid fa-truck-fast" aria-hidden="true"></i> 3. Biaya Kargo &amp; Operasional</div>
                 <form method="POST" action="">
                     <?php wp_nonce_field('goweb_finance_action_' . $store_id, 'goweb_finance_nonce'); ?>
                     <div class="form-group-fin">
                         <label class="form-label-fin">Kategori Pengeluaran:</label>
                         <select name="fin_type" class="form-select-fin" required>
-                            <option value="cargo_1">✈️ Ongkir Tahap 1 (Lokal WH)</option>
-                            <option value="cargo_2">🚢 Ongkir Tahap 2 (Forwarder Indo)</option>
-                            <option value="operational">📦 Operasional / Bubble Wrap</option>
+                            <option value="cargo_1">Ongkir Tahap 1 (Lokal WH)</option>
+                            <option value="cargo_2">Ongkir Tahap 2 (Forwarder Indo)</option>
+                            <option value="operational">Operasional / Bubble Wrap</option>
                         </select>
                     </div>
                     <div class="form-group-fin"><label class="form-label-fin">Tanggal Transaksi:</label><input type="date" name="fin_date" class="form-input-fin" value="<?php echo date('Y-m-d'); ?>" required></div>
@@ -200,19 +334,19 @@ if (!defined('ABSPATH')) exit;
                     <div class="form-group-fin"><label class="form-label-fin">Total Nominal (IDR):</label><input type="number" name="fin_idr" class="form-input-fin" placeholder="Misal: 420000" required></div>
                     <input type="hidden" name="fin_wallet_name" value="-">
                     <input type="hidden" name="fin_amount" value="0">
-                    <button type="submit" name="action_save_finance" class="btn-submit-action btn-amber">💾 Catat Tagihan Biaya</button>
+                    <button type="submit" name="action_save_finance" class="btn-submit-action btn-amber"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> Catat Tagihan Biaya</button>
                 </form>
             </div>
         </div>
     </div>
 
-    <div class="ledger-card">
+    <div class="ledger-card finance-ledger">
         <div class="ledger-head">
-            <div class="filter-pills">
-                <button class="filter-btn active" onclick="filterLedger('ALL', this)">Semua Mutasi (<span id="count-all">0</span>)</button>
-                <button class="filter-btn" onclick="filterLedger('wallet_topup', this)">Top-Up Saldo</button>
-                <button class="filter-btn" onclick="filterLedger('supplier_purchase', this)">Belanja Supplier</button>
-                <button class="filter-btn" onclick="filterLedger('cargo', this)">Tagihan Kargo (1+2)</button>
+            <div class="filter-pills" role="group" aria-label="Filter jenis mutasi">
+                <button type="button" class="filter-btn active" aria-pressed="true" onclick="filterLedger('ALL', this)">Semua Mutasi (<span id="count-all">0</span>)</button>
+                <button type="button" class="filter-btn" aria-pressed="false" onclick="filterLedger('wallet_topup', this)">Top-Up Saldo</button>
+                <button type="button" class="filter-btn" aria-pressed="false" onclick="filterLedger('supplier_purchase', this)">Belanja Supplier</button>
+                <button type="button" class="filter-btn" aria-pressed="false" onclick="filterLedger('cargo', this)">Tagihan Kargo (1+2)</button>
             </div>
         </div>
 
@@ -249,7 +383,7 @@ if (!defined('ABSPATH')) exit;
                             <td style="color: var(--slate-500); font-size: 12px;"><?php echo $tx['rate'] > 0 ? 'Rp ' . number_format($tx['rate'], 0, ',', '.') : '—'; ?></td>
                             <td style="font-weight: 800;">Rp <?php echo number_format($tx['idr_value'], 0, ',', '.'); ?></td>
                             <td style="text-align: center;">
-                                <a href="<?php echo esc_url( wp_nonce_url( add_query_arg(array('del_fin' => $tx['id'], 'goweb_tenant_id' => $store_id)), 'goweb_finance_delete_' . $store_id ) ); ?>" onclick="openDeleteFinanceModal(event, this.href); return false;" class="btn-del-fin" title="Hapus Mutasi">✕</a>
+                                <a href="<?php echo esc_url( wp_nonce_url( add_query_arg(array('del_fin' => $tx['id'], 'goweb_tenant_id' => $store_id)), 'goweb_finance_delete_' . $store_id ) ); ?>" onclick="openDeleteFinanceModal(event, this.href); return false;" class="btn-del-fin" title="Hapus Mutasi" aria-label="Hapus mutasi"><i class="fa-solid fa-xmark" aria-hidden="true"></i></a>
                             </td>
                         </tr>
                     <?php endforeach; else: ?>
@@ -262,10 +396,10 @@ if (!defined('ABSPATH')) exit;
         <!-- KONTROL PAGINATION -->
         <div id="fin-pagination" style="display: none; justify-content: space-between; align-items: center; padding: 14px 4px 2px; flex-wrap: wrap; gap: 10px;">
             <span id="fin-page-info" style="font-size: 12.5px; color: var(--slate-500); font-weight: 600;"></span>
-            <div style="display: flex; gap: 6px; align-items: center;">
-                <button type="button" id="fin-prev" style="padding: 7px 14px; border-radius: 8px; border: 1.5px solid var(--border-soft); background: #fff; font-weight: 700; font-size: 12.5px; cursor: pointer;">‹ Sebelumnya</button>
-                <span id="fin-page-numbers" style="display: flex; gap: 4px;"></span>
-                <button type="button" id="fin-next" style="padding: 7px 14px; border-radius: 8px; border: 1.5px solid var(--border-soft); background: #fff; font-weight: 700; font-size: 12.5px; cursor: pointer;">Berikutnya ›</button>
+            <div class="finance-pagination-controls">
+                <button type="button" id="fin-prev" class="finance-page-control"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i> Sebelumnya</button>
+                <span id="fin-page-numbers" class="finance-page-numbers"></span>
+                <button type="button" id="fin-next" class="finance-page-control">Berikutnya <i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
             </div>
         </div>
     </div>
@@ -297,34 +431,10 @@ if (!defined('ABSPATH')) exit;
     </div>
 </div>
 
-<?php
-// DATA FINANSIAL PER BULAN — dipakai buat Rekap Kesehatan Finansial
-// Tahunan yang BENERAN ngitung margin (income vs outflow), bukan cuma
-// ngecek "ada transaksi apa enggak" kayak versi sebelumnya.
-$monthly_financial_data = array();
-if ( ! empty($finance_ledger_rows) ) {
-    foreach ( $finance_ledger_rows as $tx ) {
-        $tx_type = isset($tx['tx_type']) ? $tx['tx_type'] : '';
-        if ( ! in_array( $tx_type, array('supplier_purchase', 'cargo_1', 'cargo_2', 'operational'), true ) ) continue;
-        $key = date('Y-n', strtotime($tx['tx_date']));
-        if ( ! isset($monthly_financial_data[$key]) ) $monthly_financial_data[$key] = array('income' => 0, 'outflow' => 0);
-        $monthly_financial_data[$key]['outflow'] += floatval($tx['idr_value']);
-    }
-}
-if ( ! empty($subscription_history) && is_array($subscription_history) ) {
-    foreach ( $subscription_history as $h ) {
-        if ( ($h['status'] ?? '') === 'Verified' && ($h['payment_category'] ?? '') === 'po' ) {
-            $key = date('Y-n', strtotime($h['created_at']));
-            if ( ! isset($monthly_financial_data[$key]) ) $monthly_financial_data[$key] = array('income' => 0, 'outflow' => 0);
-            $monthly_financial_data[$key]['income'] += floatval($h['nominal']);
-        }
-    }
-}
-?>
-
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    // Data mentah income/outflow per bulan (kunci "YYYY-N", N tanpa nol di depan)
+    // Data Omset dikelompokkan berdasarkan timestamp verifikasi yang dicatat sistem.
+    // Kunci bulanan tetap "YYYY-N" tanpa nol di depan.
     const MONTHLY_FIN_DATA = <?php echo wp_json_encode( $monthly_financial_data ); ?>;
 
     // Live preview estimasi Total Rupiah di form Belanja Supplier — dihitung
@@ -332,6 +442,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const supplierWalletSelect = document.getElementById('supplier-wallet-select');
     const supplierAmountInput = document.getElementById('supplier-amount-input');
     const supplierIdrPreview = document.getElementById('supplier-idr-preview');
+    const supplierCostWarning = document.getElementById('supplier-cost-warning');
 
     function updateSupplierPreview() {
         if (!supplierWalletSelect || !supplierAmountInput || !supplierIdrPreview) return;
@@ -340,9 +451,21 @@ document.addEventListener('DOMContentLoaded', () => {
         const amount = parseFloat(supplierAmountInput.value) || 0;
         const estimatedIdr = Math.round(rate * amount);
         supplierIdrPreview.textContent = 'Rp ' + estimatedIdr.toLocaleString('id-ID');
+        if (supplierCostWarning) supplierCostWarning.style.display = 'none';
         if (rate === 0 && selectedOption && selectedOption.value !== '') {
-            supplierIdrPreview.textContent += ' (dompet ini belum pernah di-Top Up)';
-            supplierIdrPreview.style.color = '#ef4444';
+            supplierIdrPreview.textContent = 'Belum bisa dihitung';
+            supplierIdrPreview.style.color = '#9a3412';
+            if (supplierCostWarning) {
+                supplierCostWarning.textContent = 'Biaya belum dapat dihitung; periksa riwayat saldo/modal dompet.';
+                supplierCostWarning.style.display = 'block';
+            }
+        } else if (selectedOption && selectedOption.value !== '' && amount > (parseFloat(selectedOption.getAttribute('data-balance')) || 0)) {
+            supplierIdrPreview.textContent = 'Saldo tidak cukup';
+            supplierIdrPreview.style.color = '#9a3412';
+            if (supplierCostWarning) {
+                supplierCostWarning.textContent = 'Nominal belanja melebihi saldo dompet yang tersedia.';
+                supplierCostWarning.style.display = 'block';
+            }
         } else {
             supplierIdrPreview.style.color = '';
         }
@@ -353,6 +476,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const MONTH_NAMES = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
     let selectedYear = '<?php echo $current_real_year; ?>';
     let selectedMonth = parseInt('<?php echo $current_real_month; ?>');
+    const FIN_PER_PAGE = 25;
+    let finCurrentPage = 1;
+    let currentLedgerFilterType = 'ALL';
 
     const yearSelectEl = document.getElementById('select-year');
     const monthSelectEl = document.getElementById('select-month');
@@ -373,6 +499,24 @@ document.addEventListener('DOMContentLoaded', () => {
         filterRowsByCycle();
     }
 
+    function updateCycleMetrics() {
+        const data = MONTHLY_FIN_DATA[`${selectedYear}-${selectedMonth}`] || {};
+        const income = Number(data.income) || 0;
+        const supplier = Number(data.supplier) || 0;
+        const cargo = Number(data.cargo) || 0;
+        const ops = Number(data.ops) || 0;
+        const formatter = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 });
+
+        const incomeValue = document.getElementById('finance-income-value');
+        const supplierValue = document.getElementById('finance-supplier-value');
+        const cargoValue = document.getElementById('finance-cargo-value');
+        const netValue = document.getElementById('finance-net-value');
+        if (incomeValue) incomeValue.textContent = `Rp ${formatter.format(income)}`;
+        if (supplierValue) supplierValue.textContent = `Rp ${formatter.format(supplier)}`;
+        if (cargoValue) cargoValue.textContent = `Rp ${formatter.format(cargo)}`;
+        if (netValue) netValue.textContent = `Rp ${formatter.format(income - supplier - cargo - ops)}`;
+    }
+
     function filterRowsByCycle() {
         const rows = document.querySelectorAll('#ledger-rows tr');
         let visibleCount = 0;
@@ -390,6 +534,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         const countAll = document.getElementById('count-all');
         if(countAll) countAll.innerText = visibleCount;
+        updateCycleMetrics();
         renderRoadmap();
         finCurrentPage = 1; // reset ke halaman 1 tiap ganti siklus bulan/tahun
         applyLedgerFilterAndPaginate();
@@ -400,10 +545,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const titleText = document.getElementById('roadmap-title-text');
         if(!container) return;
         container.innerHTML = '';
-        if(titleText) titleText.innerText = `🗓️ Rekap Kesehatan Finansial Tahunan (${selectedYear})`;
+        if(titleText) titleText.innerHTML = `<i class="fa-solid fa-calendar-check" aria-hidden="true"></i> Rekap Kesehatan Finansial Tahunan (${selectedYear})`;
 
         for (let m = 1; m <= 12; m++) {
-            let icon = '⚪', label = 'Belum Ada', labelColor = 'var(--text-muted)', marginStr = '—';
+            let icon = 'fa-circle-minus', label = 'Belum Ada', labelColor = 'var(--text-muted)', marginStr = '—';
             const key = `${selectedYear}-${m}`;
             const data = MONTHLY_FIN_DATA[key];
 
@@ -416,25 +561,34 @@ document.addEventListener('DOMContentLoaded', () => {
                 marginStr = marginPct.toFixed(0) + '%';
 
                 if (marginPct < 0) {
-                    icon = '🔴'; label = 'Defisit'; labelColor = '#dc2626';
+                    icon = 'fa-circle-xmark'; label = 'Defisit'; labelColor = '#b42318';
                 } else if (marginPct < 15) {
-                    icon = '🟡'; label = 'Tipis'; labelColor = '#ca8a04';
+                    icon = 'fa-circle-exclamation'; label = 'Tipis'; labelColor = '#805719';
                 } else if (marginPct < 25) {
-                    icon = '🔵'; label = 'Aman'; labelColor = '#2563eb';
+                    icon = 'fa-circle-check'; label = 'Aman'; labelColor = '#2563eb';
                 } else {
-                    icon = '🟢'; label = 'Prima'; labelColor = '#15803d';
+                    icon = 'fa-circle-check'; label = 'Prima'; labelColor = '#45634d';
                 }
             }
 
             const div = document.createElement('div');
             div.className = `roadmap-item ${m === selectedMonth ? 'active' : ''}`;
-            div.onclick = () => { 
-                if(monthSelectEl) monthSelectEl.value = m; 
-                window.changeMonthCycle(m); 
+            div.setAttribute('role', 'button');
+            div.setAttribute('tabindex', '0');
+            div.setAttribute('aria-label', `${MONTH_NAMES[m - 1]}: ${label}, ${marginStr}. Pilih siklus`);
+            div.onclick = () => {
+                if(monthSelectEl) monthSelectEl.value = m;
+                window.changeMonthCycle(m);
+            };
+            div.onkeydown = (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    div.click();
+                }
             };
             div.innerHTML = `
                 <div class="roadmap-month">${MONTH_NAMES[m - 1].substring(0, 3)}</div>
-                <div class="roadmap-icon">${icon}</div>
+                <div class="roadmap-icon" style="color:${labelColor};"><i class="fa-solid ${icon}" aria-hidden="true"></i></div>
                 <div class="roadmap-status-text" style="color:${labelColor};">${label}</div>
                 <div class="roadmap-margin">${marginStr}</div>
             `;
@@ -447,8 +601,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     window.filterLedger = function(filterType, btn) {
-        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.filter-btn').forEach(b => { b.classList.remove('active'); b.setAttribute('aria-pressed', 'false'); });
         btn.classList.add('active');
+        btn.setAttribute('aria-pressed', 'true');
         currentLedgerFilterType = filterType;
         const rows = document.querySelectorAll('#ledger-rows tr');
         rows.forEach(row => {
@@ -479,10 +634,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Nempel DI ATAS 2 filter yang udah ada (siklus bulan + jenis mutasi).
     // Kedua filter di atas cuma nandain data-matchCycle/data-matchType —
     // fungsi ini yang nentuin display FINAL, biar gak bentrok sama pagination.
-    const FIN_PER_PAGE = 25;
-    let finCurrentPage = 1;
-    let currentLedgerFilterType = 'ALL';
-
     function applyLedgerFilterAndPaginate() {
         const allRows = Array.from(document.querySelectorAll('#ledger-rows tr')).filter(r => r.cells.length > 1);
         const matchedRows = allRows.filter(r => r.dataset.matchCycle === 'true' && r.dataset.matchType !== 'false');
@@ -525,7 +676,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 btn.type = 'button';
                 btn.textContent = p;
                 const isActive = p === finCurrentPage;
-                btn.style.cssText = `padding: 7px 12px; border-radius: 8px; border: 1.5px solid ${isActive ? 'var(--pastel-purple)' : 'var(--border-soft)'}; background: ${isActive ? 'var(--pastel-purple)' : '#fff'}; color: ${isActive ? '#fff' : 'inherit'}; font-weight: 700; font-size: 12.5px; cursor: pointer;`;
+                btn.className = 'finance-page-number' + (isActive ? ' is-active' : '');
+                if (isActive) btn.setAttribute('aria-current', 'page');
                 btn.addEventListener('click', () => { finCurrentPage = p; applyLedgerFilterAndPaginate(); });
                 pageNumbers.appendChild(btn);
             }

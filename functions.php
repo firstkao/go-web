@@ -41,7 +41,7 @@ define( 'GOWEB_TENANT_SESSION_DAYS', 14 );
  * ======================================================================
  */
 
-define( 'GOWEB_DB_VERSION', '1.9.0' );
+define( 'GOWEB_DB_VERSION', '1.16.0' ); // 1.16.0: kategori tagihan 255 karakter, konsisten dengan pengaturan/pembayaran
 
 function goweb_get_table_names() {
     global $wpdb;
@@ -80,10 +80,13 @@ function goweb_create_custom_tables() {
         store_id VARCHAR(64) NOT NULL,
         payment_category VARCHAR(20) NOT NULL DEFAULT 'po',
         period VARCHAR(255) NOT NULL DEFAULT '',
-        payment_type VARCHAR(30) NULL,
+        payment_type VARCHAR(255) NULL,
+        payment_destination VARCHAR(255) NULL,
         nominal BIGINT NOT NULL DEFAULT 0,
         sender VARCHAR(255) NOT NULL DEFAULT '',
         proof_url TEXT NULL,
+        payment_date DATE NULL,
+        verified_at DATETIME NULL,
         status VARCHAR(20) NOT NULL DEFAULT 'Pending',
         requested_package VARCHAR(20) NULL,
         requested_duration_months INT NULL,
@@ -120,7 +123,7 @@ function goweb_create_custom_tables() {
         id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
         store_id VARCHAR(64) NOT NULL,
         order_id BIGINT UNSIGNED NOT NULL,
-        category VARCHAR(30) NOT NULL DEFAULT 'lainnya',
+        category VARCHAR(255) NOT NULL DEFAULT 'lainnya',
         nominal BIGINT NOT NULL DEFAULT 0,
         status VARCHAR(20) NOT NULL DEFAULT 'Belum Bayar',
         created_at DATETIME NOT NULL,
@@ -168,10 +171,19 @@ function goweb_create_custom_tables() {
         lokasi VARCHAR(100) NOT NULL DEFAULT '',
         kapasitas_kg DECIMAL(10,2) NOT NULL DEFAULT 20,
         status VARCHAR(50) NOT NULL DEFAULT 'Packing In Progress',
+        -- status_changed_at: kapan status box terakhir berubah. Dipakai buat
+        -- aturan: box yang sudah sampai Indo cuma disimpan ~2 minggu
+        -- (dihitung dari perubahan status, bukan dari tanggal box dibuat).
+        -- archived_at: penanda box sudah kedaluwarsa & disembunyikan otomatis
+        -- dari UI. Barisnya TIDAK langsung dihapus, supaya riwayat kiriman
+        -- pembeli masih bisa diaudit kalau ada sengketa.
+        status_changed_at DATETIME NULL,
+        archived_at DATETIME NULL,
         created_at DATETIME NOT NULL,
         PRIMARY KEY  (id),
         KEY store_id (store_id),
-        KEY status (status)
+        KEY status (status),
+        KEY archived_at (archived_at)
     ) $charset_collate;";
 
     // 3. LEDGER MUTASI KEUANGAN
@@ -260,6 +272,64 @@ function goweb_create_custom_tables() {
     ) $charset_collate;";
 
     dbDelta( $sql_payments );
+    // Pastikan panjang snapshot pilihan buyer sesuai batas pengaturan. dbDelta
+    // kadang tidak mengubah tabel pada hosting dengan skema lama/collation
+    // tertentu; fallback ALTER mencegah submit publik gagal atau memotong nilai.
+    $payment_type_column = $wpdb->get_row( "SHOW COLUMNS FROM {$t['payments']} LIKE 'payment_type'", ARRAY_A );
+    if ( ! $payment_type_column ) {
+        $wpdb->query( "ALTER TABLE {$t['payments']} ADD COLUMN payment_type VARCHAR(255) NULL" );
+        $payment_type_column = $wpdb->get_row( "SHOW COLUMNS FROM {$t['payments']} LIKE 'payment_type'", ARRAY_A );
+    }
+    $payment_type_column_type = strtolower( (string) ( $payment_type_column['Type'] ?? '' ) );
+    $payment_type_column_ok = false;
+    if ( preg_match( '/^varchar\\((\\d+)\\)$/', $payment_type_column_type, $payment_type_length ) ) {
+        $payment_type_column_ok = intval( $payment_type_length[1] ) >= 255;
+    } elseif ( in_array( $payment_type_column_type, array( 'text', 'mediumtext', 'longtext' ), true ) ) {
+        $payment_type_column_ok = true;
+    }
+    if ( ! $payment_type_column_ok ) {
+        $wpdb->query( "ALTER TABLE {$t['payments']} MODIFY COLUMN payment_type VARCHAR(255) NULL" );
+        $payment_type_column = $wpdb->get_row( "SHOW COLUMNS FROM {$t['payments']} LIKE 'payment_type'", ARRAY_A );
+        $payment_type_column_type = strtolower( (string) ( $payment_type_column['Type'] ?? '' ) );
+        $payment_type_column_ok = preg_match( '/^varchar\\((\\d+)\\)$/', $payment_type_column_type, $payment_type_length )
+            ? intval( $payment_type_length[1] ) >= 255
+            : in_array( $payment_type_column_type, array( 'text', 'mediumtext', 'longtext' ), true );
+    }
+    $payment_period_column = $wpdb->get_row( "SHOW COLUMNS FROM {$t['payments']} LIKE 'period'", ARRAY_A );
+    if ( ! $payment_period_column ) {
+        $wpdb->query( "ALTER TABLE {$t['payments']} ADD COLUMN period VARCHAR(255) NOT NULL DEFAULT ''" );
+        $payment_period_column = $wpdb->get_row( "SHOW COLUMNS FROM {$t['payments']} LIKE 'period'", ARRAY_A );
+    }
+    $payment_period_column_type = strtolower( (string) ( $payment_period_column['Type'] ?? '' ) );
+    $payment_period_column_ok = false;
+    if ( preg_match( '/^varchar\\((\\d+)\\)$/', $payment_period_column_type, $period_length ) ) {
+        $payment_period_column_ok = intval( $period_length[1] ) >= 255;
+    } elseif ( in_array( $payment_period_column_type, array( 'text', 'mediumtext', 'longtext' ), true ) ) {
+        $payment_period_column_ok = true;
+    }
+    if ( ! $payment_period_column_ok ) {
+        $wpdb->query( "ALTER TABLE {$t['payments']} MODIFY COLUMN period VARCHAR(255) NOT NULL DEFAULT ''" );
+        $payment_period_column = $wpdb->get_row( "SHOW COLUMNS FROM {$t['payments']} LIKE 'period'", ARRAY_A );
+        $payment_period_column_type = strtolower( (string) ( $payment_period_column['Type'] ?? '' ) );
+        $payment_period_column_ok = preg_match( '/^varchar\\((\\d+)\\)$/', $payment_period_column_type, $period_length )
+            ? intval( $period_length[1] ) >= 255
+            : in_array( $payment_period_column_type, array( 'text', 'mediumtext', 'longtext' ), true );
+    }
+    $payment_destination_column = $wpdb->get_var( "SHOW COLUMNS FROM {$t['payments']} LIKE 'payment_destination'" );
+    if ( $payment_destination_column !== 'payment_destination' ) {
+        $wpdb->query( "ALTER TABLE {$t['payments']} ADD COLUMN payment_destination VARCHAR(255) NULL" );
+        $payment_destination_column = $wpdb->get_var( "SHOW COLUMNS FROM {$t['payments']} LIKE 'payment_destination'" );
+    }
+    $payment_date_column = $wpdb->get_var( "SHOW COLUMNS FROM {$t['payments']} LIKE 'payment_date'" );
+    if ( $payment_date_column !== 'payment_date' ) {
+        $wpdb->query( "ALTER TABLE {$t['payments']} ADD COLUMN payment_date DATE NULL" );
+        $payment_date_column = $wpdb->get_var( "SHOW COLUMNS FROM {$t['payments']} LIKE 'payment_date'" );
+    }
+    $payment_verified_column = $wpdb->get_var( "SHOW COLUMNS FROM {$t['payments']} LIKE 'verified_at'" );
+    if ( $payment_verified_column !== 'verified_at' ) {
+        $wpdb->query( "ALTER TABLE {$t['payments']} ADD COLUMN verified_at DATETIME NULL" );
+        $payment_verified_column = $wpdb->get_var( "SHOW COLUMNS FROM {$t['payments']} LIKE 'verified_at'" );
+    }
     dbDelta( $sql_orders );
     // 2D. TESTIMONI — dikirim pembeli lewat portal publik, dimoderasi admin
     //    tenant (Pending -> Approved/Rejected). Cuma yang Approved tampil publik.
@@ -269,6 +339,7 @@ function goweb_create_custom_tables() {
         buyer_name VARCHAR(100) NOT NULL,
         rating TINYINT UNSIGNED NOT NULL DEFAULT 5,
         message TEXT NOT NULL,
+        photo_url TEXT NULL,
         status VARCHAR(20) NOT NULL DEFAULT 'Pending',
         created_at DATETIME NOT NULL,
         PRIMARY KEY  (id),
@@ -277,7 +348,36 @@ function goweb_create_custom_tables() {
     ) $charset_collate;";
 
     dbDelta( $sql_invoices );
+    // Jenis pembayaran/tagihan yang sama dipakai oleh Konfirmasi Pembayaran
+    // dan Rekapan Tagihan. Pertahankan batas 255 karakter pada kedua modul;
+    // fallback ini menangani hosting lama yang dbDelta-nya tidak melebarkan kolom.
+    $invoice_category_column = $wpdb->get_row( "SHOW COLUMNS FROM {$t['invoices']} LIKE 'category'", ARRAY_A );
+    if ( ! $invoice_category_column ) {
+        $wpdb->query( "ALTER TABLE {$t['invoices']} ADD COLUMN category VARCHAR(255) NOT NULL DEFAULT 'lainnya'" );
+        $invoice_category_column = $wpdb->get_row( "SHOW COLUMNS FROM {$t['invoices']} LIKE 'category'", ARRAY_A );
+    }
+    $invoice_category_column_type = strtolower( (string) ( $invoice_category_column['Type'] ?? '' ) );
+    $invoice_category_column_ok = false;
+    if ( preg_match( '/^varchar\\((\\d+)\\)$/', $invoice_category_column_type, $invoice_category_length ) ) {
+        $invoice_category_column_ok = intval( $invoice_category_length[1] ) >= 255;
+    } elseif ( in_array( $invoice_category_column_type, array( 'text', 'mediumtext', 'longtext' ), true ) ) {
+        $invoice_category_column_ok = true;
+    }
+    if ( ! $invoice_category_column_ok ) {
+        $wpdb->query( "ALTER TABLE {$t['invoices']} MODIFY COLUMN category VARCHAR(255) NOT NULL DEFAULT 'lainnya'" );
+        $invoice_category_column = $wpdb->get_row( "SHOW COLUMNS FROM {$t['invoices']} LIKE 'category'", ARRAY_A );
+        $invoice_category_column_type = strtolower( (string) ( $invoice_category_column['Type'] ?? '' ) );
+        $invoice_category_column_ok = preg_match( '/^varchar\\((\\d+)\\)$/', $invoice_category_column_type, $invoice_category_length )
+            ? intval( $invoice_category_length[1] ) >= 255
+            : in_array( $invoice_category_column_type, array( 'text', 'mediumtext', 'longtext' ), true );
+    }
     dbDelta( $sql_testimonials );
+    // Fallback untuk hosting/tabel lama yang tidak menerapkan perubahan dbDelta.
+    $testimonial_photo_column = $wpdb->get_var( "SHOW COLUMNS FROM {$t['testimonials']} LIKE 'photo_url'" );
+    if ( $testimonial_photo_column !== 'photo_url' ) {
+        $wpdb->query( "ALTER TABLE {$t['testimonials']} ADD COLUMN photo_url TEXT NULL" );
+        $testimonial_photo_column = $wpdb->get_var( "SHOW COLUMNS FROM {$t['testimonials']} LIKE 'photo_url'" );
+    }
     dbDelta( $sql_warehouse );
     dbDelta( $sql_wh_boxes );
     dbDelta( $sql_ledger );
@@ -286,7 +386,11 @@ function goweb_create_custom_tables() {
     dbDelta( $sql_pending );
     dbDelta( $sql_settings );
 
-    update_option( 'goweb_db_version', GOWEB_DB_VERSION );
+    // Jangan tandai upgrade selesai jika kolom pembayaran, kategori tagihan,
+    // atau foto testimoni belum berhasil diperbarui; request berikutnya mencoba ulang.
+    if ( $payment_type_column_ok && $payment_period_column_ok && $payment_destination_column === 'payment_destination' && $payment_date_column === 'payment_date' && $payment_verified_column === 'verified_at' && $invoice_category_column_ok && $testimonial_photo_column === 'photo_url' ) {
+        update_option( 'goweb_db_version', GOWEB_DB_VERSION );
+    }
 }
 
 function goweb_maybe_upgrade_db() {
@@ -863,6 +967,126 @@ function goweb_calculate_duration_price( $package, $duration_months ) {
     return round( $gross * ( 1 - ( $discount_pct / 100 ) ) );
 }
 
+/**
+ * Daftar CIDR proxy/CDN yang boleh dipercaya (opsional).
+ * Default KOSONG = hanya REMOTE_ADDR yang dipakai (aman, tidak bisa dipalsukan).
+ *
+ * Situs ini di belakang LiteSpeed CDN (QUIC.cloud). Dalam kondisi itu
+ * REMOTE_ADDR berisi IP edge CDN — SEMUA pengunjung terlihat satu IP, jadi
+ * throttle per-IP jadi tidak berguna (dan berisiko memblokir semua orang).
+ * Kalau mau memakai IP pengunjung asli, isi konstanta ini dengan daftar CIDR
+ * edge CDN, contoh di wp-config.php:
+ *     define( 'GOWEB_TRUSTED_PROXY_IPS', '203.0.113.0/24,2400:cb00::/32' );
+ * Header X-Forwarded-For HANYA dipercaya kalau REMOTE_ADDR ada di daftar ini,
+ * supaya orang luar tidak bisa memalsukan header untuk membobol throttle.
+ */
+if ( ! defined( 'GOWEB_TRUSTED_PROXY_IPS' ) ) {
+    define( 'GOWEB_TRUSTED_PROXY_IPS', '' );
+}
+/**
+ * Ambil otomatis daftar IP edge LiteSpeed CDN (QUIC.cloud) dari
+ * https://quic.cloud/ips dan cache harian. Tujuannya supaya situs yang di
+ * belakang CDN tetap bisa memakai IP pengunjung ASLI tanpa perlu menyalin
+ * CIDR manual (daftar itu berubah-ubah). Set false kalau tidak mau ada
+ * request keluar sama sekali.
+ */
+if ( ! defined( 'GOWEB_AUTO_TRUST_CDN_IPS' ) ) {
+    define( 'GOWEB_AUTO_TRUST_CDN_IPS', true );
+}
+
+/** Gabungan proxy tepercaya: konstanta manual + hasil cache daftar CDN. */
+function goweb_get_trusted_proxy_list() {
+    $list = array();
+    if ( defined( 'GOWEB_TRUSTED_PROXY_IPS' ) && GOWEB_TRUSTED_PROXY_IPS !== '' ) {
+        $list = array_filter( array_map( 'trim', explode( ',', (string) GOWEB_TRUSTED_PROXY_IPS ) ) );
+    }
+    $cached = get_option( 'goweb_cdn_edge_ips', array() );
+    if ( is_array( $cached ) ) {
+        $list = array_merge( $list, $cached );
+    }
+    return array_values( array_unique( array_filter( $list ) ) );
+}
+
+/**
+ * Segarkan daftar IP edge CDN (dipanggil dari cron harian, bukan di jalur
+ * request pengunjung supaya tidak menambah latensi).
+ * Kalau gagal (timeout/format aneh), daftar lama DIPERTAHANKAN — jangan
+ * sampai kegagalan sesaat membuat throttle mati atau malah salah percaya.
+ */
+function goweb_refresh_cdn_edge_ips() {
+    if ( ! defined( 'GOWEB_AUTO_TRUST_CDN_IPS' ) || ! GOWEB_AUTO_TRUST_CDN_IPS ) return false;
+    if ( ! function_exists( 'wp_remote_get' ) ) return false;
+
+    $resp = wp_remote_get( 'https://quic.cloud/ips', array( 'timeout' => 10 ) );
+    if ( function_exists( 'is_wp_error' ) && is_wp_error( $resp ) ) return false;
+    $code = function_exists( 'wp_remote_retrieve_response_code' ) ? (int) wp_remote_retrieve_response_code( $resp ) : 0;
+    if ( $code !== 200 ) return false;
+    $body = function_exists( 'wp_remote_retrieve_body' ) ? (string) wp_remote_retrieve_body( $resp ) : '';
+    if ( $body === '' ) return false;
+
+    // Sumbernya HTML sederhana: daftar IP dipisah <br /> / spasi / koma.
+    $ips = array();
+    foreach ( preg_split( '/<br\s*\/?>|[\s,]+/', $body ) as $candidate ) {
+        $candidate = trim( strip_tags( (string) $candidate ) );
+        if ( $candidate !== '' && filter_var( $candidate, FILTER_VALIDATE_IP ) ) {
+            $ips[] = $candidate;
+        }
+    }
+    if ( empty( $ips ) ) return false; // format berubah -> simpan daftar lama
+
+    update_option( 'goweb_cdn_edge_ips', array_values( array_unique( $ips ) ), false );
+    update_option( 'goweb_cdn_edge_ips_updated', time(), false );
+    return count( $ips );
+}
+
+/** Cek sebuah IP ada di dalam blok CIDR (IPv4 & IPv6). */
+function goweb_ip_in_cidr( $ip, $cidr ) {
+    $cidr = trim( (string) $cidr );
+    if ( $cidr === '' ) return false;
+    if ( strpos( $cidr, '/' ) === false ) return $ip === $cidr;
+    list( $subnet, $bits ) = explode( '/', $cidr, 2 );
+    $ip_bin     = @inet_pton( $ip );
+    $subnet_bin = @inet_pton( trim( $subnet ) );
+    if ( $ip_bin === false || $subnet_bin === false || strlen( $ip_bin ) !== strlen( $subnet_bin ) ) return false;
+    $bits  = max( 0, min( strlen( $ip_bin ) * 8, (int) $bits ) );
+    $bytes = intdiv( $bits, 8 );
+    $rem   = $bits % 8;
+    if ( $bytes > 0 && strncmp( $ip_bin, $subnet_bin, $bytes ) !== 0 ) return false;
+    if ( $rem === 0 ) return true;
+    $mask = chr( ( 0xFF << ( 8 - $rem ) ) & 0xFF );
+    return ( ( $ip_bin[ $bytes ] & $mask ) === ( $subnet_bin[ $bytes ] & $mask ) );
+}
+
+/**
+ * IP klien untuk keperluan throttle / lockout.
+ * Default selalu REMOTE_ADDR. Header proxy hanya dipakai kalau REMOTE_ADDR
+ * sudah terverifikasi sebagai proxy tepercaya (lihat GOWEB_TRUSTED_PROXY_IPS).
+ */
+function goweb_get_client_ip() {
+    $remote = isset( $_SERVER['REMOTE_ADDR'] ) ? trim( (string) $_SERVER['REMOTE_ADDR'] ) : '';
+    if ( $remote === '' ) return 'unknown';
+
+    $list = goweb_get_trusted_proxy_list();
+    if ( empty( $list ) ) return $remote; // default aman: jangan percaya header
+
+    $is_trusted = false;
+    foreach ( $list as $cidr ) {
+        if ( goweb_ip_in_cidr( $remote, $cidr ) ) { $is_trusted = true; break; }
+    }
+    if ( ! $is_trusted ) return $remote;
+
+    // Urutan prioritas header yang biasa dipasang CDN/proxy.
+    foreach ( array( 'HTTP_X_FORWARDED_FOR', 'HTTP_X_REAL_IP', 'HTTP_CF_CONNECTING_IP' ) as $hdr ) {
+        if ( empty( $_SERVER[ $hdr ] ) ) continue;
+        // X-Forwarded-For bisa berisi rantai: "klien, proxy1, proxy2" -> ambil yang pertama valid
+        foreach ( explode( ',', (string) $_SERVER[ $hdr ] ) as $candidate ) {
+            $candidate = trim( $candidate );
+            if ( filter_var( $candidate, FILTER_VALIDATE_IP ) ) return $candidate;
+        }
+    }
+    return $remote;
+}
+
 function goweb_get_tenant_active_until( $tenant ) {
     if ( ! empty( $tenant['active_until'] ) ) {
         return intval( $tenant['active_until'] );
@@ -898,6 +1122,145 @@ function goweb_delete_uploaded_file_by_url( $url ) {
 }
 
 /**
+ * Terima foto testimoni opsional: hanya satu JPEG/PNG/WebP raster, maksimal
+ * 2 MiB, lewat API upload WordPress, setelah lolos kuota tenant. Coba
+ * resize/re-encode ke maksimal 1200x1200; jika editor tidak mendukung format,
+ * file yang sudah berada dalam batas dimensi tetap dapat digunakan.
+ * Melempar DomainException untuk input/pemrosesan yang gagal.
+ */
+function goweb_upload_testimonial_photo( $file, $tenant_id, $storage_limit_mb, $row_bytes = 0 ) {
+    if ( $file === null ) return '';
+    $max_bytes = 2 * 1024 * 1024;
+    $uploaded_url = '';
+    $uploaded_path = '';
+
+    try {
+        if ( ! is_array( $file ) || ! isset( $file['error'], $file['name'], $file['tmp_name'], $file['size'] )
+            || ! is_scalar( $file['error'] ) || ! is_scalar( $file['name'] )
+            || ! is_scalar( $file['tmp_name'] ) || ! is_scalar( $file['size'] ) ) {
+            throw new DomainException( 'Lampiran foto tidak valid. Pilih satu foto JPG, PNG, atau WebP.' );
+        }
+        $upload_error = (int) $file['error'];
+        if ( $upload_error === UPLOAD_ERR_NO_FILE ) return '';
+        if ( $upload_error !== UPLOAD_ERR_OK ) {
+            throw new DomainException( $upload_error === UPLOAD_ERR_INI_SIZE || $upload_error === UPLOAD_ERR_FORM_SIZE
+                ? 'Ukuran foto maksimal 2 MiB. Silakan pilih foto yang lebih kecil.'
+                : 'Foto gagal diterima. Silakan pilih ulang foto JPG, PNG, atau WebP.' );
+        }
+
+        $tmp_path = (string) $file['tmp_name'];
+        $file['name'] = sanitize_file_name( (string) $file['name'] );
+        $file_size = is_file( $tmp_path ) ? filesize( $tmp_path ) : false;
+        if ( $file['name'] === '' || $file_size === false || $file_size < 1 || $file_size > $max_bytes
+            || (int) $file['size'] !== (int) $file_size ) {
+            throw new DomainException( 'Foto tidak valid atau melebihi batas 2 MiB. Pilih foto JPG, PNG, atau WebP.' );
+        }
+
+        $allowed_mimes = array(
+            'jpg|jpeg|jpe' => 'image/jpeg',
+            'png'          => 'image/png',
+            'webp'         => 'image/webp',
+        );
+        $extension = strtolower( pathinfo( $file['name'], PATHINFO_EXTENSION ) );
+        $extension_mimes = array(
+            'jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'jpe' => 'image/jpeg',
+            'png' => 'image/png', 'webp' => 'image/webp',
+        );
+        $image_info = @getimagesize( $tmp_path );
+        $detected_mime = ( is_array( $image_info ) && isset( $image_info['mime'] ) ) ? $image_info['mime'] : '';
+        $finfo_mime = '';
+        if ( function_exists( 'finfo_open' ) ) {
+            $file_info = finfo_open( FILEINFO_MIME_TYPE );
+            if ( $file_info ) {
+                $finfo_mime = finfo_file( $file_info, $tmp_path );
+                unset( $file_info ); // releases the finfo handle across supported PHP versions
+            }
+        }
+        $dimensions_valid = is_array( $image_info ) && isset( $image_info[0], $image_info[1] )
+            && $image_info[0] > 0 && $image_info[1] > 0
+            && $image_info[0] <= 12000 && $image_info[1] <= 12000
+            && ( $image_info[0] * $image_info[1] ) <= 40000000;
+        if ( ! $dimensions_valid || ! isset( $extension_mimes[ $extension ] )
+            || $detected_mime !== $extension_mimes[ $extension ]
+            || ! in_array( $detected_mime, array_values( $extension_mimes ), true )
+            || ( in_array( $finfo_mime, array_values( $extension_mimes ), true ) && $finfo_mime !== $detected_mime ) ) {
+            throw new DomainException( 'Format foto tidak didukung atau isi file tidak cocok. Gunakan foto JPEG, PNG, atau WebP yang valid.' );
+        }
+        if ( function_exists( 'wp_check_filetype_and_ext' ) ) {
+            $checked_type = wp_check_filetype_and_ext( $tmp_path, $file['name'], $allowed_mimes );
+            if ( empty( $checked_type['type'] ) || $checked_type['type'] !== $detected_mime ) {
+                throw new DomainException( 'Format foto tidak valid. Gunakan foto JPEG, PNG, atau WebP.' );
+            }
+        }
+
+        $storage_limit_bytes = (float) $storage_limit_mb * 1048576;
+        $storage_used_bytes = goweb_calculate_tenant_storage_bytes( $tenant_id );
+        $upload_dir = wp_upload_dir();
+        $upload_url_base = isset( $upload_dir['url'] ) ? $upload_dir['url'] : ( isset( $upload_dir['baseurl'] ) ? $upload_dir['baseurl'] : '' );
+        $estimated_photo_url_bytes = strlen( rtrim( $upload_url_base, '/' ) . '/' . $file['name'] ) + 32;
+        if ( $storage_used_bytes + $file_size + max( 0, (int) $row_bytes ) + $estimated_photo_url_bytes > $storage_limit_bytes ) {
+            throw new DomainException( 'Kapasitas penyimpanan toko sedang penuh. Foto tidak dapat diunggah; hubungi admin toko.' );
+        }
+
+        require_once( ABSPATH . 'wp-admin/includes/file.php' );
+        $uploaded = wp_handle_upload( $file, array( 'test_form' => false, 'mimes' => $allowed_mimes ) );
+        if ( is_array( $uploaded ) ) {
+            $uploaded_url = ! empty( $uploaded['url'] ) ? esc_url_raw( $uploaded['url'] ) : '';
+            $uploaded_path = ! empty( $uploaded['file'] ) ? $uploaded['file'] : '';
+        }
+        if ( is_wp_error( $uploaded ) || ! is_array( $uploaded ) || $uploaded_url === '' || $uploaded_path === '' ) {
+            throw new DomainException( 'Foto gagal diunggah. Pastikan foto JPEG, PNG, atau WebP dan coba lagi.' );
+        }
+        if ( $uploaded_url === '' || ! is_file( $uploaded_path ) ) {
+            throw new DomainException( 'Foto gagal diunggah. Silakan pilih ulang foto.' );
+        }
+
+        $editor = wp_get_image_editor( $uploaded_path );
+        if ( is_wp_error( $editor ) ) {
+            if ( $image_info[0] > 1200 || $image_info[1] > 1200 ) {
+                throw new DomainException( 'Server tidak dapat memproses foto ini. Gunakan JPEG, PNG, atau WebP dengan sisi maksimal 1200 piksel.' );
+            }
+        } else {
+            $resize_result = $editor->resize( 1200, 1200, false );
+            if ( is_wp_error( $resize_result ) ) {
+                throw new DomainException( 'Foto tidak dapat diproses. Silakan pilih foto lain.' );
+            }
+            if ( method_exists( $editor, 'set_quality' ) ) $editor->set_quality( 82 );
+            $saved = $editor->save( $uploaded_path );
+            if ( is_wp_error( $saved ) ) {
+                throw new DomainException( 'Foto tidak dapat diproses. Silakan pilih foto lain.' );
+            }
+            if ( ! empty( $saved['path'] ) && realpath( $saved['path'] ) !== realpath( $uploaded_path ) ) {
+                throw new DomainException( 'Foto gagal diproses dengan aman. Silakan pilih foto lain.' );
+            }
+        }
+
+        $processed_info = @getimagesize( $uploaded_path );
+        $processed_size = is_file( $uploaded_path ) ? filesize( $uploaded_path ) : false;
+        if ( ! is_array( $processed_info ) || ! isset( $processed_info['mime'], $processed_info[0], $processed_info[1] )
+            || $processed_info['mime'] !== $detected_mime
+            || $processed_info[0] > 1200 || $processed_info[1] > 1200
+            || $processed_size === false || $processed_size < 1 || $processed_size > $max_bytes ) {
+            throw new DomainException( 'Hasil pemrosesan foto tidak valid atau melebihi batas 2 MiB. Silakan pilih foto lain.' );
+        }
+        if ( $storage_used_bytes + $processed_size + max( 0, (int) $row_bytes ) + strlen( $uploaded_url ) > $storage_limit_bytes ) {
+            throw new DomainException( 'Kapasitas penyimpanan toko sedang penuh. Foto tidak dapat disimpan; hubungi admin toko.' );
+        }
+        return $uploaded_url;
+    } catch ( Throwable $error ) {
+        if ( $uploaded_url !== '' ) {
+            goweb_delete_uploaded_file_by_url( $uploaded_url );
+        } elseif ( $uploaded_path !== '' && is_file( $uploaded_path ) ) {
+            $upload_dir = wp_upload_dir();
+            $base_path = isset( $upload_dir['basedir'] ) ? realpath( $upload_dir['basedir'] ) : false;
+            $real_path = realpath( $uploaded_path );
+            if ( $base_path && $real_path && strpos( $real_path, $base_path . DIRECTORY_SEPARATOR ) === 0 ) @unlink( $real_path );
+        }
+        throw $error;
+    }
+}
+
+/**
  * Hapus SEMUA jejak satu tenant: record utama, semua data terkait di
  * tabel custom, dan semua file upload (bukti transfer) yang
  * direferensikan di riwayat pembayarannya.
@@ -906,15 +1269,18 @@ function goweb_delete_tenant_completely( $tenant_id ) {
     global $wpdb;
     $t = goweb_get_table_names();
 
-    // 1. Hapus semua file bukti transfer & foto bukti warehouse yang
-    //    direferensikan di riwayat pembayaran/warehouse tenant ini
+    // 1. Hapus semua file bukti transfer, foto bukti warehouse, dan foto
+    //    testimoni yang direferensikan oleh data tenant ini.
     $proof_urls = $wpdb->get_col( $wpdb->prepare(
         "SELECT proof_url FROM {$t['payments']} WHERE store_id = %s AND proof_url IS NOT NULL AND proof_url != ''", $tenant_id
     ) );
     $foto_urls = $wpdb->get_col( $wpdb->prepare(
         "SELECT foto_bukti FROM {$t['warehouse']} WHERE store_id = %s AND foto_bukti IS NOT NULL AND foto_bukti != ''", $tenant_id
     ) );
-    foreach ( array_merge( $proof_urls, $foto_urls ) as $url ) {
+    $testi_photo_urls = $wpdb->get_col( $wpdb->prepare(
+        "SELECT photo_url FROM {$t['testimonials']} WHERE store_id = %s AND photo_url IS NOT NULL AND photo_url != ''", $tenant_id
+    ) );
+    foreach ( array_merge( $proof_urls, $foto_urls, $testi_photo_urls ) as $url ) {
         goweb_delete_uploaded_file_by_url( $url );
     }
 
@@ -986,7 +1352,7 @@ function goweb_calculate_tenant_storage_bytes( $tenant_id ) {
          FROM {$t['settings']} WHERE tenant_id = %s", $tenant_id
     ) );
     $total += (int) $wpdb->get_var( $wpdb->prepare(
-        "SELECT COALESCE(SUM(LENGTH(buyer_name)+LENGTH(message)+LENGTH(status)+16), 0)
+        "SELECT COALESCE(SUM(LENGTH(buyer_name)+LENGTH(message)+LENGTH(COALESCE(photo_url,''))+LENGTH(status)+16), 0)
          FROM {$t['testimonials']} WHERE store_id = %s", $tenant_id
     ) );
     $total += (int) $wpdb->get_var( $wpdb->prepare(
@@ -1011,7 +1377,10 @@ function goweb_calculate_tenant_storage_bytes( $tenant_id ) {
     $foto_urls = $wpdb->get_col( $wpdb->prepare(
         "SELECT foto_bukti FROM {$t['warehouse']} WHERE store_id = %s AND foto_bukti IS NOT NULL AND foto_bukti != ''", $tenant_id
     ) );
-    $all_files = array_merge( $proof_urls, $foto_urls );
+    $testi_photo_urls = $wpdb->get_col( $wpdb->prepare(
+        "SELECT photo_url FROM {$t['testimonials']} WHERE store_id = %s AND photo_url IS NOT NULL AND photo_url != ''", $tenant_id
+    ) );
+    $all_files = array_merge( $proof_urls, $foto_urls, $testi_photo_urls );
     $upload_dir = wp_upload_dir();
     foreach ( $all_files as $url ) {
         if ( strpos( $url, $upload_dir['baseurl'] ) === 0 ) {
@@ -1070,6 +1439,16 @@ function goweb_run_tenant_cleanup() {
             $deleted_log = array_slice( $deleted_log, -500 );
         }
         update_option( 'goweb_deleted_tenants_log', $deleted_log );
+    }
+
+    // Arsipkan box "sampai Indo" yang sudah lewat masa simpan (aturan pemilik)
+    goweb_archive_stale_arrived_boxes();
+
+    // Segarkan daftar IP edge LiteSpeed CDN (#40) — maksimal sekali/12 jam,
+    // ditempatkan di cron supaya tidak menambah latensi request pengunjung.
+    $cdn_ips_updated = (int) get_option( 'goweb_cdn_edge_ips_updated', 0 );
+    if ( $now - $cdn_ips_updated > ( 12 * HOUR_IN_SECONDS ) ) {
+        goweb_refresh_cdn_edge_ips();
     }
 
     // Bersihkan pendaftaran yang menggantung terlalu lama (#39).
@@ -1282,6 +1661,59 @@ function goweb_get_package_definitions() {
     );
 }
 
+/**
+ * Nilai BERSIH sebuah pembayaran sewa — tanpa biaya layanan QRIS.
+ * Kenapa perlu: `nominal` yang tersimpan sengaja SUDAH termasuk fee QRIS
+ * (itu yang benar-benar ditransfer tenant). Tapi `cycle_daily_rate` dipakai
+ * untuk prorata upgrade, jadi kalau dihitung dari nominal+fee, nilai harian
+ * tenant jadi sedikit lebih tinggi dari harga paket sebenarnya — prorata
+ * upgrade berikutnya ikut membengkak.
+ * Untuk perpanjangan, harga bersihnya bisa dihitung ulang PERSIS dari kamus
+ * paket + durasi. Untuk upgrade, nominal adalah selisih prorata + fee yang
+ * tidak bisa dipisah tanpa menyimpan fee terpisah, jadi dipakai apa adanya
+ * (selisihnya kecil dan sudah tercatat sebagai keterbatasan di backlog).
+ */
+function goweb_subscription_net_value( $payment_row, $current_package ) {
+    $nominal = isset( $payment_row['nominal'] ) ? floatval( $payment_row['nominal'] ) : 0;
+    if ( ! empty( $payment_row['requested_package'] ) ) {
+        return $nominal; // upgrade
+    }
+    $months    = ! empty( $payment_row['requested_duration_months'] ) ? intval( $payment_row['requested_duration_months'] ) : 1;
+    $durations = goweb_get_subscription_durations();
+    if ( ! isset( $durations[ $months ] ) ) $months = 1;
+    return (float) goweb_calculate_duration_price( $current_package, $months );
+}
+
+/**
+ * Rate harian baru setelah pembayaran perpanjangan disetujui.
+ * Perpanjangan lebih awal menggabungkan nilai sisa lama dengan harga paket
+ * bersih untuk durasi baru; upgrade tidak memakai helper ini.
+ */
+function goweb_subscription_renewal_daily_rate( $old_rate, $remaining_days, $net_paid, $duration_days ) {
+    $duration_days = max( 1, (int) $duration_days );
+    $total_days = max( 0, (int) $remaining_days ) + $duration_days;
+    $remaining_value = max( 0, (float) $old_rate ) * max( 0, (int) $remaining_days );
+    return round( ( $remaining_value + max( 0, (float) $net_paid ) ) / $total_days, 2 );
+}
+
+/**
+ * Format kapasitas storage (angka dalam MB) jadi teks yang konsisten.
+ * Sebelumnya landing & register menulis "1 GB" sementara dashboard &
+ * halaman perpanjangan menulis "1024 MB" untuk paket yang SAMA — bagian dari
+ * masalah "satu kebijakan, banyak salinan" (#11): calon pembeli melihat
+ * 1 GB, tenant melihat 1024 MB.
+ */
+function goweb_format_storage_size( $mb ) {
+    $mb = (float) $mb;
+    if ( $mb >= 1024 ) {
+        $gb = $mb / 1024;
+        // 1 GB / 2 GB / 5 GB / 10 GB — buang desimal nol biar rapi.
+        $gb_text = ( floor( $gb ) === $gb ) ? number_format( $gb, 0 ) : number_format( $gb, 1, ',', '.' );
+        return $gb_text . ' GB';
+    }
+    return number_format( $mb, 0 ) . ' MB';
+}
+
 function goweb_get_package( $package_key ) {
     $packages = goweb_get_package_definitions();
     return isset( $packages[ $package_key ] ) ? $packages[ $package_key ] : $packages['starter'];
@@ -1309,6 +1741,54 @@ function goweb_qris_fee_config() {
  * Hitung biaya layanan QRIS + total akhir. Dibulatikan ke atas (ceil)
  * per komponen fee, sama seperti perilaku lama.
  */
+function goweb_calculate_wallet_moving_average( $ledger_rows, $wallet_name ) {
+    $rows = array_values( array_filter( (array) $ledger_rows, function( $row ) use ( $wallet_name ) {
+        return isset($row['wallet_name'], $row['tx_type'])
+            && (string) $row['wallet_name'] === (string) $wallet_name
+            && in_array( $row['tx_type'], array('wallet_topup', 'supplier_purchase'), true );
+    } ) );
+    usort( $rows, function( $a, $b ) {
+        // Auto-increment ID is the actual posting order; tx_date may be
+        // backdated and created_at can have second-level ties.
+        return intval($a['id'] ?? 0) <=> intval($b['id'] ?? 0);
+    } );
+
+    $balance = 0.0;
+    $cost_basis = 0.0;
+    $has_topup = false;
+    $is_valid = true;
+
+    foreach ( $rows as $row ) {
+        $amount = floatval( $row['amount'] ?? 0 );
+        if ( $amount <= 0 ) continue;
+
+        if ( $row['tx_type'] === 'wallet_topup' ) {
+            $has_topup = true;
+            $balance += $amount;
+            $cost_basis += floatval( $row['idr_value'] ?? 0 );
+            continue;
+        }
+
+        // Existing supplier expenses are already posted in the ledger. Keep
+        // those booked costs as the opening cost basis for remaining funds.
+        if ( $amount > $balance + 0.005 ) $is_valid = false;
+        $balance -= $amount;
+        $cost_basis -= floatval( $row['idr_value'] ?? 0 );
+    }
+
+    if ( $balance < -0.005 || $cost_basis < -0.005 ) $is_valid = false;
+    if ( abs($balance) < 0.005 ) $balance = 0.0;
+    if ( abs($cost_basis) < 0.005 ) $cost_basis = 0.0;
+
+    return array(
+        'balance' => $balance,
+        'cost_basis' => $cost_basis,
+        'average_rate' => $is_valid && $balance > 0 ? $cost_basis / $balance : 0.0,
+        'has_topup' => $has_topup,
+        'is_valid' => $is_valid,
+    );
+}
+
 function goweb_calculate_qris_fee( $base ) {
     $c = goweb_qris_fee_config();
     $is_low = ( $base < $c['threshold'] );
@@ -1391,9 +1871,9 @@ function goweb_get_default_box_statuses() {
 }
 
 /**
- * Kamus default "Kargo & Pajak per Mata Uang" — nempel LANGSUNG ke 5
- * mata uang yang sama kayak Kurs (CNY/JPY/THB/KRW/USD), bukan daftar
- * negara terpisah lagi. Tenant bisa ubah nilainya lewat Pengaturan.
+ * Kamus default "Kargo & Pajak per Mata Uang" — nempel LANGSUNG ke 7
+ * mata uang yang sama kayak Kurs, bukan daftar negara terpisah lagi.
+ * Tenant bisa ubah nilainya lewat Pengaturan.
  */
 function goweb_get_default_currency_cargo() {
     return array(
@@ -1402,6 +1882,8 @@ function goweb_get_default_currency_cargo() {
         'THB' => array( 'air' => 120000, 'sea' => 75000, 'tax_percent' => 7.5 ),
         'KRW' => array( 'air' => 150000, 'sea' => 90000, 'tax_percent' => 10 ),
         'USD' => array( 'air' => 220000, 'sea' => 130000, 'tax_percent' => 12.5 ),
+        'TWD' => array( 'air' => 140000, 'sea' => 85000, 'tax_percent' => 7.5 ),
+        'PHP' => array( 'air' => 120000, 'sea' => 75000, 'tax_percent' => 7.5 ),
     );
 }
 
@@ -1410,12 +1892,95 @@ function goweb_get_default_currency_cargo() {
  * dihitung LIVE dari data asli (bukan counter manual), biar gak pernah
  * "ngambang" kalau ada item yang ditambah/dipindah/dihapus dari Box.
  */
+/**
+ * ======================================================================
+ * AUTO-ARSIP BOX "SAMPAI INDO" (aturan pemilik)
+ * ======================================================================
+ * Box yang statusnya sudah sampai Indonesia ("Sampai Indonesia" /
+ * "Sampai Indo" / "Arrived Indo") hanya perlu disimpan ~2 minggu sejak
+ * status itu diset. Lebih dari itu box-nya menghilang otomatis dari daftar
+ * (UI) — pekerjaan gudang sudah selesai, jadi menyisakan barisnya cuma
+ * bikin daftar box makin panjang dan kapasitas kelihatan penuh.
+ *
+ * Kenapa status_changed_at, bukan created_at: box bisa nginap lama di
+ * status "Packing In Progress". Kalau dihitung dari created_at, box yang
+ * baru saja sampai bisa langsung ke-arsip.
+ *
+ * Kenapa di-arsip (archived_at), bukan langsung DELETE: baris box dipakai
+ * untuk melacak riwayat kiriman pembeli. Penghapusan permanen dilakukan
+ * manual (tombol hapus) atau otomatis kalau pemilik minta.
+ */
+if ( ! defined( 'GOWEB_BOX_ARRIVED_HOLD_DAYS' ) ) {
+    define( 'GOWEB_BOX_ARRIVED_HOLD_DAYS', 14 );
+}
+
+/** Status box dianggap "sudah sampai Indonesia"? (case-insensitive) */
+function goweb_is_box_arrived_status( $status ) {
+    $s = strtolower( trim( (string) $status ) );
+    if ( $s === '' ) return false;
+    foreach ( array( 'sampai indo', 'arrived indo', 'sampai indonesia', 'arrived' ) as $needle ) {
+        if ( strpos( $s, $needle ) !== false ) return true;
+    }
+    return false;
+}
+
+/**
+ * Arsipkan box arrived yang sudah lewat masa simpan.
+ * Dipanggil dari cron harian; return jumlah box yang baru diarsipkan.
+ */
+function goweb_archive_stale_arrived_boxes() {
+    global $wpdb;
+    $box_table = goweb_get_table_names()['wh_boxes'];
+    $cutoff_ts = time() - ( GOWEB_BOX_ARRIVED_HOLD_DAYS * DAY_IN_SECONDS );
+
+    $rows = $wpdb->get_results( $wpdb->prepare(
+        "SELECT id, status, status_changed_at FROM {$box_table}
+         WHERE archived_at IS NULL AND status_changed_at IS NOT NULL AND status_changed_at <= %s",
+        gmdate( 'Y-m-d H:i:s', $cutoff_ts )
+    ), ARRAY_A );
+    if ( empty( $rows ) ) return 0;
+
+    $archived  = 0;
+    $now_mysql = current_time( 'mysql' );
+    $warehouse_table = goweb_get_table_names()['warehouse'];
+    foreach ( $rows as $row ) {
+        if ( ! goweb_is_box_arrived_status( $row['status'] ) ) continue;
+        $box_id = intval( $row['id'] );
+        $wpdb->update( $box_table, array( 'archived_at' => $now_mysql ), array( 'id' => $box_id ) );
+        // Item dilepas dari box (box_id -> NULL), sama seperti perilaku tombol
+        // hapus box manual: box-nya hilang dari UI, jadi item tidak boleh
+        // menyimpan referensi ke box yang tak lagi tampil.
+        $wpdb->update( $warehouse_table, array( 'box_id' => null ), array( 'box_id' => $box_id ) );
+        $archived++;
+    }
+    return $archived;
+}
+
 function goweb_calculate_box_filled_weight( $box_id ) {
     global $wpdb;
     $warehouse_table = goweb_get_table_names()['warehouse'];
     return (float) $wpdb->get_var( $wpdb->prepare(
         "SELECT COALESCE(SUM(berat), 0) FROM {$warehouse_table} WHERE box_id = %d", $box_id
     ) );
+}
+
+/**
+ * Hitung berat box setelah satu paket dipindah ke dalamnya.
+ * Return nilai bukan-boolean agar handler bisa membedakan box hilang
+ * dari penolakan kapasitas.
+ */
+function goweb_get_box_assignment_capacity_error( $box, $item_weight, $current_box_id = 0 ) {
+    if ( ! is_array( $box ) || empty( $box['id'] ) ) return 'Box tidak ditemukan atau sudah tidak aktif.';
+    $capacity = isset( $box['kapasitas_kg'] ) ? (float) $box['kapasitas_kg'] : 0;
+    $filled   = isset( $box['filled_kg'] ) ? (float) $box['filled_kg'] : 0;
+    $item_weight = (float) $item_weight;
+    if ( $capacity <= 0 ) return 'Kapasitas box tidak valid. Perbarui kapasitasnya sebelum menambahkan paket.';
+    if ( $item_weight < 0 ) return 'Berat paket tidak valid.';
+    if ( $current_box_id > 0 && (int) $current_box_id === (int) $box['id'] ) return '';
+    if ( $filled + $item_weight > $capacity + 0.000001 ) {
+        return sprintf( 'Paket tidak dapat dimasukkan: kapasitas box %.2f kg, terisi %.2f kg, tambahan %.2f kg.', $capacity, $filled, $item_weight );
+    }
+    return '';
 }
 
 /**

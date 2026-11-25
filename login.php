@@ -41,7 +41,10 @@ $num2 = $_SESSION['math_num2'];
 define( 'GOWEB_LOGIN_MAX_ATTEMPTS', 5 );
 define( 'GOWEB_LOGIN_LOCKOUT_MINUTES', 15 );
 $attempted_email = isset($_POST['log']) ? sanitize_text_field($_POST['log']) : '';
-$lockout_ip = isset($_SERVER['REMOTE_ADDR']) ? sanitize_text_field($_SERVER['REMOTE_ADDR']) : 'unknown';
+// IP untuk lockout lewat helper (#40): default tetap REMOTE_ADDR (tidak bisa
+// dipalsukan). Kalau situs di belakang CDN dan CIDR proxy didaftarkan di
+// GOWEB_TRUSTED_PROXY_IPS, helper otomatis memakai IP pengunjung asli.
+$lockout_ip = function_exists('goweb_get_client_ip') ? goweb_get_client_ip() : ( isset($_SERVER['REMOTE_ADDR']) ? sanitize_text_field($_SERVER['REMOTE_ADDR']) : 'unknown' );
 $lockout_key = 'goweb_login_lock_' . md5( strtolower( $attempted_email ) . '|' . $lockout_ip );
 $is_locked_out = false;
 if ( $attempted_email !== '' ) {
@@ -113,29 +116,35 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['tenant_login_nonce']) 
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
         .login-container { width: 100%; max-width: 480px; margin: auto; padding: 52px 20px 64px; }
-        .login-card { padding: 36px; border: 1px solid #e5dfef; border-radius: 20px; background: #fff; box-shadow: 0 18px 48px rgba(59,48,95,.09); }
+        .login-card { padding: 36px; border: 1px solid #e5e0f2; border-radius: 20px; background: #fff; box-shadow: 0 18px 48px rgba(59,48,95,.08); }
         .login-heading { margin-bottom: 28px; text-align: center; }
         .login-kicker { display: inline-flex; align-items: center; gap: 7px; padding: 5px 12px; border: 1px solid #e0d7ed; border-radius: 999px; background: #f0ebf7; color: #594a75; font-size: .75rem; font-weight: 800; }
         .login-heading h1 { margin: 12px 0 5px; color: #302b46; font-size: 1.55rem; font-weight: 800; letter-spacing: -.035em; }
-        .login-heading p { color: #777188; font-size: .88rem; line-height: 1.6; }
+        .login-heading p { color: #625d70; font-size: .88rem; line-height: 1.6; }
         .login-error { margin-bottom: 20px; padding: 12px 15px; border: 1px solid #efd6d1; border-radius: 12px; background: #fbf1ef; color: #8b4f46; font-size: .84rem; font-weight: 700; text-align: center; }
         .form-group { margin-bottom: 20px; }
         .form-group label { display: block; margin-bottom: 7px; color: #403a53; font-size: .84rem; font-weight: 750; }
-        .form-control { width: 100%; min-height: 48px; padding: 12px 14px; border: 1px solid #ded8e8; border-radius: 11px; background: #fff; color: #302b46; font: inherit; font-size: .9rem; outline: none; transition: border-color .18s ease, box-shadow .18s ease; }
-        .form-control::placeholder { color: #a09aac; }
-        .form-control:focus { border-color: #8a76ae; box-shadow: 0 0 0 3px rgba(109,90,145,.13); }
+        .form-control { width: 100%; min-height: 46px; padding: 11px 14px; border: 1px solid #e5e0f2; border-radius: 11px; background: #fff; color: #302b46; font: inherit; font-size: .9rem; outline: none; transition: border-color .18s ease, box-shadow .18s ease; }
+        .form-control::placeholder { color: #716b80; }
+        .form-control:focus { border-color: #9c8ab8; box-shadow: 0 0 0 3px rgba(109,90,145,.12); }
         .login-captcha { margin-bottom: 22px; padding: 16px; border: 1px dashed #cfc3df; border-radius: 13px; background: #f5f2f8; }
         .login-captcha label { margin-bottom: 7px; color: #594a75; font-size: .78rem; }
         .login-captcha-question { color: #403a53; font-size: .88rem; font-weight: 750; }
         .login-captcha .form-control { margin-top: 9px; }
-        .btn-submit { width: 100%; min-height: 48px; padding: 12px 16px; border: 0; border-radius: 11px; background: linear-gradient(135deg, #6d28d9, #4338ca); color: #fff; font: inherit; font-size: .9rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 9px; text-decoration: none; transition: transform .18s ease, box-shadow .18s ease; box-shadow: 0 8px 20px rgba(79,70,149,.18); }
-        .btn-submit:hover { transform: translateY(-1px); color: #fff; box-shadow: 0 11px 24px rgba(79,70,149,.25); }
-        .login-register-link { margin: 20px 0 0; color: #777188; font-size: .84rem; text-align: center; }
+        .btn-submit { width: 100%; min-height: 48px; padding: 12px 16px; border: 0; border-radius: 12px; background: linear-gradient(135deg, #6d5a91, #51416f); color: #fff; font: inherit; font-size: .92rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 9px; text-decoration: none; transition: transform .18s ease, box-shadow .18s ease; box-shadow: 0 8px 20px rgba(81,65,111,.18); }
+        .btn-submit:hover { transform: translateY(-1px); color: #fff; box-shadow: 0 11px 24px rgba(81,65,111,.25); }
+        .btn-submit:focus-visible { outline: 3px solid #8069a3; outline-offset: 3px; }
+        .login-register-link { margin: 20px 0 0; color: #625d70; font-size: .84rem; text-align: center; }
         .login-register-link a { color: #594a75; font-weight: 800; text-decoration: none; }
         .login-register-link a:hover { color: #43345f; text-decoration: underline; }
+        .login-register-link a:focus-visible { outline: 3px solid #8069a3; outline-offset: 3px; border-radius: 3px; }
+        .login-help-text { margin: 12px 0 0; color: #625d70; font-size: .84rem; line-height: 1.55; text-align: center; }
         @media (max-width: 640px) {
             .login-container { max-width: 460px; padding: 32px 16px 44px; }
             .login-card { padding: 26px 22px; border-radius: 17px; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .btn-submit, .form-control { transition: none; }
         }
 </style>
 <?php
@@ -189,6 +198,7 @@ get_header();
                 <i class="fa-solid fa-right-to-bracket"></i> Masuk ke Dashboard
             </button>
         </form>
+        <p class="login-help-text">Lupa password? Hubungi admin GO-WEB untuk dibuatkan password baru.</p>
         <p class="login-register-link">Belum punya toko? <a href="<?php echo esc_url(home_url('/register')); ?>">Daftar sekarang</a></p>
 
     </div>

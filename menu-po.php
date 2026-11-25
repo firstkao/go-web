@@ -9,15 +9,20 @@ $active_custom_statuses = goweb_get_tenant_setting( $store_id, 'custom_statuses'
 $active_rates = goweb_get_tenant_setting( $store_id, 'rates', array('CNY' => 2450, 'JPY' => 110, 'THB' => 460, 'KRW' => 12, 'USD' => 16200) );
 ?>
 <div class="fin-wrap">
-    <div style="margin-bottom: 24px;">
-        <h2 style="font-size: 1.25rem; font-weight: 800; color: var(--text-dark); margin-bottom: 6px;">Rekapan Order PO</h2>
-        <p style="color: var(--text-muted); font-size: 0.875rem;">Manajemen status antrean kargo per PO/Invoice. Buat pencatatan tagihan &amp; status pembayaran, cek menu Rekapan Tagihan.</p>
+    <div class="menu-po-heading" style="margin-bottom: 24px;">
+        <div class="menu-po-heading-row">
+            <span class="menu-po-module-icon" aria-hidden="true"><i class="fa-solid fa-clipboard-list"></i></span>
+            <div>
+                <h2 style="font-size: 1.25rem; font-weight: 800; color: var(--text-dark); margin-bottom: 6px;">Rekapan Order PO</h2>
+                <p style="color: var(--text-muted); font-size: 0.875rem;">Manajemen status antrean kargo per PO/Invoice. Buat pencatatan tagihan &amp; status pembayaran, cek menu Rekapan Tagihan.</p>
+            </div>
+        </div>
     </div>
 
     <!-- FILTER SIKLUS BULAN (dipakai buat filter statistik di bawah) -->
     <div style="background: #ffffff; border: 1px solid var(--border-soft); border-radius: var(--radius-lg); padding: 18px 24px; margin-bottom: 20px; box-shadow: 0 4px 15px -2px rgba(15, 23, 42, 0.04); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
         <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-            <span style="font-size: 13px; font-weight: 800; color: var(--slate-700);">📅 Filter Siklus:</span>
+            <span style="font-size: 13px; font-weight: 800; color: var(--slate-700);"><i class="fa-solid fa-calendar-days" aria-hidden="true" style="color: var(--primary);"></i> Filter Siklus:</span>
             <select id="diag-select-year" class="year-select" onchange="changeDiagCycle()" style="padding: 6px 12px; border: 1.5px solid var(--border-soft); border-radius: 8px; font-weight: 700; font-size: 12.5px; background: #fff; outline: none;">
                 <?php
                 // Tahun digenerate dinamis (2 tahun ke belakang s/d 2 tahun ke
@@ -51,6 +56,23 @@ $active_rates = goweb_get_tenant_setting( $store_id, 'rates', array('CNY' => 245
 
     <!-- STATS OVERVIEW CARDS -->
     <style>
+        .menu-po-heading-row { display: flex; align-items: center; gap: 14px; }
+        .menu-po-module-icon {
+            display: grid;
+            flex: 0 0 48px;
+            width: 48px;
+            height: 48px;
+            place-items: center;
+            border: 1px solid #ded7e9;
+            border-radius: 14px;
+            background: linear-gradient(145deg, #f8f5fb, #f0ebf7);
+            color: var(--primary);
+            font-size: 1.08rem;
+        }
+        @media (max-width: 600px) {
+            .menu-po-heading-row { align-items: flex-start; gap: 11px; }
+            .menu-po-module-icon { flex-basis: 42px; width: 42px; height: 42px; border-radius: 13px; font-size: .98rem; }
+        }
         .po-diag-grid {
             display: grid;
             grid-template-columns: 1.15fr 0.85fr;
@@ -60,6 +82,7 @@ $active_rates = goweb_get_tenant_setting( $store_id, 'rates', array('CNY' => 245
         @media (max-width: 800px) {
             .po-diag-grid { grid-template-columns: 1fr; }
         }
+        .po-search-label { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
         @media (max-width: 480px) {
             .po-search-input { width: 100% !important; }
         }
@@ -69,6 +92,11 @@ $active_rates = goweb_get_tenant_setting( $store_id, 'rates', array('CNY' => 245
             <div class="metric-label">Total Item Order</div>
             <div class="metric-val" id="stat-total-items" style="font-size: 22px;">0 Pcs</div>
             <div class="metric-sub">Berdasarkan siklus bulan aktif</div>
+        </div>
+        <div class="metric-card amber">
+            <div class="metric-label">PO Belum Selesai</div>
+            <div class="metric-val" id="stat-unfinished" style="font-size: 22px;">0 Order</div>
+            <div class="metric-sub">Masih dalam antrean atau proses</div>
         </div>
         <div class="metric-card amber">
             <div class="metric-label">Sedang di WH / Kargo</div>
@@ -94,10 +122,11 @@ $active_rates = goweb_get_tenant_setting( $store_id, 'rates', array('CNY' => 245
 
             <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                 <!-- KOLOM SEARCH BAR -->
-                <input type="text" id="order-search" class="form-input-fin po-search-input" placeholder="🔍 Cari PO, Invoice, Customer..." oninput="handleSearchInput(this.value)" style="padding: 8px 14px; border: 1.5px solid var(--border-soft); border-radius: 10px; font-size: 13px; font-weight: 600; width: 240px;">
+                <label for="order-search" class="po-search-label">Cari pesanan</label>
+                <input type="text" id="order-search" class="form-input-fin po-search-input" placeholder="PO, invoice, atau nama pemesan" oninput="handleSearchInput(this.value)" style="padding: 8px 14px; border: 1.5px solid var(--border-soft); border-radius: 10px; font-size: 13px; font-weight: 600; width: 240px;">
                 
-                <button type="button" class="btn-export-csv" onclick="downloadOrdersCSV()" style="background: #15803d; color: #fff; border: none; padding: 9px 18px; border-radius: 10px; font-weight: 800; cursor: pointer; font-size: 13px;">📥 Download CSV</button>
-                <button type="button" class="btn-export-csv" onclick="openOrderModal()" style="background: var(--primary); color: #fff; border: none; padding: 9px 18px; border-radius: 10px; font-weight: 800; cursor: pointer; font-size: 13px;">+ Tambah Order Baru</button>
+                <button type="button" class="btn-export-csv" onclick="downloadOrdersCSV()" style="background: #15803d; color: #fff; border: none; padding: 9px 18px; border-radius: 10px; font-weight: 800; cursor: pointer; font-size: 13px;"><i class="fa-solid fa-download" aria-hidden="true"></i> Download CSV</button>
+                <button type="button" class="btn-export-csv" onclick="openOrderModal()" style="background: linear-gradient(135deg, #6d5a91, #51416f); color: #fff; border: none; padding: 9px 18px; border-radius: 10px; font-weight: 800; cursor: pointer; font-size: 13px;"><i class="fa-solid fa-plus" aria-hidden="true"></i> Tambah Order Baru</button>
             </div>
         </div>
 
@@ -124,9 +153,9 @@ $active_rates = goweb_get_tenant_setting( $store_id, 'rates', array('CNY' => 245
         <div id="po-pagination" style="display: none; justify-content: space-between; align-items: center; padding: 14px 4px 2px; flex-wrap: wrap; gap: 10px;">
             <span id="po-page-info" style="font-size: 12.5px; color: var(--slate-500); font-weight: 600;"></span>
             <div style="display: flex; gap: 6px; align-items: center;">
-                <button type="button" id="po-prev" style="padding: 7px 14px; border-radius: 8px; border: 1.5px solid var(--border-soft); background: #fff; font-weight: 700; font-size: 12.5px; cursor: pointer;">‹ Sebelumnya</button>
+                <button type="button" id="po-prev" style="padding: 8px 14px; min-height: 40px; border-radius: 10px; border: 1px solid var(--border-soft); background: #fff; font-weight: 700; font-size: 12.5px; cursor: pointer;">‹ Sebelumnya</button>
                 <span id="po-page-numbers" style="display: flex; gap: 4px;"></span>
-                <button type="button" id="po-next" style="padding: 7px 14px; border-radius: 8px; border: 1.5px solid var(--border-soft); background: #fff; font-weight: 700; font-size: 12.5px; cursor: pointer;">Berikutnya ›</button>
+                <button type="button" id="po-next" style="padding: 8px 14px; min-height: 40px; border-radius: 10px; border: 1px solid var(--border-soft); background: #fff; font-weight: 700; font-size: 12.5px; cursor: pointer;">Berikutnya ›</button>
             </div>
         </div>
     </div>
@@ -137,7 +166,7 @@ $active_rates = goweb_get_tenant_setting( $store_id, 'rates', array('CNY' => 245
     <div class="modal-box" style="background: #ffffff; border-radius: var(--radius-lg); width: 100%; max-width: 480px; padding: 30px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);">
         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid var(--border-soft);">
             <div style="font-size: 18px; font-weight: 800; color: var(--text-dark);">Tambah Data Order PO Baru</div>
-            <button type="button" onclick="closeOrderModal()" style="background: none; border: none; font-size: 20px; color: var(--text-muted); cursor: pointer; font-weight: 700;">&times;</button>
+            <button type="button" onclick="closeOrderModal()" aria-label="Tutup form" style="background: none; border: none; font-size: 18px; color: var(--text-muted); cursor: pointer; font-weight: 700;"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
         </div>
         
         <form method="POST" action="<?php echo esc_url( home_url('/dashboard/po/') . $store_query_suffix ); ?>">
@@ -302,10 +331,12 @@ document.addEventListener('DOMContentLoaded', () => {
             return whCargoKeywords.some(kw => lower.includes(kw));
         });
         const arrivedCount = filteredByCycle.filter(o => whCargoStatuses.includes(o.status)).length;
+        const unfinishedCount = totalCount - doneCount;
 
         document.getElementById('stat-total-items').innerText = totalCount + ' Pcs';
         document.getElementById('stat-arrived').innerText = arrivedCount + ' Pcs';
         document.getElementById('stat-done').innerText = doneCount + ' Pcs';
+        document.getElementById('stat-unfinished').innerText = unfinishedCount + ' Order';
     }
 
     window.changeOrderStatus = function(uid, newStatus) {
@@ -366,7 +397,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td style="font-weight: 700; color: var(--slate-600); font-size: 13px; white-space: nowrap;">📅 ${getFormattedMonth(o.date)}</td>
+                <td style="font-weight: 700; color: var(--slate-600); font-size: 13px; white-space: nowrap;"><i class="fa-regular fa-calendar" aria-hidden="true" style="color: var(--slate-400);"></i> ${getFormattedMonth(o.date)}</td>
                 <td><span class="badge-type" style="background: #e0f2fe; color: #0369a1; padding: 4px 10px; border-radius: 8px; font-weight: 800; font-size: 11.5px; border: 1px solid #bae6fd; display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escHtml(o.batch)}">${escHtml(o.batch)}</span></td>
                 <td style="font-weight: 700; word-break: break-word; overflow-wrap: break-word; white-space: normal; max-width: 140px;">${escHtml(o.name)}</td>
                 <td style="word-break: break-word; overflow-wrap: break-word; white-space: normal; max-width: 300px; line-height: 1.4; color: var(--slate-700);">${escHtml(o.item)}</td>
@@ -379,7 +410,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <span style="display:inline-block; padding: 5px 11px; border-radius: 999px; font-size: 11.5px; font-weight: 800; background: ${o.pay === 'Lunas' ? '#dcfce7' : '#fee2e2'}; color: ${o.pay === 'Lunas' ? '#15803d' : '#b91c1c'};">${escHtml(o.pay)}</span>
                 </td>
                 <td style="text-align: center;">
-                    <button type="button" onclick="deleteOrder('${o.uid}')" style="background: transparent; border: none; color: var(--text-muted); cursor: pointer; font-size: 15px; padding: 4px 8px; border-radius: 6px;" title="Hapus Baris">✕</button>
+                    <button type="button" onclick="deleteOrder('${o.uid}')" style="background: transparent; border: none; color: var(--text-muted); cursor: pointer; font-size: 15px; padding: 4px 8px; border-radius: 6px;" title="Hapus Baris"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
                 </td>
             `;
             tbody.appendChild(tr);
@@ -415,7 +446,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 btn.type = 'button';
                 btn.textContent = p;
                 const isActive = p === poCurrentPage;
-                btn.style.cssText = `padding: 7px 12px; border-radius: 8px; border: 1.5px solid ${isActive ? 'var(--primary)' : 'var(--border-soft)'}; background: ${isActive ? 'var(--primary)' : '#fff'}; color: ${isActive ? '#fff' : 'inherit'}; font-weight: 700; font-size: 12.5px; cursor: pointer;`;
+                btn.style.cssText = `padding: 7px 12px; min-height: 40px; border-radius: 10px; border: 1px solid ${isActive ? 'var(--primary)' : 'var(--border-soft)'}; background: ${isActive ? 'var(--primary)' : '#fff'}; color: ${isActive ? '#fff' : 'inherit'}; font-weight: 700; font-size: 12.5px; cursor: pointer;`;
                 btn.addEventListener('click', () => { poCurrentPage = p; renderTable(); });
                 pageNumbers.appendChild(btn);
             }

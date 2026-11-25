@@ -6,19 +6,97 @@ if (!$has_wh) {
 }
 ?>
 <div class="fin-wrap">
-    <div style="margin-bottom: 24px;">
-        <h2 style="font-size: 1.25rem; font-weight: 800; color: var(--text-dark); margin-bottom: 6px;">Database Warehouse</h2>
-        <p style="color: var(--text-muted); font-size: 0.875rem;">Tracking fisik barang di gudang — resi masuk/keluar, slot, foto bukti, dan konsolidasi ke Box sebelum dikirim. <?php echo $wh_link_mode === 'linked' ? 'Setiap entri wajib nyambung ke Rekapan PO.' : 'Entri berdiri bebas, gak wajib nyambung ke order manapun.'; ?></p>
+    <div class="menu-warehouse-heading" style="margin-bottom: 24px;">
+        <div class="menu-warehouse-heading-row">
+            <span class="menu-warehouse-module-icon" aria-hidden="true"><i class="fa-solid fa-warehouse"></i></span>
+            <div>
+                <h2 style="font-size: 1.25rem; font-weight: 800; color: var(--text-dark); margin-bottom: 6px;">Database Warehouse</h2>
+                <p style="color: var(--text-muted); font-size: 0.875rem;">Tracking fisik barang di gudang — resi masuk, foto bukti dan konsolidasi ke Box sebelum dikirim. <?php echo $wh_link_mode === 'linked' ? 'Setiap entri wajib nyambung ke Rekapan PO.' : 'Entri berdiri bebas, gak wajib nyambung ke order manapun.'; ?></p>
+            </div>
+        </div>
     </div>
+    <style>
+        .menu-warehouse-heading-row { display: flex; align-items: center; gap: 14px; }
+        .menu-warehouse-module-icon {
+            display: grid;
+            flex: 0 0 48px;
+            width: 48px;
+            height: 48px;
+            place-items: center;
+            border: 1px solid #ded7e9;
+            border-radius: 14px;
+            background: linear-gradient(145deg, #f8f5fb, #f0ebf7);
+            color: var(--primary);
+            font-size: 1.08rem;
+        }
+        .wh-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-bottom: 16px; }
+        .wh-form-span { grid-column: 1 / -1; }
+        .wh-photo-field { display: grid; gap: 6px; }
+        .wh-photo-field input[type="file"] {
+            width: 100%;
+            min-width: 0;
+            padding: 9px;
+            border: 1px solid #e5e0f2;
+            border-radius: 10px;
+            background: #faf9fc;
+            color: #514b63;
+            font: inherit;
+            font-size: .75rem;
+        }
+        .wh-photo-field input[type="file"]::file-selector-button {
+            margin: -3px 10px -3px -3px;
+            padding: 8px 11px;
+            border: 1px solid #ded7e9;
+            border-radius: 8px;
+            background: #fff;
+            color: #594a75;
+            font: inherit;
+            font-size: .72rem;
+            font-weight: 750;
+            cursor: pointer;
+        }
+        .wh-photo-field input[type="file"]:focus-visible {
+            outline: 3px solid rgba(109, 90, 145, .32);
+            outline-offset: 2px;
+        }
+        .wh-box-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: 14px; }
+        .wh-page-button {
+            display: inline-grid;
+            min-width: 40px;
+            min-height: 40px;
+            place-items: center;
+            padding: 7px 12px;
+            border: 1px solid var(--border-soft);
+            border-radius: 10px;
+            background: #ffffff;
+            color: var(--text-dark);
+            font-family: inherit;
+            font-size: 12.5px;
+            font-weight: 700;
+            line-height: 1;
+            cursor: pointer;
+            transition: background-color .18s ease, border-color .18s ease, color .18s ease;
+        }
+        .wh-page-button:hover:not(:disabled):not(.is-active) { background: var(--pastel-purple-bg); border-color: var(--primary); }
+        .wh-page-button.is-active { background: var(--primary); border-color: var(--primary); color: #ffffff; }
+        .wh-page-button:disabled { background: var(--slate-50); color: var(--text-muted); cursor: not-allowed; opacity: .65; }
+        @media (max-width: 600px) {
+            .menu-warehouse-heading-row { align-items: flex-start; gap: 11px; }
+            .menu-warehouse-module-icon { flex-basis: 42px; width: 42px; height: 42px; border-radius: 13px; font-size: .98rem; }
+            .wh-form-grid { grid-template-columns: minmax(0, 1fr); }
+            .wh-table-tools { flex-wrap: wrap; }
+            .wh-table-tools #wh-search, .wh-table-tools button { width: 100%; }
+        }
+    </style>
 
     <!-- SECTION BOX KONSOLIDASI -->
     <div style="background: #ffffff; border: 1px solid var(--border-soft); border-radius: var(--radius-lg); padding: 24px 28px; box-shadow: 0 4px 15px -2px rgba(15, 23, 42, 0.04); margin-bottom: 24px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
             <div>
-                <h3 style="font-size: 16px; font-weight: 800; color: var(--text-dark); margin-bottom: 4px;">📦 Box Konsolidasi</h3>
+                <h3 style="font-size: 16px; font-weight: 800; color: var(--text-dark); margin-bottom: 4px;"><i class="fa-solid fa-boxes-stacked" aria-hidden="true"></i> Box Konsolidasi</h3>
                 <p style="font-size: 12.5px; color: var(--text-muted);">Kumpulan item Warehouse dari beberapa customer yang dikirim bareng dalam 1 paket besar.</p>
             </div>
-            <button type="button" onclick="document.getElementById('create-box-form-wrap').style.display = document.getElementById('create-box-form-wrap').style.display === 'none' ? 'block' : 'none';" style="background: var(--primary); color: #fff; border: none; padding: 9px 16px; border-radius: 10px; font-weight: 700; font-size: 13px; cursor: pointer;">+ Buat Box Baru</button>
+            <button type="button" onclick="document.getElementById('create-box-form-wrap').style.display = document.getElementById('create-box-form-wrap').style.display === 'none' ? 'block' : 'none';" style="background: var(--primary); color: #fff; border: none; padding: 9px 16px; border-radius: 10px; font-weight: 700; font-size: 13px; cursor: pointer;"><i class="fa-solid fa-plus" aria-hidden="true"></i> Buat Box Baru</button>
         </div>
 
         <div id="create-box-form-wrap" style="display: none; background: var(--bg-page); border: 1.5px dashed #c4b5fd; border-radius: var(--radius-md); padding: 16px; margin-bottom: 18px;">
@@ -45,12 +123,12 @@ if (!$has_wh) {
         <?php if ( empty($tenant_boxes_rows) ): ?>
             <div style="text-align: center; padding: 24px; color: var(--text-muted); font-size: 13.5px;">Belum ada Box. Buat 1 dulu buat mulai konsolidasi item Warehouse.</div>
         <?php else: ?>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px;">
+            <div class="wh-box-grid">
                 <?php foreach ( $tenant_boxes_rows as$box ):
                     $pct =$box['kapasitas_kg'] > 0 ? min(100, round(($box['filled_kg'] /$box['kapasitas_kg']) * 100)) : 0;
                 ?>
                     <div style="border: 1px solid var(--border-soft); border-radius: var(--radius-md); padding: 16px;">
-                        <div style="font-weight: 800; color: var(--primary); font-size: 13.5px; margin-bottom: 2px;">📦 <?php echo esc_html($box['box_name']); ?></div>
+                        <div style="font-weight: 800; color: var(--primary); font-size: 13.5px; margin-bottom: 2px;"><i class="fa-solid fa-box" aria-hidden="true"></i> <?php echo esc_html($box['box_name']); ?></div>
                         <?php if ( ! empty($box['lokasi']) ): ?><div style="font-size: 11.5px; color: var(--text-muted); margin-bottom: 10px;"><?php echo esc_html($box['lokasi']); ?></div><?php endif; ?>
 
                         <div style="display: flex; justify-content: space-between; font-size: 11.5px; color: var(--text-muted); margin-bottom: 4px;">
@@ -67,7 +145,7 @@ if (!$has_wh) {
                                     <option value="<?php echo esc_attr($bst); ?>" <?php selected($box['status'], $bst); ?>><?php echo esc_html($bst); ?></option>
                                 <?php endforeach; ?>
                             </select>
-                            <button type="button" onclick="goweb_confirmSubmit({ action_delete_box: '1', box_id: '<?php echo esc_js($box['id']); ?>' }, 'Hapus Box ini? Item yang nempel akan dilepas (gak ikut kehapus).')" style="background:#fee2e2; color:#ef4444; border:none; padding: 6px 9px; border-radius:8px; cursor:pointer; font-size: 11.5px;">✕</button>
+                            <button type="button" onclick="goweb_confirmSubmit({ action_delete_box: '1', box_id: '<?php echo esc_js($box['id']); ?>' }, 'Hapus Box ini? Item yang nempel akan dilepas (gak ikut kehapus).')" aria-label="Hapus box" title="Hapus box" style="background:#fee2e2; color:#ef4444; border:none; padding: 6px 9px; border-radius:8px; cursor:pointer; font-size: 11.5px;"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
                         </div>
                     </div>
                 <?php endforeach; ?>
@@ -77,14 +155,14 @@ if (!$has_wh) {
 
     <!-- FORM TAMBAH ENTRI WAREHOUSE -->
     <div style="background: #ffffff; border: 1px solid var(--border-soft); border-radius: var(--radius-lg); padding: 24px 28px; box-shadow: 0 4px 15px -2px rgba(15, 23, 42, 0.04); margin-bottom: 24px;">
-        <h3 style="font-size: 16px; font-weight: 800; color: var(--text-dark); margin-bottom: 16px;">+ Tambah Entri Warehouse</h3>
+        <h3 style="font-size: 16px; font-weight: 800; color: var(--text-dark); margin-bottom: 16px;"><i class="fa-solid fa-plus" aria-hidden="true"></i> Tambah Entri Warehouse</h3>
 
         <form method="POST" action="" id="wh-add-form" enctype="multipart/form-data">
             <?php wp_nonce_field('goweb_wh_action_' . $store_id, 'goweb_wh_nonce'); ?>
 
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 16px;">
+            <div class="wh-form-grid">
                 <?php if ( $wh_link_mode === 'linked' ): ?>
-                    <div class="form-group-fin" style="position: relative; grid-column: span 2;">
+                    <div class="form-group-fin wh-form-span" style="position: relative;">
                         <label class="form-label-fin">Pilih PO / Order:</label>
                         <input type="text" id="wh_order_search" class="form-input-fin" placeholder="Ketik nama PO/Invoice atau nama customer..." autocomplete="off" <?php echo empty($tenant_orders_rows) ? 'disabled' : ''; ?>>
                         <input type="hidden" name="wh_order_id" id="wh_order_id_hidden" required>
@@ -94,7 +172,7 @@ if (!$has_wh) {
                         <?php endif; ?>
                     </div>
                 <?php else: ?>
-                    <div class="form-group-fin" style="grid-column: span 2;">
+                    <div class="form-group-fin wh-form-span">
                         <label class="form-label-fin">Nama Pemesan:</label>
                         <input type="text" name="wh_buyer_name" class="form-input-fin" placeholder="Misal: Adriana S." required>
                     </div>
@@ -125,21 +203,21 @@ if (!$has_wh) {
                     <input type="date" name="wh_tanggal_masuk" class="form-input-fin" value="<?php echo esc_attr(current_time('Y-m-d')); ?>">
                 </div>
 
-                <div class="form-group-fin" style="grid-column: span 2;">
-                    <label class="form-label-fin">📷 Foto Bukti Kondisi Paket (opsional):</label>
-                    <input type="file" name="wh_foto_bukti" accept="image/*" class="form-input-fin">
+                <div class="form-group-fin wh-form-span wh-photo-field">
+                    <label class="form-label-fin" for="wh-foto-bukti"><i class="fa-solid fa-camera" aria-hidden="true"></i> Foto Bukti Kondisi Paket (opsional):</label>
+                    <input type="file" name="wh_foto_bukti" id="wh-foto-bukti" accept="image/*">
                 </div>
             </div>
 
-            <button type="submit" name="action_add_warehouse" class="btn-submit-action btn-blue">📦 Simpan Entri Warehouse</button>
+            <button type="submit" name="action_add_warehouse" class="btn-submit-action btn-blue"><i class="fa-solid fa-warehouse" aria-hidden="true"></i> Simpan Entri Warehouse</button>
         </form>
     </div>
 
     <!-- TABEL DAFTAR ENTRI WAREHOUSE DENGAN PAGINATION -->
     <div class="card-table-wrap">
-        <div style="display: flex; gap: 10px; margin-bottom: 16px;">
-            <input type="text" id="wh-search" placeholder="Cari nama, resi, atau slot..." class="form-input-fin" style="flex:1; padding: 10px 14px;" oninput="filterWhTable(this.value)">
-            <button type="button" onclick="downloadWarehouseCSV()" style="background: #15803d; color: #fff; border: none; padding: 10px 18px; border-radius: 10px; font-weight: 800; cursor: pointer; font-size: 13px; white-space: nowrap;">📥 Download CSV</button>
+        <div class="wh-table-tools" style="display: flex; gap: 10px; margin-bottom: 16px;">
+            <input type="text" id="wh-search" placeholder="Cari nama, resi atau slot..." class="form-input-fin" style="flex:1; padding: 10px 14px;" oninput="filterWhTable(this.value)">
+            <button type="button" onclick="downloadWarehouseCSV()" style="background: #15803d; color: #fff; border: none; padding: 10px 18px; border-radius: 10px; font-weight: 800; cursor: pointer; font-size: 13px; white-space: nowrap;"><i class="fa-solid fa-download" aria-hidden="true"></i> Download CSV</button>
         </div>
         <div style="overflow-x: auto;">
             <table class="data-table" id="wh-table">
@@ -148,7 +226,6 @@ if (!$has_wh) {
                         <th>Foto</th>
                         <th>Nama / PO</th>
                         <th>Resi Masuk</th>
-                        <th>Resi Keluar</th>
                         <th>Lokasi WH</th>
                         <th>Berat</th>
                         <th>Status</th>
@@ -172,18 +249,6 @@ if (!$has_wh) {
                                     <?php if ( ! empty($wh['batch']) ): ?><br><small style="color:var(--text-muted);"><?php echo esc_html($wh['batch']); ?></small><?php endif; ?>
                                 </td>
                                 <td><?php echo esc_html($wh['resi_masuk'] ?: '-'); ?></td>
-                                <td>
-                                    <!-- Resi keluar bisa diisi langsung dari baris ini —
-                                         kolom resi_keluar/tanggal_keluar sebelumnya tidak pernah
-                                         diisi form manapun (tracking keluar gudang mati). -->
-                                    <form method="POST" action="" style="display: flex; gap: 4px; align-items: center;">
-                                        <?php wp_nonce_field('goweb_wh_action_' . $store_id, 'goweb_wh_nonce'); ?>
-                                        <input type="hidden" name="wh_id" value="<?php echo esc_attr($wh['id']); ?>">
-                                        <input type="text" name="wh_resi_keluar" value="<?php echo esc_attr($wh['resi_keluar'] ?: ''); ?>" placeholder="Belum keluar" style="width: 130px; padding: 5px 8px; border: 1.5px solid var(--border-soft); border-radius: 6px; font-size: 11.5px; font-weight: 600;">
-                                        <input type="date" name="wh_tanggal_keluar" value="<?php echo esc_attr($wh['tanggal_keluar'] ?: ''); ?>" style="width: 130px; padding: 5px 6px; border: 1.5px solid var(--border-soft); border-radius: 6px; font-size: 11.5px;">
-                                        <button type="submit" name="action_update_wh_outgoing" title="Simpan resi keluar" style="background: var(--pastel-mint-bg); color: #15803d; border: 1px solid #bbf7d0; padding: 5px 9px; border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 11.5px;">💾</button>
-                                    </form>
-                                </td>
                                 <td><?php echo esc_html($wh['lokasi_wh'] ?: '-'); ?></td>
                                 <td><?php echo $wh['berat'] > 0 ? esc_html($wh['berat']) . ' kg' : '-'; ?></td>
                                 <td>
@@ -206,12 +271,12 @@ if (!$has_wh) {
                                     <?php endif; ?>
                                 </td>
                                 <td style="text-align: center;">
-                                    <button type="button" onclick="goweb_confirmSubmit({ action_delete_warehouse: '1', wh_id: '<?php echo esc_js($wh['id']); ?>' }, 'Hapus entri warehouse ini?')" style="background:#fee2e2; color:#ef4444; border:none; padding: 6px 10px; border-radius:6px; cursor:pointer;">✕</button>
+                                    <button type="button" onclick="goweb_confirmSubmit({ action_delete_warehouse: '1', wh_id: '<?php echo esc_js($wh['id']); ?>' }, 'Hapus entri warehouse ini?')" aria-label="Hapus entri warehouse" title="Hapus entri warehouse" style="background:#fee2e2; color:#ef4444; border:none; padding: 6px 10px; border-radius:6px; cursor:pointer;"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
                     <?php else: ?>
-                        <tr id="empty-wh-state"><td colspan="9" style="text-align:center; color: var(--slate-400); padding: 30px;">Belum ada entri warehouse tercatat.</td></tr>
+                        <tr id="empty-wh-state"><td colspan="8" style="text-align:center; color: var(--slate-400); padding: 30px;">Belum ada entri warehouse tercatat.</td></tr>
                     <?php endif; ?>
                 </tbody>
             </table>
@@ -220,7 +285,7 @@ if (!$has_wh) {
         <!-- ELEMENT PAGINATION BAWAH -->
         <div id="wh-pagination-container" style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; flex-wrap: wrap; gap: 10px;">
             <div style="font-size: 13px; color: var(--text-muted);">Menampilkan <strong id="wh-page-info">0 - 0 dari 0</strong> entri</div>
-            <div id="wh-page-buttons" style="display: flex; gap: 5px;"></div>
+            <div id="wh-page-buttons" style="display: flex; gap: 4px; flex-wrap: wrap;"></div>
         </div>
     </div>
 
@@ -312,20 +377,16 @@ if (!$has_wh) {
 
         const createBtn = (text, page, disabled = false, active = false) => {
             const btn = document.createElement('button');
-            btn.innerText = text;
+            btn.className = 'wh-page-button' + (active ? ' is-active' : '');
             btn.disabled = disabled;
-            btn.style.padding = '5px 10px';
-            btn.style.border = '1px solid var(--border-soft)';
-            btn.style.borderRadius = '6px';
-            btn.style.fontSize = '12.5px';
-            btn.style.fontWeight = '700';
-            btn.style.background = active ? 'var(--primary)' : (disabled ? 'var(--slate-50)' : '#ffffff');
-            btn.style.color = active ? '#ffffff' : (disabled ? 'var(--text-muted)' : 'var(--text-dark)');
-            btn.style.cursor = disabled ? 'not-allowed' : 'pointer';
-            
+            if (text === '←' || text === '→') {
+                btn.setAttribute('aria-label', text === '←' ? 'Halaman sebelumnya' : 'Halaman berikutnya');
+                btn.innerHTML = `<i class="fa-solid ${text === '←' ? 'fa-chevron-left' : 'fa-chevron-right'}" aria-hidden="true"></i>`;
+            } else {
+                btn.textContent = text;
+                if (active) btn.setAttribute('aria-current', 'page');
+            }
             if (!disabled && !active) {
-                btn.onmouseover = () => btn.style.background = 'var(--pastel-purple-bg)';
-                btn.onmouseout = () => btn.style.background = '#ffffff';
                 btn.onclick = () => { currentPage = page; renderTablePage(); };
             }
             return btn;
@@ -371,17 +432,17 @@ if (!$has_wh) {
     // Dan pastikan tidak error saat ada row yang posisinya di halaman selanjutnya (display: none)
     window.downloadWarehouseCSV = function() {
         let csvContent = "\uFEFFDATABASE WAREHOUSE\n\n";
-        csvContent += "NAMA / PO,RESI MASUK,RESI KELUAR,LOKASI WH,BERAT,STATUS,BOX\n";
+        csvContent += "NAMA / PO,RESI MASUK,LOKASI WH,BERAT,STATUS,BOX\n";
         
         filteredRows.forEach(row => {
             const cols = row.querySelectorAll('td');
-            if (cols.length >= 9) {
+            if (cols.length >= 8) {
                 const clean = (txt) => {
                     let s = txt.replace(/"/g, '""').replace(/\n/g, ' - ').trim();
                     if (/^[=+\-@]/.test(s)) s = "'" + s;
                     return s;
                 };
-                csvContent += `"${clean(cols[1].innerText)}","${clean(cols[2].innerText)}","${clean(cols[3].innerText)}","${clean(cols[4].innerText)}","${clean(cols[5].innerText)}","${clean(cols[6].innerText)}","${clean(cols[7].innerText)}"\n`;
+                csvContent += `"${clean(cols[1].innerText)}","${clean(cols[2].innerText)}","${clean(cols[3].innerText)}","${clean(cols[4].innerText)}","${clean(cols[5].innerText)}","${clean(cols[6].innerText)}"\n`;
             }
         });
         
